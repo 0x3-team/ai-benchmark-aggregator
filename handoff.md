@@ -42,13 +42,13 @@ multiple selected models side by side as several glassmorphic charts.
 
 ```bash
 cd /Users/stevmq/ai-benchmark-aggregator
-npm install        # only if node_modules is missing
+npm install        # required — node_modules is gitignored
 npm run dev        # dev server (Vite prints a Local: http://localhost:517x/ URL)
 npm run build      # tsc strict + vite production build — MUST stay green
 npm run typecheck  # tsc --noEmit, fastest correctness check
 ```
 
-There is **no git repo** here. If the next agent needs history, `git init` first before committing.
+The repo is initialized with `.gitignore`, `README.md`, and `LICENSE`. `node_modules/` and `dist/` are gitignored — run `npm install` before `build`/`typecheck`.
 
 ---
 
@@ -92,6 +92,8 @@ src/
     color.ts               # columnStats, heatmapColor (blue→green glass gradient)
     categories.ts          # CATEGORY_COLORS, categoryTint, hexToRgba
     palette.ts             # MODEL_PALETTE + modelColor(i) — shared model colors
+    format.ts              # fmtScore — shared score formatting (—/decimal/rounded)
+    table.ts               # STICKY_BG, GROUP_H — shared sticky-table constants
     utils.ts               # cn()
   components/
     ScoreTable.tsx         # leaderboard table
@@ -103,7 +105,7 @@ src/
     BenchmarkCard.tsx      # benchmark Sheet content
     CategoryLeaders.tsx    # strip of per-category leaders
     Filters.tsx, Header.tsx, GlossaryDialog.tsx
-    ui/                    # Radix-based primitives (see §9 for migration)
+    ui/                    # Radix-based primitives (see §9 for migration); scroll-area.tsx and table.tsx deleted (dead code)
 ```
 
 ---
@@ -200,7 +202,7 @@ move to Base UI.
 | `ui/switch.tsx`            | `@radix-ui/react-switch`      | ✅ Base UI has `Switch`                                |
 | `ui/separator.tsx`         | `@radix-ui/react-separator`   | ✅ Base UI has `Separator`                             |
 | `ui/slot.tsx`              | `@radix-ui/react-slot`        | ✅ Base UI has `Slot`                                  |
-| `ui/scroll-area.tsx`       | `@radix-ui/react-scroll-area` | ⚠️ **Drop it.** Base UI has no scroll-area primitive; and this project already avoids it (sticky columns need plain `overflow-x-auto`). Leave `scroll-area.tsx` unused or delete it. |
+| ~~`ui/scroll-area.tsx`~~   | ~~`@radix-ui/react-scroll-area`~~ | ✅ **Already deleted** — file and dependency removed. |
 | `ui/toast.tsx` + `use-toast.ts` | `@radix-ui/react-toast`  | ⛔ **Blocker:** Base UI does **not** ship a Toast primitive yet (still on roadmap). Either (a) keep this one Radix piece until Base UI ships Toast, or (b) replace with a tiny custom toast. Decide before starting. |
 
 ### 9.2 Suggested execution order
@@ -227,16 +229,25 @@ move to Base UI.
   do not nest.
 - **Build must stay green**: `npm run build` runs `tsc -b` (strict) then Vite. Unused imports fail
   under `noUnusedLocals`, so remove imports when you delete usages (e.g. `Star` was removed).
+- **Lower-is-better untested**: all 17 benchmarks currently set `higherIsBetter: true`. The
+  `false` code path in `heatmapColor`/`rankForBenchmark`/`columnStats` is supported by the types
+  but not exercised by real data — test it before adding a perplexity/latency benchmark.
+- **Reduced motion**: `@media (prefers-reduced-motion: reduce)` in `index.css` disables all
+  animations (SOTA pulse, ambient blobs, Radix transitions).
 
 ---
 
 ## 11. Quick validation checklist
 
-- [ ] `npm run build` passes (tsc strict + vite).
-- [ ] Table view: best-in-column cells show a pulsing gold ring (no star), legend shows gold swatch.
-- [ ] Compare view: radar shows clean outlines; hovering a legend item highlights one model and
+- [x] `npm run build` passes (tsc strict + vite).
+- [x] Table view: best-in-column cells show a pulsing gold ring (no star), legend shows gold swatch.
+- [x] Compare view: radar shows clean outlines; hovering a legend item highlights one model and
       dims others; heatmap ranks models top→bottom with category sub-headers and gold SOTA rings;
       clicking a heatmap/bar/spec cell opens the correct Model Sheet.
-- [ ] Up to 6 models selectable; 0 models shows the empty state.
+- [x] Up to 6 models selectable; 0 models shows the empty state.
+- [x] Stale sort banner hidden when sorted benchmark is filtered out of view.
+- [x] `prefers-reduced-motion` disables SOTA pulse, ambient blobs, and transitions.
+- [x] Skip-to-content link appears on keyboard focus; logo has `role="img"` aria-label.
+- [x] No `aria-describedby={undefined}` on Sheets; `scroll-area.tsx`/`table.tsx` deleted.
 - [ ] (If doing §9) After migration: every UI primitive still works; no Radix `scroll-area`
       import remains; toast still fires on model select.
