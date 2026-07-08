@@ -95,6 +95,13 @@ export function BenchmarkBars({ models, onOpenModel }: BenchmarkBarsProps) {
                                   width: `${Math.max(pct, 2)}%`,
                                   background: color,
                                 }}
+                                aria-label={
+                                  v == null
+                                    ? `${m.name}: no data`
+                                    : `${m.name}: ${pct!.toFixed(
+                                        scaleMax === 10 ? 1 : 0
+                                      )}%`
+                                }
                               />
                             )}
                             {pct != null && (

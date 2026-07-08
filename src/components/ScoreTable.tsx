@@ -78,7 +78,7 @@ export function ScoreTable({
 
   return (
     <div className="glass-strong overflow-hidden rounded-xl">
-      {sort?.benchmarkId && (
+      {sort?.benchmarkId && sortBench && (
         <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-xs">
           <span className="text-muted-foreground">Sorted by</span>
           <span className="font-medium text-foreground">

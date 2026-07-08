@@ -179,6 +179,11 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
                               ? { color: "rgba(255,255,255,0.32)" }
                               : { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.65)" }
                           }
+                          aria-label={
+                            v == null
+                              ? `${m.name} · ${b.name}: no data`
+                              : `${m.name} · ${b.name}: ${v}`
+                          }
                         >
                           {fmt(v, b.scaleMax)}
                         </button>

@@ -140,7 +140,7 @@ export default function App() {
       return;
     }
     if (selectedModels.length >= MAX_COMPARE) {
-      toast({ description: "Max 6 reached" });
+      toast({ description: "Comparison is full (max 6)" });
       return;
     }
     setSelectedModels([...selectedModels, id]);
