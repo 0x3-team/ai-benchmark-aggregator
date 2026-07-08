@@ -33,21 +33,32 @@ export function rankForBenchmark(
 }
 
 // Average rank across several benchmarks; missing scores are excluded from the
-// average rather than penalized.
+// average rather than penalized. Precomputes per-benchmark ranks in a single
+// pass (O(models × benchmarks)) instead of re-ranking per model per benchmark.
 export function computeRanking(models: Model[], visible: Benchmark[]): RankRow[] {
   const n = visible.length;
+
+  // Precompute: Map<benchmarkId, Map<modelId, rank>>
+  const rankCache = new Map<string, Map<string, number>>();
+  for (const bench of visible) {
+    const ranked = rankForBenchmark(models, bench);
+    const benchRanks = new Map<string, number>();
+    for (const r of ranked) {
+      if (r.rank != null) benchRanks.set(r.model.id, r.rank);
+    }
+    rankCache.set(bench.id, benchRanks);
+  }
+
   const rows: RankRow[] = models.map((model) => {
     let sum = 0;
     let count = 0;
     let firsts = 0;
     for (const bench of visible) {
-      const ranked = rankForBenchmark(models, bench).find(
-        (r) => r.model.id === model.id
-      );
-      if (ranked && ranked.rank != null) {
-        sum += ranked.rank;
+      const rank = rankCache.get(bench.id)?.get(model.id);
+      if (rank != null) {
+        sum += rank;
         count += 1;
-        if (ranked.rank === 1) firsts += 1;
+        if (rank === 1) firsts += 1;
       }
     }
     return {

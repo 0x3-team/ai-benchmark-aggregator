@@ -77,6 +77,7 @@
     left: -6rem;
     background: radial-gradient(circle, rgba(59, 130, 246, 0.45), transparent 70%);
     animation: var(--ambient, ambient-drift) 26s ease-in-out infinite;
+    will-change: transform;
   }
   body::after {
     width: 30rem;
@@ -85,6 +86,7 @@
     right: -4rem;
     background: radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent 70%);
     animation: var(--ambient, ambient-drift) 32s ease-in-out infinite reverse;
+    will-change: transform;
   }
 }
 
