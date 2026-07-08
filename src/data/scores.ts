@@ -139,10 +139,6 @@ for (const s of scores) {
   scoreIndex.set(s.modelId + ":" + s.benchmarkId, s);
 }
 
-export function getScore(modelId: string, benchmarkId: string): Score | null {
-  return scoreIndex.get(modelId + ":" + benchmarkId) ?? null;
-}
-
 export function getValue(modelId: string, benchmarkId: string): number | null {
   return scoreIndex.get(modelId + ":" + benchmarkId)?.value ?? null;
 }
