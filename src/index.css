@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 7%;
+    --foreground: 213 31% 91%;
+
+    --card: 222 40% 10%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 222 44% 9%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 222 28% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 222 30% 18%;
+    --accent-foreground: 213 31% 91%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 26% 20%;
+    --input: 220 26% 22%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    /* Category accent */
+    --accent-violet: 258 90% 66%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply text-foreground font-sans antialiased;
+    margin: 0;
+    min-height: 100vh;
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(60rem 60rem at 12% -8%, rgba(59, 130, 246, 0.16), transparent 60%),
+      radial-gradient(48rem 48rem at 100% 0%, rgba(139, 92, 246, 0.14), transparent 55%),
+      radial-gradient(50rem 50rem at 85% 100%, rgba(34, 197, 94, 0.10), transparent 55%),
+      linear-gradient(180deg, #070b12 0%, #0a0f1a 100%);
+    background-attachment: fixed;
+  }
+
+  /* Ambient drifting blobs that the glass reads against */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    z-index: -1;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  body::before {
+    width: 34rem;
+    height: 34rem;
+    top: -6rem;
+    left: -6rem;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.45), transparent 70%);
+    animation: var(--ambient, ambient-drift) 26s ease-in-out infinite;
+  }
+  body::after {
+    width: 30rem;
+    height: 30rem;
+    bottom: -8rem;
+    right: -4rem;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent 70%);
+    animation: var(--ambient, ambient-drift) 32s ease-in-out infinite reverse;
+  }
+}
+
+@layer components {
+  /* Liquid glass surfaces */
+  .glass {
+    background: rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 8px 32px -8px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-strong {
+    background: rgba(16, 22, 34, 0.62);
+    backdrop-filter: blur(26px) saturate(150%);
+    -webkit-backdrop-filter: blur(26px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 12px 40px -10px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+  }
+
+  .glass-inset {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+}
+
+/* Slim, glassy scrollbars */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+  background-clip: padding-box;
+}
+
+/* SOTA indicator: a gently pulsing gold ring instead of an icon */
+@keyframes sota-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1.5px rgba(251, 191, 36, 0.45),
+      0 0 0 0 rgba(251, 191, 36, 0);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1.5px rgba(251, 191, 36, 0.95),
+      0 0 7px 0 rgba(251, 191, 36, 0.35);
+  }
+}
+.sota-cell {
+  animation: sota-pulse 2.6s ease-in-out infinite;
+}
+
+/* Static gold-ring swatch used in legends */
+.sota-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(251, 191, 36, 0.85);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.4);
+}
