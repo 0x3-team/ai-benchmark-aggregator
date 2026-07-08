@@ -6,6 +6,8 @@ import { columnStats, heatmapColor } from "../lib/color";
 import { bestModelId } from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
+import { fmtScore as fmt } from "../lib/format";
+import { STICKY_BG, GROUP_H } from "../lib/table";
 import {
   Tooltip,
   TooltipContent,
@@ -31,9 +33,6 @@ interface ScoreTableProps {
   selectedModels: string[];
   rankMap: Record<string, number>;
 }
-
-const STICKY_BG = "rgba(13,18,28,0.94)";
-const GROUP_H = 30;
 
 export function ScoreTable({
   models,
@@ -76,9 +75,6 @@ export function ScoreTable({
 
   const activeCol = sort?.benchmarkId ?? null;
   const sortBench = benchmarks.find((b) => b.id === activeCol) ?? null;
-
-  const fmt = (v: number | null, scaleMax: number) =>
-    v == null ? "—" : scaleMax === 10 ? v.toFixed(1) : Math.round(v).toString();
 
   return (
     <div className="glass-strong overflow-hidden rounded-xl">

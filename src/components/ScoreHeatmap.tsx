@@ -7,17 +7,13 @@ import { computeRanking, bestModelId } from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { cn } from "@/lib/utils";
+import { fmtScore as fmt } from "../lib/format";
+import { STICKY_BG, GROUP_H } from "../lib/table";
 
 interface ScoreHeatmapProps {
   models: Model[];
   onOpenModel: (modelId: string) => void;
 }
-
-const STICKY_BG = "rgba(13,18,28,0.94)";
-const GROUP_H = 30;
-
-const fmt = (v: number | null, scaleMax: number) =>
-  v == null ? "—" : scaleMax === 10 ? v.toFixed(1) : Math.round(v).toString();
 
 export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
   const statsByBench = useMemo(() => {

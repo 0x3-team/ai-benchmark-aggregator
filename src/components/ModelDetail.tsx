@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { fmtScore } from "../lib/format";
 
 interface ModelDetailProps {
   model: Model;
@@ -147,12 +148,7 @@ export function ModelDetail({
           const stats = statsByBench[b.id];
           const isBest = v != null && stats.best != null && v === stats.best;
           const bg = heatmapColor(v, stats, b);
-          const display =
-            v == null
-              ? "—"
-              : b.scaleMax === 10
-                ? v.toFixed(1)
-                : Math.round(v).toString();
+          const display = fmtScore(v, b.scaleMax);
           return (
             <div
               key={b.id}

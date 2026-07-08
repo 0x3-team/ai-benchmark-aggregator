@@ -5,6 +5,7 @@ import { columnStats } from "../lib/color";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS } from "../types";
+import { fmtScore } from "../lib/format";
 
 interface BenchmarkCardProps {
   benchmark: Benchmark;
@@ -22,12 +23,7 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
       benchmark.higherIsBetter ? b.v! - a.v! : a.v! - b.v!
     );
 
-  const fmt = (v: number | null) =>
-    v == null
-      ? "—"
-      : benchmark.scaleMax === 10
-        ? v.toFixed(1)
-        : Math.round(v).toString();
+  const fmt = (v: number | null) => fmtScore(v, benchmark.scaleMax);
 
   return (
     <div className="flex flex-col">
