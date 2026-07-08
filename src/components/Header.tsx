@@ -22,7 +22,11 @@ export function Header({
   return (
     <header className="glass mb-4 flex flex-col gap-4 rounded-xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3.5">
-        <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 font-extrabold text-white shadow-lg">
+        <div
+          className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 font-extrabold text-white shadow-lg"
+          role="img"
+          aria-label="AI Benchmark Aggregator"
+        >
           BA
         </div>
         <div>

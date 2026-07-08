@@ -164,6 +164,12 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={150}>
       <div className="mx-auto max-w-[1500px] px-4 py-4 sm:px-6 sm:py-5">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:text-black focus:shadow-lg"
+        >
+          Skip to content
+        </a>
           <Header
             totalModels={models.length}
             totalBenchmarks={benchmarks.length}
@@ -174,7 +180,7 @@ export default function App() {
           />
 
           {view === "table" ? (
-            <main>
+            <main id="main-content">
               <Filters
                 search={search}
                 onSearch={setSearch}
@@ -225,7 +231,9 @@ export default function App() {
               )}
             </main>
           ) : (
-            <ModelComparison models={selectedModelObjects} onOpenModel={openModel} />
+            <main id="main-content">
+              <ModelComparison models={selectedModelObjects} onOpenModel={openModel} />
+            </main>
           )}
 
           <Sheet
@@ -237,7 +245,6 @@ export default function App() {
             <SheetContent
               side="right"
               className="overflow-y-auto scroll-thin"
-              aria-describedby={undefined}
             >
               {selectedBenchmark && (
                 <>
@@ -262,7 +269,6 @@ export default function App() {
             <SheetContent
               side="right"
               className="overflow-y-auto scroll-thin"
-              aria-describedby={undefined}
             >
               {selectedModel && (
                 <>
