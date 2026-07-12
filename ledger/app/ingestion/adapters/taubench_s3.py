@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import urllib.parse
 import xml.etree.ElementTree as ET
 from typing import Any
 
@@ -18,6 +20,39 @@ from app.schemas.boundary import (
 
 S3_NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 S3_BUCKET_URL = "https://sierra-tau-bench-public.s3.amazonaws.com/"
+S3_LIST_BASE = f"{S3_BUCKET_URL}?list-type=2&prefix=submissions/"
+
+
+def _paginated_list_keys(
+    client: httpx.Client,
+    ua: str,
+    max_keys: int,
+) -> list[str]:
+    """Follow ``NextContinuationToken`` across S3 ListBucketV2 pages until
+    ``IsTruncated`` is false or we've collected *max_keys* submission.json keys."""
+    keys: list[str] = []
+    next_token: str | None = None
+    while len(keys) < max_keys:
+        url = S3_LIST_BASE
+        if next_token is not None:
+            url += f"&continuation-token={urllib.parse.quote(next_token, safe='')}"
+        resp = client.get(url, headers={"User-Agent": ua})
+        resp.raise_for_status()
+        root = ET.fromstring(resp.text)
+        for contents in root.findall(f"{{{S3_NS}}}Contents"):
+            key_el = contents.find(f"{{{S3_NS}}}Key")
+            if key_el is not None and key_el.text and key_el.text.endswith("submission.json"):
+                keys.append(key_el.text)
+                if len(keys) >= max_keys:
+                    break
+        is_truncated_el = root.find(f"{{{S3_NS}}}IsTruncated")
+        if is_truncated_el is not None and is_truncated_el.text == "true":
+            token_el = root.find(f"{{{S3_NS}}}NextContinuationToken")
+            if token_el is not None and token_el.text:
+                next_token = token_el.text
+                continue
+        break
+    return keys
 
 
 class TauBenchS3Adapter(SourceAdapter):
@@ -33,30 +68,38 @@ class TauBenchS3Adapter(SourceAdapter):
         with httpx.Client(
             timeout=settings.http_timeout_seconds, follow_redirects=True
         ) as client:
-            # 1. List the S3 bucket to discover submission.json keys
-            list_url = f"{S3_BUCKET_URL}?list-type=2&prefix=submissions/"
-            list_resp = client.get(list_url, headers={"User-Agent": settings.http_user_agent})
-            list_resp.raise_for_status()
+            ua = settings.http_user_agent
 
-            root = ET.fromstring(list_resp.text)
-            keys: list[str] = []
-            for contents in root.findall(f"{{{S3_NS}}}Contents"):
-                key_el = contents.find(f"{{{S3_NS}}}Key")
-                if key_el is not None and key_el.text and key_el.text.endswith("submission.json"):
-                    keys.append(key_el.text)
+            # 1. Paginated list of submission.json keys
+            keys = _paginated_list_keys(client, ua, max_keys)
 
             # 2. Fetch each submission.json (up to max_keys), join as NDJSON
             lines: list[bytes] = []
             for key in sorted(keys)[:max_keys]:
                 file_url = f"{S3_BUCKET_URL}{key}"
                 try:
-                    file_resp = client.get(
-                        file_url, headers={"User-Agent": settings.http_user_agent}
+                    file_resp = client.get(file_url, headers={"User-Agent": ua})
+                    if file_resp.status_code != 200:
+                        print(
+                            f"[taubench_s3] SKIP {key} (HTTP {file_resp.status_code})",
+                            file=sys.stderr,
+                        )
+                        continue
+                    # Compact pretty-printed JSON to single-line for NDJSON
+                    try:
+                        compact = json.dumps(json.loads(file_resp.content), separators=(",", ":"))
+                        lines.append(compact.encode("utf-8"))
+                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                        print(
+                            f"[taubench_s3] SKIP {key} (invalid JSON: {exc})",
+                            file=sys.stderr,
+                        )
+                        continue
+                except Exception as exc:
+                    print(
+                        f"[taubench_s3] SKIP {key} ({exc})",
+                        file=sys.stderr,
                     )
-                    file_resp.raise_for_status()
-                    lines.append(file_resp.content)
-                except Exception:
-                    # Skip any individual file that fails to fetch
                     continue
 
             joined = b"\n".join(lines)
