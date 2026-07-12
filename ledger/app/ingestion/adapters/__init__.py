@@ -9,11 +9,14 @@ from app.ingestion.adapters.github_yaml import GitHubYAMLAdapter
 from app.ingestion.adapters.hf_benchmark_api import HFBenchmarkAPIAdapter
 from app.ingestion.adapters.hf_datasets_server import HFDatasetsServerAdapter
 from app.ingestion.adapters.lmsys_arena_api import LMSYSArenaAPIAdapter
+from app.ingestion.adapters.helm_json import HelmJSONAdapter
 from app.ingestion.adapters.artificial_analysis_api import ArtificialAnalysisAPIAdapter
 from app.ingestion.adapters.swe_bench_adapter import SWEBenchAdapter
 from app.ingestion.adapters.livecodebench_adapter import LiveCodeBenchAdapter
+from app.ingestion.adapters.imo_answerbench import ImoAnswerBenchAdapter
 from app.ingestion.adapters.livebench_adapter import LiveBenchAdapter
 from app.ingestion.adapters.taubench_s3 import TauBenchS3Adapter
+from app.ingestion.adapters.frontiermath_epoch import FrontierMathEpochAdapter
 
 ADAPTERS: dict[str, type[SourceAdapter]] = {
     FakeSourceAdapter.source_type: FakeSourceAdapter,
@@ -31,6 +34,9 @@ ADAPTERS: dict[str, type[SourceAdapter]] = {
     "taubench_s3": TauBenchS3Adapter,
     "livecodebench_adapter": LiveCodeBenchAdapter,
     "livebench_adapter": LiveBenchAdapter,
+    "imo_answerbench": ImoAnswerBenchAdapter,
+    "frontiermath_epoch": FrontierMathEpochAdapter,
+    "helm_json": HelmJSONAdapter,
 }
 
 
