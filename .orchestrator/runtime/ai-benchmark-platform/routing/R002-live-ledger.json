@@ -1,9 +1,0 @@
-{
-  "decision_id": "R002",
-  "task": "Live HF discovery ingest + HTML parser_config hardening",
-  "write_scope": ["ledger/"],
-  "harness": "kilo",
-  "model": "kilocode-gateway/tencent/hy3:free",
-  "rationale": "Parallel non-overlapping with frontend dual-mode (R001)",
-  "self_forbidden": true
-}

@@ -1,9 +1,0 @@
-{
-  "decision_id": "R003",
-  "task": "Migrate Radix ui primitives to Base UI except toast",
-  "write_scope": ["src/components/ui/", "package.json"],
-  "harness": "cline",
-  "model": "cline-pass/glm-5.2",
-  "self_forbidden": true,
-  "note": "ADR-002 keep Radix toast"
-}

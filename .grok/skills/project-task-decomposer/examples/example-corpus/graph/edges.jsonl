@@ -1,3 +1,0 @@
-{"from_task_id": "TSK-6FF57FCE58", "to_task_id": "TSK-B3BC452716", "kind": "HARD", "artifact": "refresh-token contract", "rationale": "Impl requires approved contract"}
-{"from_task_id": "TSK-B3BC452716", "to_task_id": "TSK-D59D71D1A0", "kind": "HARD", "artifact": "implemented auth behavior", "rationale": "E2E verifies implementation"}
-{"from_task_id": "TSK-4B11FC1A65", "to_task_id": "TSK-6FF57FCE58", "kind": "PARENT_CHILD", "artifact": null, "rationale": "hierarchy"}

@@ -1,5 +1,0 @@
-{"assumption_id": "ASM-001", "statement": "Current workspace is the frontend SPA; ledger Python package does not exist yet and will be created in-repo or as sibling package.", "source_refs": ["SRC-README", "SRC-LEDGER-0005"], "impact": "write_scope for ledger tasks provisional until layout decision"}
-{"assumption_id": "ASM-002", "statement": "Frontend synthetic data remains valid for demo mode after ledger integration.", "source_refs": ["SRC-FE-0001", "SRC-UNIFY-0001"], "impact": "dual data mode required"}
-{"assumption_id": "ASM-003", "statement": "SQLite is acceptable for local MVP; Postgres schema remains compatible.", "source_refs": ["SRC-LEDGER-0002"], "impact": "engine abstraction required"}
-{"assumption_id": "ASM-004", "statement": "Base UI Toast may remain on Radix or custom until Base UI ships Toast.", "source_refs": ["SRC-FE-0009"], "impact": "migration incomplete without decision"}
-{"assumption_id": "ASM-005", "statement": "Official claims feed presentation; UI ranking formulas stay client-side presentation and are not ledger claims.", "source_refs": ["SRC-UNIFY-0001", "SRC-LEDGER-0004"], "impact": "clear trust boundary in product copy"}

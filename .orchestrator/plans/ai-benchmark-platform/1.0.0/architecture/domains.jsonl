@@ -1,6 +1,0 @@
-{"domain_id": "DOM-LEDGER", "name": "Official result capture", "description": "Immutable claims, snapshots, validation"}
-{"domain_id": "DOM-REGISTRY", "name": "Curated registry", "description": "Benchmarks, models, official sources seed"}
-{"domain_id": "DOM-INGEST", "name": "Ingestion adapters", "description": "Fetch/extract/validate pipelines"}
-{"domain_id": "DOM-MATCH", "name": "Entity matching", "description": "Alias and canonical mapping"}
-{"domain_id": "DOM-UI", "name": "Dashboard presentation", "description": "Table/compare visualization"}
-{"domain_id": "DOM-BRIDGE", "name": "Ledger-to-UI bridge", "description": "Export/contract and dual data mode"}

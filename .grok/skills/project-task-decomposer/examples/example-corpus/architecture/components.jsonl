@@ -1,2 +1,0 @@
-{"component_id": "CMP-AUTH-API", "name": "Auth API", "kind": "API", "responsibility": "Authentication endpoints", "repo_paths": [], "interfaces": ["IAuth"], "provisional": true, "source_refs": ["SRC-PRD-0087"]}
-{"component_id": "CMP-TOKEN-STORE", "name": "Token Store", "kind": "DATA", "responsibility": "Persist token families", "repo_paths": [], "interfaces": [], "provisional": true, "source_refs": ["SRC-PRD-0087"]}

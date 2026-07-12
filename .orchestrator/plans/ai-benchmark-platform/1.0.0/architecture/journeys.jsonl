@@ -1,5 +1,0 @@
-{"journey_id": "JRN-INGEST-DAILY", "actor_id": "ACT-OPERATOR", "name": "Daily official ingest", "steps": ["init-db", "seed-registry", "ingest --all", "review queue", "export claims"]}
-{"journey_id": "JRN-TRACE-SCORE", "actor_id": "ACT-ANALYST", "name": "Trace a table score to source", "steps": ["open table", "click score/model", "view claim evidence", "open snapshot/source URL"]}
-{"journey_id": "JRN-COMPARE", "actor_id": "ACT-ANALYST", "name": "Compare models", "steps": ["select up to 6", "open compare", "hover radar", "inspect heatmap/bars/specs"]}
-{"journey_id": "JRN-BASEUI", "actor_id": "ACT-DEV", "name": "Migrate a UI primitive", "steps": ["decide toast", "regenerate Base UI wrapper", "port export API", "typecheck/build", "manual verify interactions"]}
-{"journey_id": "JRN-ADD-SOURCE", "actor_id": "ACT-DEV", "name": "Add official source", "steps": ["registry row", "adapter or config", "fixture", "parser test", "ingest", "review models"]}

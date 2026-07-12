@@ -1,1 +1,0 @@
-{"source_id": "SRC-PRD-0087", "location": "examples/sample-prd.md#auth", "heading": "Authentication", "anchor": "auth-refresh", "paraphrase": "Refresh tokens rotate; reuse invalidates family."}

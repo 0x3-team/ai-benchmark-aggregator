@@ -1,4 +1,0 @@
-{"actor_id": "ACT-ANALYST", "name": "Research analyst", "goals": ["Browse trusted scores", "Compare models", "Trace score provenance"]}
-{"actor_id": "ACT-OPERATOR", "name": "Ingestion operator", "goals": ["Seed registry", "Run ingest", "Review unmatched models"]}
-{"actor_id": "ACT-AGENT", "name": "Internal automated agent", "goals": ["Query trusted claims programmatically"]}
-{"actor_id": "ACT-DEV", "name": "Frontend/backend developer", "goals": ["Maintain adapters", "Keep build green", "Migrate UI primitives"]}
