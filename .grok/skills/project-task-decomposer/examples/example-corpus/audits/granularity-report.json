@@ -1,0 +1,10 @@
+{
+  "audit_type": "GRANULARITY",
+  "status": "PASS",
+  "generated_at": "",
+  "findings": [],
+  "metrics": {
+    "tasks": 4,
+    "dispatchable": 3
+  }
+}

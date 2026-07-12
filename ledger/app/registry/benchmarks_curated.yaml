@@ -1,0 +1,539 @@
+benchmarks:
+  - id: gpqa_diamond
+    canonical_name: GPQA Diamond
+    display_name: GPQA Diamond
+    benchmark_family: reasoning
+    owner_name: NYU/Anthropic
+    official_home_url: https://github.com/idavidy/gpqa
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    known_splits:
+      - diamond
+    status: active
+    aliases:
+      - GPQA
+      - gpqa
+      - gpqa_diamond
+      - GPQA Diamond
+      - gpqa-diamond
+      - gpqa_diamond_accuracy
+
+  - id: hle
+    canonical_name: Humanity's Last Exam
+    display_name: HLE
+    benchmark_family: reasoning
+    owner_name: Center for AI Safety
+    official_home_url: https://cais.cn/hle
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - HLE
+      - hle
+      - Humanity's Last Exam
+      - Humanitys Last Exam
+
+  - id: arc_agi
+    canonical_name: ARC-AGI
+    display_name: ARC-AGI
+    benchmark_family: reasoning
+    owner_name: François Chollet
+    official_home_url: https://arcprize.org/
+    has_official_leaderboard: true
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - ARC-AGI
+      - arc_agi
+      - arc-agi
+      - ARC AGI
+      - arc-agi-1
+
+  - id: math
+    canonical_name: MATH
+    display_name: MATH
+    benchmark_family: math
+    owner_name: UC Berkeley
+    official_home_url: https://github.com/hendrycks/math
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - MATH
+      - math
+      - math_dataset
+
+  - id: math500
+    canonical_name: MATH500
+    display_name: MATH500
+    benchmark_family: math
+    owner_name: UC Berkeley
+    official_home_url: https://github.com/hendrycks/math
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - MATH500
+      - math500
+      - math-500
+      - Math500
+
+  - id: aime2024
+    canonical_name: AIME 2024
+    display_name: AIME 2024
+    benchmark_family: math
+    owner_name: MAA
+    official_home_url: https://www.maa.org/math-competitions
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - AIME 2024
+      - aime2024
+      - aime_2024
+      - AIME2024
+
+  - id: aime2025
+    canonical_name: AIME 2025
+    display_name: AIME 2025
+    benchmark_family: math
+    owner_name: MAA
+    official_home_url: https://www.maa.org/math-competitions
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - AIME 2025
+      - aime2025
+      - aime_2025
+      - AIME2025
+
+  - id: olympiadbench
+    canonical_name: OlympiadBench
+    display_name: OlympiadBench
+    benchmark_family: math
+    owner_name: OlympiadBench
+    official_home_url: https://github.com/OlympiadBench/OlympiadBench
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - OlympiadBench
+      - olympiadbench
+
+  - id: matharena
+    canonical_name: MathArena
+    display_name: MathArena
+    benchmark_family: math
+    owner_name: MathArena
+    official_home_url: https://matharena.ai
+    has_official_leaderboard: true
+    primary_metric: Elo
+    known_metrics:
+      - Elo
+    status: active
+    aliases:
+      - MathArena
+      - matharena
+
+  - id: frontiermath
+    canonical_name: FrontierMath
+    display_name: FrontierMath
+    benchmark_family: math
+    owner_name: Epoch
+    official_home_url: https://epoch.ai/frontiermath
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - FrontierMath
+      - frontiermath
+      - frontier_math
+
+  - id: usamo
+    canonical_name: USAMO
+    display_name: USAMO
+    benchmark_family: math
+    owner_name: MAA
+    official_home_url: https://www.maa.org/math-competitions
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - USAMO
+      - usamo
+
+  - id: imo_answerbench
+    canonical_name: IMO-AnswerBench
+    display_name: IMO-AnswerBench
+    benchmark_family: math
+    owner_name: IMO-AnswerBench
+    official_home_url: https://github.com/imo-answerbench
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - IMO-AnswerBench
+      - imo_answerbench
+      - imo-answerbench
+
+  - id: humaneval
+    canonical_name: HumanEval
+    display_name: HumanEval
+    benchmark_family: coding
+    owner_name: OpenAI
+    official_home_url: https://github.com/openai/human-eval
+    has_official_leaderboard: false
+    primary_metric: Pass@1
+    known_metrics:
+      - Pass@1
+    status: active
+    aliases:
+      - HumanEval
+      - humaneval
+      - humaneval_plus
+      - HumanEval+
+
+  - id: mbpp
+    canonical_name: MBPP
+    display_name: MBPP
+    benchmark_family: coding
+    owner_name: Google
+    official_home_url: https://github.com/google-research/google-research/tree/master/mbpp
+    has_official_leaderboard: false
+    primary_metric: Pass@1
+    known_metrics:
+      - Pass@1
+    status: active
+    aliases:
+      - MBPP
+      - mbpp
+      - mbpp_plus
+      - MBPP+
+
+  - id: frontiercode
+    canonical_name: FrontierCode
+    display_name: FrontierCode
+    benchmark_family: coding
+    owner_name: Epoch
+    official_home_url: https://epoch.ai/frontiercode
+    has_official_leaderboard: false
+    primary_metric: Pass@1
+    known_metrics:
+      - Pass@1
+    status: active
+    aliases:
+      - FrontierCode
+      - frontiercode
+
+  - id: aider_polyglot
+    canonical_name: Aider Polyglot Benchmark
+    display_name: Aider Polyglot
+    benchmark_family: coding
+    owner_name: Aider
+    official_home_url: https://aider.chat/docs/leaderboard.html
+    has_official_leaderboard: true
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - Aider Polyglot
+      - aider_polyglot
+      - aider-polyglot
+
+  - id: tau_bench
+    canonical_name: tau-bench
+    display_name: tau-bench (τ-bench)
+    benchmark_family: agentic
+    owner_name: Sierra
+    official_home_url: https://github.com/sierra-research/tau-bench
+    has_official_leaderboard: false
+    primary_metric: task_completion
+    known_metrics:
+      - task_completion
+    status: active
+    aliases:
+      - tau-bench
+      - tau_bench
+      - τ-bench
+      - TauBench
+      - Tau-bench
+
+  - id: gaia
+    canonical_name: GAIA
+    display_name: GAIA
+    benchmark_family: agentic
+    owner_name: GAIA
+    official_home_url: https://huggingface.co/spaces/gaia-benchmark/leaderboard
+    has_official_leaderboard: true
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - GAIA
+      - gaia
+
+  - id: bfcl
+    canonical_name: Berkeley Function Calling Leaderboard
+    display_name: BFCL
+    benchmark_family: agentic
+    owner_name: Gorilla
+    official_home_url: https://gorilla.cs.berkeley.edu/leaderboard.html
+    has_official_leaderboard: true
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - BFCL
+      - bfcl
+      - BFCL v3
+      - BFCL v4
+      - bfcl-v3
+      - bfcl-v4
+      - Berkeley Function Calling Leaderboard
+
+  - id: webarena
+    canonical_name: WebArena
+    display_name: WebArena
+    benchmark_family: agentic
+    owner_name: Carnegie Mellon University
+    official_home_url: https://webarena.dev/
+    has_official_leaderboard: true
+    primary_metric: success_rate
+    known_metrics:
+      - success_rate
+    status: active
+    aliases:
+      - WebArena
+      - webarena
+
+  - id: agentbench
+    canonical_name: AgentBench
+    display_name: AgentBench
+    benchmark_family: agentic
+    owner_name: THUDM
+    official_home_url: https://github.com/THUDM/AgentBench
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - AgentBench
+      - agentbench
+
+  - id: terminal_bench
+    canonical_name: Terminal-Bench
+    display_name: Terminal-Bench
+    benchmark_family: agentic
+    owner_name: Terminal-Bench
+    official_home_url: https://github.com/terminal-bench
+    has_official_leaderboard: false
+    primary_metric: success_rate
+    known_metrics:
+      - success_rate
+    status: active
+    aliases:
+      - Terminal-Bench
+      - terminal_bench
+      - terminal-bench
+
+  - id: browsecomp
+    canonical_name: BrowseComp
+    display_name: BrowseComp
+    benchmark_family: agentic
+    owner_name: BrowseComp
+    official_home_url: https://github.com/browsecomp
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - BrowseComp
+      - browsecomp
+
+  - id: apex_agents
+    canonical_name: APEX-Agents
+    display_name: APEX-Agents
+    benchmark_family: agentic
+    owner_name: APEX
+    official_home_url: https://github.com/apex-agents
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - APEX-Agents
+      - apex_agents
+      - apex-agents
+
+  - id: paperbench
+    canonical_name: PaperBench
+    display_name: PaperBench
+    benchmark_family: agentic
+    owner_name: PaperBench
+    official_home_url: https://github.com/paperbench
+    has_official_leaderboard: false
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - PaperBench
+      - paperbench
+
+  - id: toolbench
+    canonical_name: ToolBench
+    display_name: ToolBench
+    benchmark_family: agentic
+    owner_name: THUDM
+    official_home_url: https://github.com/OpenBMB/ToolBench
+    has_official_leaderboard: false
+    primary_metric: pass_rate
+    known_metrics:
+      - pass_rate
+    status: active
+    aliases:
+      - ToolBench
+      - toolbench
+
+  - id: mmlu_pro
+    canonical_name: MMLU-Pro
+    display_name: MMLU-Pro
+    benchmark_family: knowledge
+    owner_name: TIGER Lab
+    official_home_url: https://github.com/TIGER-AI-Lab/MMLU-Pro
+    has_official_leaderboard: true
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - MMLU-Pro
+      - mmlu_pro
+      - mmlu-pro
+      - MMLU Pro
+      - mmlu_pro_official
+
+  - id: mmlu
+    canonical_name: MMLU
+    display_name: MMLU
+    benchmark_family: knowledge
+    owner_name: UC Berkeley
+    official_home_url: https://github.com/hendrycks/test
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - MMLU
+      - mmlu
+
+  - id: bbh
+    canonical_name: BIG-bench Hard
+    display_name: BBH
+    benchmark_family: knowledge
+    owner_name: BIG-bench
+    official_home_url: https://github.com/google/BIG-bench/tree/main/bigbench/benchmarks/html_templates
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - BBH
+      - bbh
+      - Big-Bench Hard
+      - big_bench_hard
+
+  - id: truthfulqa
+    canonical_name: TruthfulQA
+    display_name: TruthfulQA
+    benchmark_family: knowledge
+    owner_name: Oxford
+    official_home_url: https://github.com/sanjithm/TruthfulQA
+    has_official_leaderboard: false
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - TruthfulQA
+      - truthfulqa
+      - truthful_qa
+
+  - id: livebench
+    canonical_name: LiveBench
+    display_name: LiveBench
+    benchmark_family: live_leaderboard
+    owner_name: Abacus.AI
+    official_home_url: https://livebench.ai
+    has_official_leaderboard: true
+    primary_metric: overall
+    known_metrics:
+      - overall
+    status: active
+    aliases:
+      - LiveBench
+      - livebench
+      - live_bench
+
+  - id: mmmu
+    canonical_name: MMMU
+    display_name: MMMU
+    benchmark_family: knowledge
+    owner_name: MMMU
+    official_home_url: https://mmmu-benchmark.github.io
+    has_official_leaderboard: true
+    primary_metric: accuracy
+    known_metrics:
+      - accuracy
+    status: active
+    aliases:
+      - MMMU
+      - mmmu
+
+  - id: mtbench
+    canonical_name: MT-Bench
+    display_name: MT-Bench
+    benchmark_family: knowledge
+    owner_name: LMSYS
+    official_home_url: https://github.com/lm-sys/FastChat/tree/main/fastchat/llm_judge
+    has_official_leaderboard: true
+    primary_metric: score
+    known_metrics:
+      - score
+    status: active
+    aliases:
+      - MT-Bench
+      - mtbench
+      - mt_bench
+      - MT Bench

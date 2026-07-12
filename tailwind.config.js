@@ -77,7 +77,22 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    // Base UI uses boolean data attributes (data-open, data-closed, data-checked,
+    // data-unchecked, data-active, data-disabled) instead of Radix's
+    // data-state="open" / data-state="checked" pattern. These variants let
+    // Tailwind target them directly, e.g. data-open:animate-in,
+    // data-checked:bg-primary, data-active:shadow.
+    function ({ addVariant }) {
+      addVariant("data-open", "&[data-open]");
+      addVariant("data-closed", "&[data-closed]");
+      addVariant("data-checked", "&[data-checked]");
+      addVariant("data-unchecked", "&[data-unchecked]");
+      addVariant("data-active", "&[data-active]");
+      addVariant("data-disabled", "&[data-disabled]");
+    },
+  ],
 };
 
 export default config;

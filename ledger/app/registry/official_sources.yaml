@@ -1,0 +1,815 @@
+sources:
+  - id: fake_local_fixture
+    benchmark_id: hf_official_benchmarks
+    source_name: Fake local fixture source
+    source_url: file://fake
+    source_type: fake
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: fake
+    status: active
+    parser_config: {}
+
+  - id: hf_official_benchmark_discovery
+    benchmark_id: hf_official_benchmarks
+    source_name: Hugging Face official benchmark discovery API
+    source_url: https://huggingface.co/api/datasets?filter=benchmark:official
+    source_type: hf_benchmark_api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_benchmark_api
+    status: active
+    parser_config:
+      mode: discovery
+
+  - id: swe_bench_verified_official_leaderboard
+    benchmark_id: swe_bench_verified
+    source_name: SWE-bench official leaderboard
+    source_url: https://www.swebench.com/
+    source_type: api
+    officialness_level: O4
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: swe_bench_adapter
+    status: active
+    parser_config:
+      category: Verified
+
+  - id: livecodebench_official_leaderboard
+    benchmark_id: livecodebench
+    source_name: LiveCodeBench official leaderboard
+    source_url: https://livecodebench.github.io/leaderboard.html
+    source_type: api
+    officialness_level: O4
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: livecodebench_adapter
+    status: active
+    parser_config: {}
+
+  - id: mteb_leaderboard
+    benchmark_id: mteb
+    source_name: MTEB official results dataset
+    source_url: https://datasets-server.huggingface.co/first-rows?dataset=mteb/results&config=default&split=train
+    source_type: api
+    officialness_level: O4
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: mteb/results
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: model_name
+      score_field: score
+      metric_field: task_name
+      split_field: split
+
+  - id: bigcodebench_leaderboard
+    benchmark_id: bigcodebench
+    source_name: BigCodeBench official results dataset
+    source_url: https://datasets-server.huggingface.co/first-rows?dataset=bigcode/bigcodebench-results&config=default&split=train
+    source_type: api
+    officialness_level: O4
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: bigcode/bigcodebench-results
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: model
+      score_field: complete
+      metric_field: type
+
+  - id: open_llm_leaderboard_v2
+    benchmark_id: hf_official_benchmarks
+    source_name: Hugging Face Open LLM Leaderboard v2
+    source_url: https://huggingface.co/spaces/open-llm-leaderboard/blog
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: open-llm-leaderboard/contents
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: fullname
+      score_field: Average ⬆️
+      metric_field: Type
+
+  - id: lmsys_arena_leaderboard
+    benchmark_id: chatbot_arena
+    source_name: LMSYS Chatbot Arena Leaderboard
+    source_url: https://lmarena.ai/leaderboard
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: lmsys_arena_api
+    status: active
+    parser_config: {}
+
+  - id: artificial_analysis_leaderboard
+    benchmark_id: artificial_analysis
+    source_name: Artificial Analysis Leaderboard
+    source_url: https://artificialanalysis.ai/
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: true
+    supports_history: false
+    update_cadence: daily
+    parser_name: artificial_analysis_api
+    status: active
+    parser_config:
+      api_key_env: ARTIFICIAL_ANALYSIS_API_KEY
+
+  - id: helm_leaderboard
+    benchmark_id: helm
+    source_name: HELM official leaderboard
+    source_url: https://crfm.stanford.edu/helm/latest/
+    source_type: web_js_spa
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: null
+    status: inactive
+
+  - id: opencompass_leaderboard
+    benchmark_id: opencompass
+    source_name: OpenCompass official leaderboard
+    source_url: https://rank.opencompass.org.cn/home
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: generic_html_table
+    status: inactive
+    notes: "OpenCompass leaderboard is a JS SPA; returns 0 tables in static HTML fetch. Set inactive."
+
+  - id: livebench_leaderboard
+    benchmark_id: livebench
+    source_name: LiveBench Leaderboard
+    source_url: https://livebench.ai/
+    source_type: api
+    officialness_level: O4
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: monthly
+    parser_name: livebench_adapter
+    status: active
+    parser_config: {}
+
+  - id: open_llm_leaderboard_v2_gpqa
+    benchmark_id: gpqa_diamond
+    source_name: Hugging Face Open LLM Leaderboard v2 - GPQA
+    source_url: https://huggingface.co/spaces/open-llm-leaderboard/blog
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: open-llm-leaderboard/contents
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: fullname
+      score_field: GPQA
+
+  - id: open_llm_leaderboard_v2_mmlu_pro
+    benchmark_id: mmlu_pro
+    source_name: Hugging Face Open LLM Leaderboard v2 - MMLU-Pro
+    source_url: https://huggingface.co/spaces/open-llm-leaderboard/blog
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: open-llm-leaderboard/contents
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: fullname
+      score_field: MMLU-PRO
+
+  - id: open_llm_leaderboard_v2_math
+    benchmark_id: math
+    source_name: Hugging Face Open LLM Leaderboard v2 - MATH
+    source_url: https://huggingface.co/spaces/open-llm-leaderboard/blog
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: open-llm-leaderboard/contents
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: fullname
+      score_field: MATH Lvl 5
+
+  - id: open_llm_leaderboard_v2_bbh
+    benchmark_id: bbh
+    source_name: Hugging Face Open LLM Leaderboard v2 - BBH
+    source_url: https://huggingface.co/spaces/open-llm-leaderboard/blog
+    source_type: api
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config:
+      dataset_id: open-llm-leaderboard/contents
+      config: default
+      split: train
+      records_path: rows
+      row_field: row
+      model_field: fullname
+      score_field: BBH
+
+  - id: manual_hle
+    benchmark_id: hle
+    source_name: Humanity's Last Exam (Manual Entry)
+    source_url: https://cais.cn/hle
+    source_type: manual
+    officialness_level: O3
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: null
+    status: inactive
+    notes: "manual/no-auto-source"
+
+  - id: manual_arc_agi
+    benchmark_id: arc_agi
+    source_name: ARC-AGI (Manual Entry)
+    source_url: https://arcprize.org/
+    source_type: manual
+    officialness_level: O4
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: null
+    status: inactive
+    notes: "manual/no-auto-source"
+
+  - id: manual_frontiermath
+    benchmark_id: frontiermath
+    source_name: FrontierMath (Manual Entry)
+    source_url: https://epoch.ai/frontiermath
+    source_type: manual
+    officialness_level: O3
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: null
+    status: inactive
+    notes: "manual/no-auto-source"
+
+  - id: manual_usamo
+    benchmark_id: usamo
+    source_name: USAMO (Manual Entry)
+    source_url: https://www.maa.org/math-competitions
+    source_type: manual
+    officialness_level: O3
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: manual
+    parser_name: null
+    status: inactive
+    notes: "MathArena HTML, manual entry only"
+
+  - id: gpqa_diamond_aa
+    benchmark_id: gpqa_diamond
+    source_name: Artificial Analysis (GPQA Diamond)
+    source_url: https://artificialanalysis.ai/api/v2/language/models
+    source_type: api
+    officialness_level: O2
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: weekly
+    parser_name: artificial_analysis_api
+    status: inactive
+    parser_config: {dataset_id: null, model_field: slug, score_field: evaluations.gpqa, metric_field: accuracy}
+    notes: "requires AA API key; wire when key available"
+
+  - id: hle_scale
+    benchmark_id: hle
+    source_name: Scale / Center for AI Safety (Humanity's Last Exam)
+    source_url: https://labs.scale.com/leaderboard/humanitys_last_exam
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: inactive
+    parser_config: {model_column: Model, score_column: Accuracy}
+    notes: "Scale HLE leaderboard is a JS SPA; returns 0 tables in static HTML fetch. Set inactive."
+
+  - id: hle_aa
+    benchmark_id: hle
+    source_name: Artificial Analysis (HLE)
+    source_url: https://artificialanalysis.ai/api/v2/language/models
+    source_type: api
+    officialness_level: O2
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: weekly
+    parser_name: artificial_analysis_api
+    status: inactive
+    parser_config: {dataset_id: null, model_field: slug, score_field: evaluations.hle, metric_field: accuracy}
+    notes: "requires AA API key; wire when key available"
+
+  - id: arc_agi_official
+    benchmark_id: arc_agi
+    source_name: ARC Prize (official)
+    source_url: https://arcprize.org/media/data/leaderboard/v2.json
+    source_type: static_json
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_json
+    status: active
+    parser_config: {records_path: null, model_field: modelDisplayName, score_field: score, metric_field: accuracy}
+
+  - id: math500_aa
+    benchmark_id: math500
+    source_name: Artificial Analysis (Math-500)
+    source_url: https://artificialanalysis.ai/api/v2/data/llms/models
+    source_type: api
+    officialness_level: O3
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: artificial_analysis_api
+    status: inactive
+    parser_config: {metric_field: evaluations.math_500, id_field: slug}
+    notes: "requires AA API key; wire when key available"
+
+  - id: aime2024_aa
+    benchmark_id: aime2024
+    source_name: Artificial Analysis (AIME 2024)
+    source_url: https://artificialanalysis.ai/api/v2/data/llms/models
+    source_type: api
+    officialness_level: O3
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: artificial_analysis_api
+    status: inactive
+    parser_config: {metric_field: evaluations.aime_2024, id_field: slug}
+    notes: "requires AA API key; wire when key available"
+
+  - id: aime2025_aa
+    benchmark_id: aime2025
+    source_name: Artificial Analysis (AIME 2025)
+    source_url: https://artificialanalysis.ai/api/v2/data/llms/models
+    source_type: api
+    officialness_level: O3
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: artificial_analysis_api
+    status: inactive
+    parser_config: {metric_field: evaluations.aime_2025, id_field: slug}
+    notes: "requires AA API key; wire when key available"
+
+  - id: olympiadbench_readme
+    benchmark_id: olympiadbench
+    source_name: OpenBMB OlympiadBench README
+    source_url: https://github.com/OpenBMB/OlympiadBench#readme
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: weekly
+    parser_name: generic_html_table
+    status: active
+    parser_config: {table_hint: "Experiment with full benchmark", model_column: Model, score_column: "Avg."}
+
+  - id: matharena_hf
+    benchmark_id: matharena
+    source_name: MathArena HuggingFace outputs
+    source_url: https://huggingface.co/datasets/MathArena/aime_2026_I_outputs
+    source_type: hf_datasets_server
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: monthly
+    parser_name: hf_datasets_server
+    status: inactive
+    parser_config: {dataset_id: "MathArena/aime_2026_I_outputs"}
+    notes: "HuggingFace dataset contains per-problem responses; per-model aggregated accuracies are not directly available without custom aggregation."
+
+  - id: frontiermath_epoch
+    benchmark_id: frontiermath
+    source_name: Epoch AI FrontierMath
+    source_url: https://epoch.ai/data/benchmark_data.zip
+    source_type: manual
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: null
+    status: inactive
+    notes: "requires zip download and epochai client; manual entry only"
+
+  - id: usamo_matharena
+    benchmark_id: usamo
+    source_name: MathArena USAMO
+    source_url: https://matharena.ai/usamo/
+    source_type: manual
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: null
+    status: inactive
+    notes: "MathArena HTML, manual entry only"
+
+  - id: imo_answerbench_deepmind
+    benchmark_id: imo_answerbench
+    source_name: IMO-Bench (Google DeepMind)
+    source_url: https://huggingface.co/datasets/google-deepmind/superhuman
+    source_type: hf_datasets_server
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: hf_datasets_server
+    status: inactive
+    parser_config: {dataset_id: "google-deepmind/superhuman"}
+    notes: "HF dataset contains problems/answers; per-model scores are not in the datasets-server rows API."
+
+  - id: humaneval_evalplus
+    benchmark_id: humaneval
+    source_name: EvalPlus Leaderboard
+    source_url: https://evalplus.github.io/leaderboard.html
+    source_type: html_table
+    officialness_level: O2
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: inactive
+    parser_config: {model_column: model, score_column: "pass@1"}
+    notes: "EvalPlus leaderboard is a JS SPA; returns 0 tables in static HTML fetch. Set inactive."
+
+  - id: mbpp_codesota
+    benchmark_id: mbpp
+    source_name: CodeSOTA (MBPP)
+    source_url: https://www.codesota.com/data/benchmarks.json
+    source_type: static_json
+    officialness_level: O3
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: generic_json
+    status: active
+    parser_config: {model_field: model, score_field: "pass@1"}
+
+  - id: frontiercode_benchmarklist
+    benchmark_id: frontiercode
+    source_name: BenchmarkList (FrontierCode mirror)
+    source_url: https://benchmarklist.com/benchmarks/frontiercode/
+    source_type: html_table
+    officialness_level: O3
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: active
+    parser_config: {table_hint: "FrontierCode", model_column: Subject, score_column: "Main Score"}
+
+  - id: aider_polyglot_yaml
+    benchmark_id: aider_polyglot
+    source_name: Aider Polyglot Leaderboard (official YAML)
+    source_url: https://raw.githubusercontent.com/Aider-AI/aider/main/aider/website/_data/polyglot_leaderboard.yml
+    source_type: github_yaml
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_commit
+    parser_name: github_yaml
+    status: active
+    parser_config: {model_field: model, score_field: pass_rate_2}
+
+    notes: "S3 listing returns XML; requires a custom taubench_s3 adapter to fetch and aggregate individual submission files."
+
+  - id: gaia_results_public
+    benchmark_id: gaia
+    source_name: GAIA Results Public (HF)
+    source_url: https://datasets-server.huggingface.co/first-rows?dataset=gaia-benchmark/results_public&config=2023&split=validation
+    source_type: hf_datasets_server
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: hf_datasets_server
+    status: active
+    parser_config: {dataset_id: "gaia-benchmark/results_public", config: "2023", split: validation, records_path: rows, row_field: row, model_field: model, score_field: score, metric_field: score}
+
+  - id: bfcl_leaderboard_html
+    benchmark_id: bfcl
+    source_name: Berkeley Function Calling Leaderboard
+    source_url: https://gorilla.cs.berkeley.edu/leaderboard.html
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: inactive
+    parser_config: {model_column: Model, score_column: "Overall Accuracy"}
+    notes: "BFCL leaderboard is a JS SPA; returns 0 tables in static HTML fetch. Set inactive."
+
+  - id: webarena_official_sheet
+    benchmark_id: webarena
+    source_name: WebArena Official Leaderboard (Google Sheet)
+    source_url: https://docs.google.com/spreadsheets/d/1M801lEpBbKSNwP-vDBkC_pF7LdyGU1f_ufZb_NWNBZQ/export?format=csv
+    source_type: static_csv
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: weekly
+    parser_name: generic_csv
+    status: active
+    parser_config: {model_field: Model, score_field: "Success Rate (%)"}
+
+  - id: agentbench_official_sheet
+    benchmark_id: agentbench
+    source_name: AgentBench Official Leaderboard (THUDM Google Sheet)
+    source_url: https://docs.google.com/spreadsheets/d/e/2PACX-1vRR3Wl7wsCgHpwUw1_eUXW_fptAPLL3FkhnW_rua0O1Ji_GIVrpTjY5LaKAhwO-WeARjnY_KNw0SYNJ/pub?output=csv
+    source_type: static_csv
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: weekly
+    parser_name: generic_csv
+    status: active
+    parser_config: {model_field: Model, score_field: AVG}
+
+  - id: terminal_bench_tbench_leaderboard
+    benchmark_id: terminal_bench
+    source_name: Terminal-Bench Official Leaderboard (tbench.ai)
+    source_url: https://www.tbench.ai/leaderboard/terminal-bench/2.1
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: generic_html_table
+    status: active
+    parser_config: {model_column: Model, score_column: Accuracy}
+
+  - id: browsecomp_llmstats
+    benchmark_id: browsecomp
+    source_name: LLM-Stats BrowseComp Leaderboard
+    source_url: https://llm-stats.com/benchmarks/browsecomp
+    source_type: html_table
+    officialness_level: O3
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: weekly
+    parser_name: generic_html_table
+    status: active
+    parser_config: {model_column: Model, score_column: Score}
+
+  - id: apex_agents_mercor
+    benchmark_id: apex_agents
+    source_name: Mercor APEX-Agents Leaderboard
+    source_url: https://www.mercor.com/apex/apex-agents-leaderboard/
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: inactive
+    parser_config: {model_column: Model, score_column: "Pass@1"}
+    notes: "Mercor APEX-Agents leaderboard is a JS SPA; returns 0 tables in static HTML fetch. Set inactive."
+
+  - id: paperbench_frontier_evals
+    benchmark_id: paperbench
+    source_name: OpenAI frontier-evals PaperBench README
+    source_url: https://github.com/openai/frontier-evals/tree/main/project/paperbench
+    source_type: html_table
+    officialness_level: O1
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: active
+    parser_config: {table_hint: "PaperBench Results", model_column: Agent, score_column: "Score (%)"}
+
+  - id: toolbench_openbmb
+    benchmark_id: toolbench
+    source_name: OpenBMB ToolBench
+    source_url: https://github.com/OpenBMB/ToolBench
+    source_type: html_table
+    officialness_level: O2
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: active
+    parser_config: {model_column: Model, score_column: Average}
+
+  - id: mt_bench_lmsys
+    benchmark_id: mtbench
+    source_name: LMSYS MT-Bench Leaderboard
+    source_url: https://lmsys.org/blog/2023-06-22-leaderboard/
+    source_type: html_table
+    officialness_level: O2
+    machine_readable: false
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: generic_html_table
+    status: active
+    parser_config: {table_hint: "MT-Bench", model_column: Model, score_column: "MT-bench (score)"}
+
+  - id: mmlu_openllm_v2
+    benchmark_id: mmlu
+    source_name: Open LLM Leaderboard v2 (MMLU)
+    source_url: https://datasets-server.huggingface.co/first-rows?dataset=open-llm-leaderboard/results&config=default&split=train
+    source_type: hf_datasets_server
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config: {dataset_id: "open-llm-leaderboard/results", config: default, split: train, records_path: rows, row_field: row, model_field: fullname, score_field: "results.mmlu.acc,none", metric_field: accuracy}
+
+  - id: truthfulqa_openllm_v2
+    benchmark_id: truthfulqa
+    source_name: Open LLM Leaderboard v2 (TruthfulQA)
+    source_url: https://datasets-server.huggingface.co/first-rows?dataset=open-llm-leaderboard/results&config=default&split=train
+    source_type: hf_datasets_server
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: daily
+    parser_name: hf_datasets_server
+    status: active
+    parser_config: {dataset_id: "open-llm-leaderboard/results", config: default, split: train, records_path: rows, row_field: row, model_field: fullname, score_field: "results.truthfulqa.mc2", metric_field: accuracy}
+
+  - id: mmmu_hf
+    benchmark_id: mmmu
+    source_name: MMMU Hugging Face
+    source_url: https://huggingface.co/datasets/MMMU/MMMU
+    source_type: hf_datasets_server
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: hf_datasets_server
+    status: inactive
+    parser_config: {dataset_id: "MMMU/MMMU"}
+    notes: "HF dataset contains questions only; no results rows API exists for MMMU leaderboard."
+
+  - id: tau_bench_s3
+    benchmark_id: tau_bench
+    source_name: τ-Bench Official (S3 public bucket)
+    source_url: https://sierra-tau-bench-public.s3.amazonaws.com/
+    source_type: taubench_s3
+    officialness_level: O1
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: taubench_s3
+    status: active
+    parser_config: {bucket: sierra-tau-bench-public, prefix: submissions/, max_keys: 50}
+    notes: "Lists public S3, fetches submissions/*/submission.json, aggregates mean pass_rate."
+
+  - id: imo_answerbench_github
+    benchmark_id: imo_answerbench
+    source_name: IMO-AnswerBench (DeepMind superhuman, GitHub CSV)
+    source_url: https://raw.githubusercontent.com/google-deepmind/superhuman/main/imobench/answerbench_v2.csv
+    source_type: imo_answerbench
+    officialness_level: O2
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: imo_answerbench
+    status: inactive
+    parser_config: {model_field: Model, score_field: accuracy}
+    notes: "CSV at this URL is the problem/answer-key set (Problem ID, Problem, Short Answer), NOT per-model scores. No public per-model score file exists; manual entry only."
+
+  - id: helm_leaderboard
+    benchmark_id: helm
+    source_name: HELM Leaderboard (CRFM)
+    source_url: https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output/v1.0.0/groups.json
+    source_type: helm_json
+    officialness_level: O2
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: helm_json
+    status: inactive
+    parser_config: {model_field: run_name, score_field: value, metric_field: name}
+    notes: "Adapter built; GCS groups.json path returns 404 (layout changed). Re-pin a live URL before activating."
+
+  - id: frontiermath_epoch
+    benchmark_id: frontiermath
+    source_name: FrontierMath (Epoch AI)
+    source_url: https://epoch.ai/api/v1/frontier-math/leaderboard.csv
+    source_type: frontiermath_epoch
+    officialness_level: O2
+    machine_readable: true
+    requires_auth: false
+    supports_history: false
+    update_cadence: on_release
+    parser_name: frontiermath_epoch
+    status: inactive
+    parser_config: {model_field: model, score_field: score}
+    notes: "Adapter built; Epoch moved FrontierMath to a benchmark page (CSV API 404s). Re-pin a live CSV before activating."

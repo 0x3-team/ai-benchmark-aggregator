@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "from_plan_version": "0.0.0",
+  "to_plan_version": "1.0.0",
+  "added": [
+    "TSK-4B11FC1A65",
+    "TSK-6FF57FCE58",
+    "TSK-B3BC452716",
+    "TSK-D59D71D1A0"
+  ],
+  "changed": [],
+  "unchanged": [],
+  "split": [],
+  "merged": [],
+  "retired": [],
+  "invalidated_waves": [],
+  "notes": [
+    "Initial corpus"
+  ]
+}

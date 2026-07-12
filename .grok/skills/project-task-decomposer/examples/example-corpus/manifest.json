@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.1.0",
+  "project_id": "example-product",
+  "project_slug": "example-product",
+  "plan_version": "1.0.0",
+  "mode": "PRD_ONLY",
+  "source_digests": {
+    "SRC-PRD-0087": "sha256:demo"
+  },
+  "task_shards": [
+    "tasks/tasks-0001.jsonl"
+  ],
+  "counts": {
+    "tasks_total": 4,
+    "leaves_dispatchable": 3,
+    "parents": 1,
+    "requirements": 2
+  },
+  "readiness": "READY",
+  "audits": {
+    "schema": "PASS",
+    "coverage": "PASS",
+    "graph": "PASS",
+    "granularity": "PASS",
+    "duplication": "PASS",
+    "readiness": "PASS"
+  },
+  "created_at": null,
+  "updated_at": null,
+  "defaults": {
+    "target_leaf_range": [
+      1000,
+      3000
+    ],
+    "soft_max_leaves": 5000,
+    "hard_max_leaves": 10000,
+    "tasks_per_shard": 250
+  },
+  "canonical_files": [
+    "manifest.json",
+    "requirements/requirements.jsonl",
+    "requirements/traceability.json",
+    "tasks/tasks-*.jsonl",
+    "graph/edges.jsonl",
+    "graph/execution-waves.json"
+  ],
+  "orchestrator_load_order": [
+    "manifest.json",
+    "requirements/traceability.json",
+    "graph/execution-waves.json",
+    "indexes/by-status.json",
+    "tasks shards via indexes"
+  ]
+}

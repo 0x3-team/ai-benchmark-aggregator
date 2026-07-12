@@ -1,0 +1,4 @@
+[
+  {"rank": 1, "model_id": "org/model-a", "value": 55.5, "verified": true},
+  {"rank": 2, "model_id": "org/model-b", "value": 44.0, "verified": false}
+]

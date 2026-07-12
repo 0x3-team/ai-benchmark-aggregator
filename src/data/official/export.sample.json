@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "0.1.0",
+  "trustLevel": "official_claims",
+  "models": [
+    {
+      "id": "fake_model_1",
+      "name": "Fake Model 1",
+      "vendor": "fake",
+      "family": "unknown",
+      "raw_name": "Fake-Model-1"
+    }
+  ],
+  "benchmarks": [
+    {
+      "id": "hf_official_benchmarks",
+      "name": "Hugging Face Official Benchmarks",
+      "fullName": "Hugging Face Official Benchmarks",
+      "category": "meta_registry",
+      "higherIsBetter": true,
+      "scaleMax": 100,
+      "primaryMetric": "acc"
+    }
+  ],
+  "scores": [
+    {
+      "modelId": "fake_model_1",
+      "benchmarkId": "hf_official_benchmarks",
+      "value": 42.5,
+      "scoreRaw": "42.50",
+      "captureStatus": "parser_verified",
+      "officialSourceId": "fake_local_fixture",
+      "claimId": "sample-claim-1"
+    }
+  ],
+  "note": "Values are source-backed claims, not independently recalculated scores."
+}

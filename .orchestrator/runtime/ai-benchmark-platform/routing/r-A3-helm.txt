@@ -1,0 +1,26 @@
+You are a senior Python engineer. Repo: /srv/hermes/development/ai-benchmark-aggregator (ledger at ledger/, Python 3.11 venv at ledger/.venv).
+
+TASK: Build a new ledger ingestion adapter for HELM and wire it into official_sources.yaml.
+
+STEP 0 — DISCOVER the real HELM leaderboard JSON endpoint (do NOT invent; verify HTTP 200 with curl before coding):
+Try, in order, and use the first that returns 200 with parseable JSON containing model/metric data:
+- https://storage.googleapis.com/crfm-helm-public/benchmark_output/v1.0.0/groups.json
+- https://storage.googleapis.com/helm-public/benchmark_output/groups.json
+- https://raw.githubusercontent.com/stanford-crfm/helm/main/src/helm/benchmark/presentation/groups.json
+- web_search "HELM leaderboard groups.json stanford crfm raw url"
+If none works, report the blocker and set the source inactive — do NOT fabricate a URL.
+
+ADAPTER: source_type = "helm_json".
+- fetch(source): httpx GET source.source_url, return SourceFetchResult(raw_bytes=resp.content, content_type="application/json", http_status=resp.status_code).
+- extract_claims: json.loads the groups.json. HELM schema: top-level "groups" is a list; each group has "runs" (list); each run has "run_name" (model) and "metrics" (list of {name, value}). Emit one ResultClaimInput per (run, metric) where metric is accuracy-like (skip non-numeric). Use parser_config: model_field (default "run_name"), score_field (default "value"), metric_field (default "name"). score_numeric = float(value). capture_method="helm_json_parser", capture_confidence=0.85, capture_status="parser_verified", officialness_level=source.officialness_level, evidence_location={"type":"helm_json","model_path":model_field}.
+- validate_claim: [ClaimValidationInput(validation_type="helm_json_match", outcome="pass" if score_raw in text else "uncertain", validator="HelmJSONAdapter")].
+- Imports: SourceAdapter (base), OfficialSource/ResultClaimInput/SourceFetchResult/ClaimValidationInput (boundary), try_parse_score (normalize), httpx, json, get_settings.
+
+REGISTER: add `from app.ingestion.adapters.helm_json import HelmJSONAdapter` and `ADAPTERS["helm_json"] = HelmJSONAdapter` in ledger/app/ingestion/adapters/__init__.py.
+
+TEST: ledger/tests/test_helm_json.py — sample groups.json with one group/run/metric, assert claim extracted with correct model_raw + score_numeric. Run `cd ledger && source .venv/bin/activate && python -m pytest tests/test_helm_json.py -q` → PASS.
+
+VERIFY: `cd ledger && source .venv/bin/activate && python -c "from app.ingestion.adapters import get_adapter; print(type(get_adapter('helm_json')).__name__)"`.
+
+Do NOT edit official_sources.yaml. Commit: `git add ledger/app/ingestion/adapters/helm_json.py ledger/app/ingestion/adapters/__init__.py ledger/tests/test_helm_json.py && git commit -m "feat(ledger): add HELM JSON ingestion adapter"`.
+Report the discovered URL, files changed, test result.

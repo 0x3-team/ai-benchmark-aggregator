@@ -1,0 +1,22 @@
+{
+  "rows": [
+    {
+      "row_idx": 0,
+      "row": {
+        "model_name": "model-a",
+        "score": 85.5,
+        "task_name": "task-1",
+        "split": "train"
+      }
+    },
+    {
+      "row_idx": 1,
+      "row": {
+        "model_name": "model-b",
+        "score": 90.2,
+        "task_name": "task-1",
+        "split": "train"
+      }
+    }
+  ]
+}

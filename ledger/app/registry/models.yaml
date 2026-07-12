@@ -1,0 +1,121 @@
+models:
+  - id: unknown_model_placeholder
+    canonical_name: Unknown Model
+    display_name: Unknown Model
+    entity_type: unknown
+    provider: unknown
+    access_type: unknown
+    status: active
+    aliases: []
+
+  - id: fake_model_1
+    canonical_name: Fake Model 1
+    display_name: Fake Model 1
+    entity_type: chat_model
+    provider: fake
+    access_type: unknown
+    status: active
+    aliases:
+      - Fake-Model-1
+      - Fake Model 1
+
+  - id: deepseek_v3
+    canonical_name: DeepSeek-V3
+    display_name: DeepSeek V3
+    entity_type: chat_model
+    provider: DeepSeek
+    access_type: api
+    status: active
+    aliases:
+      - DeepSeek-V3
+      - deepseek-chat
+      - deepseek-ai/DeepSeek-V3
+      - DeepSeek V3
+
+  - id: gpt_4o_2024_08_06
+    canonical_name: GPT-4o-2024-08-06
+    display_name: GPT-4o (2024-08-06)
+    entity_type: chat_model
+    provider: OpenAI
+    access_type: api
+    status: active
+    aliases:
+      - GPT-4O-2024-08-06
+      - gpt-4o-2024-08-06
+      - GPT-4o (2024-08-06)
+      - GPT-4o
+
+  - id: gpt_4o_mini
+    canonical_name: GPT-4o-mini
+    display_name: GPT-4o Mini
+    entity_type: chat_model
+    provider: OpenAI
+    access_type: api
+    status: active
+    aliases:
+      - GPT-4O-mini-2024-07-18
+      - gpt-4o-mini-2024-07-18
+      - GPT-4o-mini
+      - gpt-4o-mini
+
+  - id: claude_3_7_sonnet
+    canonical_name: Claude-3.7-Sonnet
+    display_name: Claude 3.7 Sonnet
+    entity_type: chat_model
+    provider: Anthropic
+    access_type: api
+    status: active
+    aliases:
+      - Claude 3.7 Sonnet (20250219)
+      - claude-3-7-sonnet
+      - Claude 3.7 Sonnet
+      - Claude 3.7 Sonnet (20250219)
+      - SWE-agent 1.0 (Claude 3.7 Sonnet)
+
+  - id: claude_4_5_opus
+    canonical_name: Claude-4.5-Opus
+    display_name: Claude 4.5 Opus
+    entity_type: chat_model
+    provider: Anthropic
+    access_type: api
+    status: active
+    aliases:
+      - Claude 4.5 Opus (high reasoning)
+      - Claude 4.5 Opus
+      - claude-4.5-opus
+      - Claude 4.5 Opus medium (20251101)
+      - mini-SWE-agent + Claude 4.5 Opus (high reasoning)
+
+  - id: qwen_2_5_coder_32b_instruct
+    canonical_name: Qwen-2.5-Coder-32B-Instruct
+    display_name: Qwen 2.5 Coder 32B Instruct
+    entity_type: chat_model
+    provider: Alibaba
+    access_type: open_weights
+    status: active
+    aliases:
+      - Qwen2.5-Coder 32B Instruct
+      - qwen2.5-coder-32b-instruct
+      - Qwen2.5-Coder 32B
+
+  - id: liquidai_ifstruct_v1_0
+    canonical_name: LiquidAI/ifstruct-v1.0
+    display_name: LiquidAI IFStruct v1.0
+    entity_type: benchmark_dataset
+    provider: LiquidAI
+    access_type: open_weights
+    status: active
+    aliases:
+      - LiquidAI/ifstruct-v1.0
+      - ifstruct-v1.0
+
+  - id: openai_gsm8k
+    canonical_name: openai/gsm8k
+    display_name: OpenAI GSM8K
+    entity_type: benchmark_dataset
+    provider: OpenAI
+    access_type: open_weights
+    status: active
+    aliases:
+      - openai/gsm8k
+      - gsm8k

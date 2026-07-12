@@ -11,6 +11,7 @@ export const CATEGORY_COLORS: Record<BenchmarkCategory, string> = {
   instruction: "#22d3ee", // cyan
   chat: "#fb7185", // rose
   vision: "#f59e0b", // orange
+  other: "#94a3b8", // slate — catch-all for official categories outside the demo taxonomy
 };
 
 export function hexToRgba(hex: string, alpha: number): string {

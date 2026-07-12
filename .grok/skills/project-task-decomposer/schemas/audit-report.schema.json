@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Audit Report",
+  "type": "object",
+  "required": [
+    "audit_type",
+    "status",
+    "generated_at",
+    "findings",
+    "metrics"
+  ],
+  "properties": {
+    "audit_type": {
+      "enum": [
+        "SCHEMA",
+        "COVERAGE",
+        "GRAPH",
+        "GRANULARITY",
+        "DUPLICATION",
+        "READINESS"
+      ]
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "WARN",
+        "FAIL",
+        "NOT_RUN"
+      ]
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "enum": [
+              "INFO",
+              "WARN",
+              "ERROR"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

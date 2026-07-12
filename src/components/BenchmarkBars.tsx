@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import type { Model } from "../types";
-import { benchmarks } from "../data/benchmarks";
-import { getValue } from "../data/scores";
+import type { Benchmark, Model } from "../types";
+import { getValue } from "../data/registry";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { modelColor } from "../lib/palette";
@@ -9,10 +8,11 @@ import { cn } from "@/lib/utils";
 
 interface BenchmarkBarsProps {
   models: Model[];
+  benchmarks: Benchmark[];
   onOpenModel: (modelId: string) => void;
 }
 
-export function BenchmarkBars({ models, onOpenModel }: BenchmarkBarsProps) {
+export function BenchmarkBars({ models, benchmarks, onOpenModel }: BenchmarkBarsProps) {
   const colorById = useMemo(() => {
     const map: Record<string, string> = {};
     models.forEach((m, i) => (map[m.id] = modelColor(i)));
@@ -25,7 +25,7 @@ export function BenchmarkBars({ models, onOpenModel }: BenchmarkBarsProps) {
         cat,
         items: benchmarks.filter((b) => b.category === cat),
       })).filter((g) => g.items.length > 0),
-    []
+    [benchmarks]
   );
 
   return (

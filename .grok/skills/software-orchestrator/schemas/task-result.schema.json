@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task-result.schema.json",
+  "title": "TaskResult",
+  "type": "object",
+  "required": ["task_id", "attempt_id", "status", "summary", "acceptance_checklist"],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": { "type": "string" },
+    "attempt_id": { "type": "string" },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "model_id": { "type": "string" },
+        "provider": { "type": "string" },
+        "version": { "type": "string" },
+        "harness": { "type": "string" },
+        "reasoning": { "type": ["string", "null"] }
+      }
+    },
+    "status": { "type": "string", "enum": ["success", "failed", "blocked", "partial"] },
+    "summary": { "type": "string" },
+    "artifacts": { "type": "object" },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "patch_ref": { "type": ["string", "null"] },
+    "branch": { "type": ["string", "null"] },
+    "commit": { "type": ["string", "null"] },
+    "commands_run": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cmd": { "type": "string" },
+          "exit_code": { "type": "integer" },
+          "stdout_ref": { "type": "string" }
+        }
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "acceptance_checklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion", "met"],
+        "properties": {
+          "criterion": { "type": "string" },
+          "met": { "type": "boolean" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "assumptions": { "type": "array", "items": { "type": "string" } },
+    "unresolved_issues": { "type": "array", "items": { "type": "string" } },
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "deviations": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "cost_usd": { "type": "number" }
+      }
+    },
+    "latency_ms": { "type": "integer" }
+  }
+}

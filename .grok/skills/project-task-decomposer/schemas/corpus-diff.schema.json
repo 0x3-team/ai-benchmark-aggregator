@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/schemas/corpus-diff.schema.json",
+  "title": "Corpus Diff",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "from_plan_version",
+    "to_plan_version",
+    "added",
+    "changed",
+    "unchanged",
+    "split",
+    "merged",
+    "retired",
+    "invalidated_waves"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "from_plan_version": {
+      "type": "string"
+    },
+    "to_plan_version": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "added": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "task_id",
+          "fields_changed"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "fields_changed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "unchanged": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "split": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from_task_id",
+          "to_task_ids"
+        ],
+        "properties": {
+          "from_task_id": {
+            "type": "string"
+          },
+          "to_task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "merged": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from_task_ids",
+          "to_task_id"
+        ],
+        "properties": {
+          "from_task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to_task_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "retired": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "replaced_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "invalidated_waves": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

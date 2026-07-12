@@ -1,6 +1,5 @@
 import type { Benchmark, BenchmarkCategory, Model } from "../types";
-import { benchmarks } from "../data/benchmarks";
-import { getValue } from "../data/scores";
+import { getValue, getBenchmarks } from "../data/registry";
 import { CATEGORIES } from "../types";
 
 export interface RankRow {
@@ -81,7 +80,7 @@ export interface RadarPoint {
 // Average normalized score per category for one model (one radar axis each).
 export function radarAverages(modelId: string): RadarPoint[] {
   const byCat = new Map<BenchmarkCategory, number[]>();
-  for (const bench of benchmarks) {
+  for (const bench of getBenchmarks()) {
     const v = getValue(modelId, bench.id);
     if (v == null) continue;
     const norm = bench.scaleMax > 0 ? v / bench.scaleMax : 0;
@@ -105,6 +104,7 @@ const CATEGORY_ORDER: Record<BenchmarkCategory, number> = {
   instruction: 5,
   chat: 6,
   vision: 7,
+  other: 8,
 };
 
 export function sortModels(
@@ -119,7 +119,7 @@ export function sortModels(
     list.sort((a, b) => (rankById.get(a.id)! - rankById.get(b.id)!));
     return list;
   }
-  const bench = benchmarks.find((b) => b.id === sort.benchmarkId)!;
+  const bench = getBenchmarks().find((b) => b.id === sort.benchmarkId)!;
   list.sort((a, b) => {
     const av = getValue(a.id, bench.id);
     const bv = getValue(b.id, bench.id);
@@ -190,7 +190,7 @@ export function categoryLeader(
 
 // The model that holds `stats.best` for a benchmark (first on ties).
 export function bestModelId(benchmarkId: string, models: Model[]): string | null {
-  const bench = benchmarks.find((b) => b.id === benchmarkId);
+  const bench = getBenchmarks().find((b) => b.id === benchmarkId);
   if (!bench) return null;
   const ranked = rankForBenchmark(models, bench);
   const top = ranked.find((r) => r.rank === 1);

@@ -1,0 +1,11 @@
+{
+  "audit_type": "SCHEMA",
+  "status": "PASS",
+  "task_count": 4,
+  "error_count": 0,
+  "errors": [],
+  "findings": [],
+  "metrics": {
+    "tasks": 4
+  }
+}

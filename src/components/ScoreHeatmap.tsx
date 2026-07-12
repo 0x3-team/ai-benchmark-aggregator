@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import type { Model } from "../types";
-import { benchmarks } from "../data/benchmarks";
-import { getValue } from "../data/scores";
+import type { Benchmark, Model } from "../types";
+import { getValue, getScoreEntry } from "../data/registry";
 import { columnStats, heatmapColor } from "../lib/color";
 import { computeRanking, bestModelId } from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
@@ -12,10 +11,11 @@ import { STICKY_BG, GROUP_H } from "../lib/table";
 
 interface ScoreHeatmapProps {
   models: Model[];
+  benchmarks: Benchmark[];
   onOpenModel: (modelId: string) => void;
 }
 
-export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
+export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapProps) {
   const statsByBench = useMemo(() => {
     const map: Record<string, ReturnType<typeof columnStats>> = {};
     for (const b of benchmarks) {
@@ -23,13 +23,13 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
       map[b.id] = columnStats(values, b);
     }
     return map;
-  }, [models]);
+  }, [models, benchmarks]);
 
   const bestByBench = useMemo(() => {
     const map: Record<string, string | null> = {};
     for (const b of benchmarks) map[b.id] = bestModelId(b.id, models);
     return map;
-  }, [models]);
+  }, [models, benchmarks]);
 
   const orderedModels = useMemo(() => {
     const ranking = computeRanking(models, benchmarks);
@@ -37,7 +37,7 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
     return ranking
       .map((r) => byId.get(r.model.id))
       .filter((m): m is Model => m != null);
-  }, [models]);
+  }, [models, benchmarks]);
 
   const groups = useMemo(
     () =>
@@ -45,7 +45,7 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
         cat,
         items: benchmarks.filter((b) => b.category === cat),
       })).filter((g) => g.items.length > 0),
-    []
+    [benchmarks]
   );
 
   return (
@@ -146,6 +146,14 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
                   </td>
                   {benchmarks.map((b) => {
                     const v = getValue(m.id, b.id);
+                    const entry = getScoreEntry(m.id, b.id);
+                    const prov =
+                      entry && (entry.captureStatus || entry.officialSourceId)
+                        ? entry
+                        : null;
+                    const tooltipText = prov
+                      ? `Source: ${prov.officialSourceId ?? "—"}, captured ${prov.date || "—"}, status ${prov.captureStatus ?? "—"}`
+                      : "";
                     const stats = statsByBench[b.id];
                     const isBest = v != null && stats.best != null && v === stats.best;
                     const bg = heatmapColor(v, stats, b);
@@ -167,7 +175,9 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
                         title={
                           v == null
                             ? `${m.name} · ${b.name}: no data`
-                            : `${m.name} · ${b.name}: ${v}`
+                            : prov
+                              ? tooltipText
+                              : `${m.name} · ${b.name}: ${v}`
                         }
                       >
                         <button
@@ -187,6 +197,12 @@ export function ScoreHeatmap({ models, onOpenModel }: ScoreHeatmapProps) {
                         >
                           {fmt(v, b.scaleMax)}
                         </button>
+                        {prov && (
+                          <span
+                            className="absolute right-1 top-1 z-20 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399] opacity-75 pointer-events-none"
+                            title={tooltipText}
+                          />
+                        )}
                       </td>
                     );
                   })}

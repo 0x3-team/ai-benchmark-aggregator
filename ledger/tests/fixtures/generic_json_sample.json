@@ -1,0 +1,6 @@
+{
+  "results": [
+    {"model": "Model-A", "score": "90.1", "metric": "Pass@1"},
+    {"model": "Model-B", "score": "80.2", "metric": "Pass@1"}
+  ]
+}

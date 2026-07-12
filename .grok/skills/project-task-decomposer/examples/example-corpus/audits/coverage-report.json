@@ -1,0 +1,13 @@
+{
+  "audit_type": "COVERAGE",
+  "status": "PASS",
+  "generated_at": "",
+  "findings": [],
+  "metrics": {
+    "requirements": 2,
+    "covered": 2,
+    "partial": 0,
+    "uncovered": 0,
+    "tasks": 4
+  }
+}

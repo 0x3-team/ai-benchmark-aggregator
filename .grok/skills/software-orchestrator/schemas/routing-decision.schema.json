@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "routing-decision.schema.json",
+  "title": "RoutingDecision",
+  "type": "object",
+  "required": ["task_id", "candidates", "selected", "self_execution_utility", "reason"],
+  "properties": {
+    "task_id": { "type": "string" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "model_id": { "type": "string" },
+          "eligible": { "type": "boolean" },
+          "ineligibility_reasons": { "type": "array", "items": { "type": "string" } },
+          "predicted_success": { "type": "number" },
+          "predicted_cost_usd": { "type": "number" },
+          "predicted_latency_ms": { "type": "number" },
+          "risk_estimate": { "type": "number" },
+          "exploration_bonus": { "type": "number" },
+          "utility": { "type": "number" }
+        }
+      }
+    },
+    "selected": {
+      "type": "object",
+      "properties": {
+        "model_id": { "type": "string" },
+        "utility": { "type": "number" },
+        "is_self": { "type": "boolean" }
+      }
+    },
+    "self_execution_utility": { "type": "number" },
+    "delegation_margin": { "type": "number", "default": 0.08 },
+    "reason": { "type": "string" },
+    "confidence": { "type": "number" },
+    "exploration": { "type": "boolean" }
+  }
+}

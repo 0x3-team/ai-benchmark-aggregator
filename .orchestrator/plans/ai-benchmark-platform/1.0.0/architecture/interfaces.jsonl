@@ -1,0 +1,5 @@
+{"interface_id": "IF-ADAPTER", "name": "SourceAdapter", "kind": "python-protocol", "producer": "CMP-LEDGER-INGEST", "consumers": ["CMP-ADAPTER-HF", "CMP-ADAPTER-JSON", "CMP-ADAPTER-CSV", "CMP-ADAPTER-HTML", "CMP-ADAPTER-FAKE"]}
+{"interface_id": "IF-CLI", "name": "benchmark-ledger CLI", "kind": "cli", "producer": "CMP-LEDGER-CLI", "consumers": ["ACT-OPERATOR"]}
+{"interface_id": "IF-GETVALUE", "name": "getValue(modelId,benchmarkId)", "kind": "ts-function", "producer": "CMP-FE-DATA", "consumers": ["CMP-FE-TABLE", "CMP-FE-COMPARE"]}
+{"interface_id": "IF-EXPORT", "name": "official claims JSON export", "kind": "file/api", "producer": "CMP-BRIDGE-EXPORT", "consumers": ["CMP-FE-DATA"]}
+{"interface_id": "IF-HF-API", "name": "Hugging Face official benchmark APIs", "kind": "http", "producer": "external:huggingface", "consumers": ["CMP-ADAPTER-HF"]}

@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.1.0",
+  "project_id": "ai-benchmark-platform",
+  "project_slug": "ai-benchmark-platform",
+  "plan_version": "1.0.0",
+  "mode": "PRD_PLUS_REPO",
+  "mode_rationale": "Frontend repo inspected (src/*, package.json, handoff). Ledger is PRD-only provisional under ledger/ pending DEC-001/004.",
+  "source_digests": {
+    "SRC-LEDGER-HANDOFF": "sha256:ce533f21cf3e9f9865cc5e6b4841a6ecbabfe505f375b780034c15a94ed47bac",
+    "SRC-FRONTEND-HANDOFF": "sha256:96eda0fa9dd18169cb8c64fcf22feac1dba55f628f50c8dc006b0d73257f29fd",
+    "SRC-README": "sha256:07c339a086847541d412c1ec13b3eac51d2f9c8e4ac8e500ce2877e15d32e304",
+    "SRC-PACKAGE": "sha256:82de90b0ceb68821deab431ef9e9daeed0d9247e08aca6da1e5333cc69559508"
+  },
+  "task_shards": [
+    "tasks/tasks-0001.jsonl"
+  ],
+  "counts": {
+    "tasks_total": 124,
+    "leaves_dispatchable": 86,
+    "leaves_ready": 31,
+    "leaves_blocked": 50,
+    "leaves_provisional": 5,
+    "parents": 38,
+    "requirements": 42,
+    "hard_edges": 109,
+    "workstreams": 10
+  },
+  "readiness": "READY",
+  "audits": {
+    "schema": "PASS",
+    "coverage": "PASS",
+    "graph": "PASS",
+    "granularity": "PASS",
+    "duplication": "PASS",
+    "readiness": "PASS"
+  },
+  "created_at": "2026-07-11T11:53:22Z",
+  "updated_at": "2026-07-11T11:54:56Z",
+  "defaults": {
+    "target_leaf_range": [
+      1000,
+      3000
+    ],
+    "soft_max_leaves": 5000,
+    "hard_max_leaves": 10000,
+    "tasks_per_shard": 250,
+    "note": "Defensible leaf count for these two handoffs is far below 1000 without padding; corpus prioritizes agent-executable work."
+  },
+  "canonical_files": [
+    "manifest.json",
+    "requirements/requirements.jsonl",
+    "requirements/traceability.json",
+    "tasks/tasks-*.jsonl",
+    "graph/edges.jsonl",
+    "graph/execution-waves.json"
+  ],
+  "orchestrator_load_order": [
+    "manifest.json",
+    "requirements/traceability.json",
+    "graph/execution-waves.json",
+    "indexes/by-status.json",
+    "tasks shards via indexes"
+  ],
+  "open_decisions": [
+    "DEC-001",
+    "DEC-002",
+    "DEC-003",
+    "DEC-004"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Architecture Component",
+  "type": "object",
+  "required": [
+    "component_id",
+    "name",
+    "kind",
+    "provisional"
+  ],
+  "properties": {
+    "component_id": {
+      "type": "string",
+      "pattern": "^CMP-[A-Z0-9-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "FRONTEND",
+        "BACKEND",
+        "API",
+        "DOMAIN",
+        "DATA",
+        "WORKER",
+        "INFRA",
+        "MOBILE",
+        "SHARED",
+        "EXTERNAL"
+      ]
+    },
+    "responsibility": {
+      "type": "string"
+    },
+    "repo_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provisional": {
+      "type": "boolean"
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

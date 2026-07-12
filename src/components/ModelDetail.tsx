@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Plus, Check, Trophy } from "lucide-react";
 import type { Benchmark, Model } from "../types";
-import { getValue } from "../data/scores";
+import { getValue, getScoreEntry } from "../data/registry";
 import { columnStats, heatmapColor } from "../lib/color";
 import { categoryLeader } from "../lib/aggregate";
 import { CATEGORY_LABELS } from "../types";
@@ -145,6 +145,12 @@ export function ModelDetail({
       <div className="flex flex-col gap-1">
         {benchmarks.map((b) => {
           const v = getValue(model.id, b.id);
+          const entry = getScoreEntry(model.id, b.id);
+          const prov =
+            entry &&
+            (entry.officialSourceId || entry.scoreRaw || entry.captureStatus)
+              ? entry
+              : null;
           const stats = statsByBench[b.id];
           const isBest = v != null && stats.best != null && v === stats.best;
           const bg = heatmapColor(v, stats, b);
@@ -158,8 +164,17 @@ export function ModelDetail({
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: bg === "transparent" ? "transparent" : bg }}
               />
-              <span className="flex-1 truncate text-sm text-foreground/90">
-                {b.name}
+              <span className="flex flex-1 flex-col truncate">
+                <span className="truncate text-sm text-foreground/90">
+                  {b.name}
+                </span>
+                {prov && (
+                  <span className="truncate font-mono text-[10px] text-muted-foreground/70">
+                    source {prov.officialSourceId ?? "—"} · raw{" "}
+                    {prov.scoreRaw ?? "—"}
+                    {prov.captureStatus ? ` · ${prov.captureStatus}` : ""}
+                  </span>
+                )}
               </span>
               {isBest && (
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-300">

@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "data": [
+    {
+      "id": "model-a",
+      "name": "model-a",
+      "evaluations": {
+        "intelligence_index": 85.5
+      }
+    },
+    {
+      "id": "model-b",
+      "name": "model-b",
+      "evaluations": {
+        "intelligence_index": 90.2
+      }
+    }
+  ]
+}

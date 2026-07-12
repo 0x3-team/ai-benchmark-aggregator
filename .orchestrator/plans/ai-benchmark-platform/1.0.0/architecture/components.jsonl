@@ -1,0 +1,20 @@
+{"component_id": "CMP-LEDGER-DB", "name": "Ledger database", "domain_id": "DOM-LEDGER", "provisional": true, "paths": ["ledger/app/db/*"], "responsibility": "Tables, repositories, constraints"}
+{"component_id": "CMP-LEDGER-SCHEMAS", "name": "Typed contracts", "domain_id": "DOM-LEDGER", "provisional": true, "paths": ["ledger/app/schemas/*"]}
+{"component_id": "CMP-LEDGER-STORAGE", "name": "Snapshot storage", "domain_id": "DOM-LEDGER", "provisional": true, "paths": ["ledger/app/storage/*"]}
+{"component_id": "CMP-LEDGER-INGEST", "name": "Ingestion runner", "domain_id": "DOM-INGEST", "provisional": true, "paths": ["ledger/app/ingestion/*"]}
+{"component_id": "CMP-ADAPTER-HF", "name": "HF benchmark API adapter", "domain_id": "DOM-INGEST", "provisional": true, "paths": ["ledger/app/ingestion/adapters/hf_benchmark_api.py"]}
+{"component_id": "CMP-ADAPTER-JSON", "name": "Generic JSON adapter", "domain_id": "DOM-INGEST", "provisional": true, "paths": ["ledger/app/ingestion/adapters/generic_json.py"]}
+{"component_id": "CMP-ADAPTER-CSV", "name": "Generic CSV adapter", "domain_id": "DOM-INGEST", "provisional": true, "paths": ["ledger/app/ingestion/adapters/generic_csv.py"]}
+{"component_id": "CMP-ADAPTER-HTML", "name": "Generic HTML table adapter", "domain_id": "DOM-INGEST", "provisional": true, "paths": ["ledger/app/ingestion/adapters/generic_html_table.py"]}
+{"component_id": "CMP-ADAPTER-FAKE", "name": "Fake adapter", "domain_id": "DOM-INGEST", "provisional": true, "paths": ["ledger/app/ingestion/adapters/fake.py"]}
+{"component_id": "CMP-LEDGER-MATCH", "name": "Matching/aliases", "domain_id": "DOM-MATCH", "provisional": true, "paths": ["ledger/app/matching/*"]}
+{"component_id": "CMP-LEDGER-REVIEW", "name": "Review queue CLI", "domain_id": "DOM-MATCH", "provisional": true, "paths": ["ledger/app/review/*"]}
+{"component_id": "CMP-LEDGER-CLI", "name": "CLI entrypoint", "domain_id": "DOM-LEDGER", "provisional": true, "paths": ["ledger/app/cli.py"]}
+{"component_id": "CMP-LEDGER-REGISTRY", "name": "YAML seed registry", "domain_id": "DOM-REGISTRY", "provisional": true, "paths": ["ledger/app/registry/*"]}
+{"component_id": "CMP-FE-APP", "name": "React App shell", "domain_id": "DOM-UI", "provisional": false, "paths": ["src/App.tsx", "src/main.tsx"]}
+{"component_id": "CMP-FE-TABLE", "name": "ScoreTable", "domain_id": "DOM-UI", "provisional": false, "paths": ["src/components/ScoreTable.tsx"]}
+{"component_id": "CMP-FE-COMPARE", "name": "ModelComparison stack", "domain_id": "DOM-UI", "provisional": false, "paths": ["src/components/ModelComparison.tsx", "src/components/RadarChart.tsx", "src/components/ScoreHeatmap.tsx", "src/components/BenchmarkBars.tsx"]}
+{"component_id": "CMP-FE-DATA", "name": "Frontend data layer", "domain_id": "DOM-UI", "provisional": false, "paths": ["src/data/*", "src/types.ts", "src/lib/aggregate.ts"]}
+{"component_id": "CMP-FE-UI", "name": "UI primitives", "domain_id": "DOM-UI", "provisional": false, "paths": ["src/components/ui/*"]}
+{"component_id": "CMP-BRIDGE-EXPORT", "name": "Claims export bridge", "domain_id": "DOM-BRIDGE", "provisional": true, "paths": ["ledger/app/export/*", "src/data/official/*"]}
+{"component_id": "CMP-BRIDGE-CONTRACT", "name": "Shared claim→score contract", "domain_id": "DOM-BRIDGE", "provisional": true, "paths": ["contracts/*", "ledger/app/schemas/*"]}

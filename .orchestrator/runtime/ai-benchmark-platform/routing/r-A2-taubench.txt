@@ -1,0 +1,20 @@
+You are a senior Python engineer. Repo: /srv/hermes/development/ai-benchmark-aggregator (ledger at ledger/, Python 3.11 venv at ledger/.venv).
+
+TASK: Build a new ledger ingestion adapter for τ-bench (tau_bench) and wire it into official_sources.yaml.
+
+CONTEXT — existing adapter contract (copy the style of ledger/app/ingestion/adapters/github_yaml.py and generic_json.py):
+- Subclass SourceAdapter (from app.ingestion.adapters.base import SourceAdapter).
+- source_type = "taubench_s3".
+- fetch(source): list public S3 bucket via httpx GET "https://sierra-tau-bench-public.s3.amazonaws.com/?list-type=2&prefix=submissions/" (CONFIRMED 200, returns XML ListBucketResult). Parse <Key> entries ending in "submission.json" (use xml.etree.ElementTree, namespace "http://s3.amazonaws.com/doc/2006-03-01/"). For each key, GET "https://sierra-tau-bench-public.s3.amazonaws.com/<Key>" and collect the bytes (NDJSON joined by newline). Return SourceFetchResult(raw_bytes=joined, content_type="application/x-ndjson", http_status=200). Add a parser_config cap: only fetch up to max_keys (default 50) submission files to avoid huge volume.
+- extract_claims(source, snapshot, raw_bytes): split raw on b"\n", json.loads each line. For each: model = data.get("model") or data.get("model_name") or data.get("model_id"); results = data.get("results", {}). Aggregate mean of all values whose key startswith "pass_" across all domains (results is {domain: {pass_1:..,pass_2:..}}). Emit one ResultClaimInput per model: benchmark_id=source.benchmark_id, model_raw=str(model), score_raw=f"{mean:.4f}", metric_raw="mean_pass_rate", score_numeric=mean, capture_method="taubench_s3_parser", capture_confidence=0.9, capture_status="parser_verified", officialness_level=source.officialness_level, evidence_location={"type":"s3_submission","model":str(model)}.
+- validate_claim: return [ClaimValidationInput(validation_type="taubench_agg", outcome="pass", validator="TauBenchS3Adapter")].
+- Import try_parse_score from app.ingestion.extractors.normalize, OfficialSource/ResultClaimInput/SourceFetchResult/ClaimValidationInput from app.schemas.boundary.
+
+REGISTER: add `from app.ingestion.adapters.taubench_s3 import TauBenchS3Adapter` and `ADAPTERS["taubench_s3"] = TauBenchS3Adapter` in ledger/app/ingestion/adapters/__init__.py (alphabetical area).
+
+TEST: create ledger/tests/test_taubench_s3.py — write a failing-then-passing test: feed a sample submission.json body (model + results dict) and assert len(claims)==1, model_raw correct, score_numeric is a float mean. Run `cd ledger && source .venv/bin/activate && python -m pytest tests/test_taubench_s3.py -q` and confirm PASS.
+
+VERIFY before finishing: `cd ledger && source .venv/bin/activate && python -c "from app.ingestion.adapters import get_adapter; a=get_adapter('taubench_s3'); print('OK', type(a).__name__)"`.
+
+Do NOT edit official_sources.yaml (Grok handles that). Do NOT run the full ingest. Commit your files with `git add ledger/app/ingestion/adapters/taubench_s3.py ledger/app/ingestion/adapters/__init__.py ledger/tests/test_taubench_s3.py && git commit -m "feat(ledger): add tau_bench S3 ingestion adapter"`.
+Report files changed + test result + the get_adapter check output.

@@ -1,0 +1,37 @@
+{
+  "audit_type": "READINESS",
+  "status": "PASS",
+  "readiness": "READY",
+  "generated_at": "",
+  "gates": {
+    "schema_structure": {
+      "pass": true
+    },
+    "cycles": {
+      "pass": true
+    },
+    "coverage": {
+      "pass": true
+    },
+    "granularity": {
+      "pass": true
+    },
+    "duplicates": {
+      "pass": true
+    },
+    "waves": {
+      "pass": true
+    },
+    "indexes": {
+      "pass": true
+    }
+  },
+  "findings": [],
+  "metrics": {},
+  "thresholds": {
+    "schema_validity": "100%",
+    "dependency_refs": "100%",
+    "cycles": 0,
+    "dispatchable_L_XL": 0
+  }
+}

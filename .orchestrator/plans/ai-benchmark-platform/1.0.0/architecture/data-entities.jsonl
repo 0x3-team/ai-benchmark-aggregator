@@ -1,0 +1,12 @@
+{"entity_id": "ENT-BENCHMARK", "name": "benchmarks", "domain_id": "DOM-LEDGER", "keys": ["id"]}
+{"entity_id": "ENT-MODEL", "name": "model_entities", "domain_id": "DOM-LEDGER", "keys": ["id"]}
+{"entity_id": "ENT-ALIAS", "name": "aliases", "domain_id": "DOM-LEDGER", "keys": ["entity_type", "entity_id", "alias_text"]}
+{"entity_id": "ENT-SOURCE", "name": "official_sources", "domain_id": "DOM-LEDGER", "keys": ["id"]}
+{"entity_id": "ENT-SNAPSHOT", "name": "source_snapshots", "domain_id": "DOM-LEDGER", "keys": ["official_source_id", "content_hash"]}
+{"entity_id": "ENT-CLAIM", "name": "result_claims", "domain_id": "DOM-LEDGER", "keys": ["source_snapshot_id", "claim_fingerprint"]}
+{"entity_id": "ENT-VALIDATION", "name": "claim_validations", "domain_id": "DOM-LEDGER", "keys": ["id"]}
+{"entity_id": "ENT-REL", "name": "claim_relationships", "domain_id": "DOM-LEDGER", "keys": ["claim_id", "related_claim_id", "relationship_type"]}
+{"entity_id": "ENT-RUN", "name": "ingestion_runs", "domain_id": "DOM-LEDGER", "keys": ["id"]}
+{"entity_id": "ENT-FE-MODEL", "name": "Model (frontend)", "domain_id": "DOM-UI", "keys": ["id"]}
+{"entity_id": "ENT-FE-BENCH", "name": "Benchmark (frontend)", "domain_id": "DOM-UI", "keys": ["id"]}
+{"entity_id": "ENT-FE-SCORE", "name": "Score (frontend)", "domain_id": "DOM-UI", "keys": ["modelId", "benchmarkId"]}

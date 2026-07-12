@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-07-11T11:54:56Z",
+  "length": 8,
+  "end_task_id": "TSK-E07D35A145",
+  "path_task_ids": [
+    "TSK-E236E6A2CB",
+    "TSK-6A2E04723D",
+    "TSK-58352AA8CA",
+    "TSK-EF6B09A115",
+    "TSK-6A3901A186",
+    "TSK-E915B1E86C",
+    "TSK-92C21D406A",
+    "TSK-E07D35A145"
+  ],
+  "path_display_keys": [
+    "FOUNDATION-LAYOUT-DECISIONS-001",
+    "LEDGER-CORE-PACKAGE-SCAFFOLD-001",
+    "LEDGER-CORE-DATABASE-LEDGERS-003-L",
+    "LEDGER-REVIE-MATCHING-001",
+    "LEDGER-REVIE-REVIEW-CLI-001",
+    "LEDGER-REVIE-REVIEW-CLI-002",
+    "LEDGER-REVIE-REVIEW-CLI-003-L",
+    "LEDGER-REVIE-REVIEW-CLI-004"
+  ],
+  "path_titles": [
+    "Decide monorepo layout for ledger vs frontend",
+    "Create pyproject.toml and package layout under chosen ledger root",
+    "Implement aliases table model and repository methods",
+    "Implement alias matching for model_raw",
+    "Implement review queue listing command",
+    "Implement review show and map-model commands",
+    "Implement mark-human-verified and aliases add commands",
+    "Add review workflow automated tests"
+  ]
+}

@@ -1,3 +1,7 @@
+// NOTE: This file intentionally remains on @radix-ui/react-toast per ADR-002.
+// Base UI does not yet ship a Toast primitive. When Base UI adds Toast (or a
+// custom toast is justified), this file + use-toast.ts should be migrated.
+// See docs/adr/ADR-002-toast-strategy.md for the decision record.
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"

@@ -1,6 +1,5 @@
 import { BookOpen } from "lucide-react";
-import { benchmarks } from "../data/benchmarks";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import { CATEGORIES, CATEGORY_LABELS, type Benchmark } from "../types";
 import {
   Dialog,
   DialogContent,
@@ -13,9 +12,10 @@ import { Separator } from "@/components/ui/separator";
 interface GlossaryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  benchmarks: Benchmark[];
 }
 
-export function GlossaryDialog({ open, onOpenChange }: GlossaryDialogProps) {
+export function GlossaryDialog({ open, onOpenChange, benchmarks }: GlossaryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -30,6 +30,13 @@ export function GlossaryDialog({ open, onOpenChange }: GlossaryDialogProps) {
             leaderboard for a quick definition, or pick a category below.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="glass-inset rounded-lg px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+          <strong className="text-foreground">Trust note:</strong> ranking
+          averages and radar charts are presentation helpers only. Official
+          claim mode (when enabled) surfaces source-backed ledger values and
+          never stores UI aggregates as scientific results.
+        </div>
 
         <div className="flex flex-col gap-5">
           {CATEGORIES.map((cat) => {

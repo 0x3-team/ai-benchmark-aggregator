@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "rank": 1,
+      "model": "model-a",
+      "vendor": "OrgA",
+      "score": 1200
+    },
+    {
+      "rank": 2,
+      "model": "model-b",
+      "vendor": "OrgB",
+      "score": 1150
+    }
+  ]
+}

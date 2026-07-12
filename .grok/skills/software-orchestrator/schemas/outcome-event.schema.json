@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "outcome-event.schema.json",
+  "title": "OutcomeEvent",
+  "type": "object",
+  "required": ["event_id", "timestamp", "project_id", "task_id", "attempt_id", "actual_result"],
+  "properties": {
+    "event_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "project_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "attempt_id": { "type": "string" },
+    "model": {
+      "type": "object",
+      "properties": {
+        "model_id": { "type": "string" },
+        "provider": { "type": "string" },
+        "version": { "type": "string" },
+        "harness": { "type": "string" }
+      }
+    },
+    "task_features": { "type": "object" },
+    "routing_prediction": { "type": "object" },
+    "routing_decision": { "type": "object" },
+    "actual_result": {
+      "type": "object",
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "action": { "type": "string" },
+        "first_attempt_pass": { "type": "boolean" }
+      }
+    },
+    "review_findings": { "type": "object" },
+    "deterministic_verification": { "type": "object" },
+    "cost_usd": { "type": "number" },
+    "latency_ms": { "type": "integer" },
+    "retries": { "type": "integer" },
+    "integration_outcome": { "type": "string" },
+    "causal_attribution": {
+      "type": "string",
+      "enum": [
+        "model_capability", "routing", "task_decomposition", "task_specification",
+        "missing_context", "tool_failure", "infrastructure", "repo_instability",
+        "requirement_ambiguity", "review_error", "integration_error", "success"
+      ]
+    },
+    "human_feedback": { "type": ["string", "null"] },
+    "profile_updates": { "type": "array", "items": { "type": "string" } }
+  }
+}

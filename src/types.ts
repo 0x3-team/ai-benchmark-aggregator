@@ -6,7 +6,8 @@ export type BenchmarkCategory =
   | "agentic"
   | "instruction"
   | "chat"
-  | "vision";
+  | "vision"
+  | "other";
 
 export type Modality = "text" | "vision" | "audio";
 
@@ -36,12 +37,26 @@ export interface Benchmark {
   sourceUrl: string;
 }
 
+export interface ScoreEvidence {
+  type: string;
+  path: string | null;
+  modelPath: string | null;
+}
+
 export interface Score {
   modelId: string;
   benchmarkId: string;
   value: number;
   date: string;
   note?: string;
+  // Provenance — present only for official ledger claims (ADR-003).
+  // Demo synthetic scores never carry these fields, so they are all optional.
+  scoreRaw?: string | null;
+  captureStatus?: string | null;
+  officialSourceId?: string | null;
+  sourceSnapshotId?: string | null;
+  evidenceLocation?: ScoreEvidence | null;
+  claimId?: string | null;
 }
 
 export const CATEGORY_LABELS: Record<BenchmarkCategory, string> = {
@@ -53,6 +68,7 @@ export const CATEGORY_LABELS: Record<BenchmarkCategory, string> = {
   instruction: "Instruction",
   chat: "Chat",
   vision: "Vision",
+  other: "Other",
 };
 
 export const CATEGORIES: BenchmarkCategory[] = [
@@ -64,4 +80,5 @@ export const CATEGORIES: BenchmarkCategory[] = [
   "instruction",
   "chat",
   "vision",
+  "other",
 ];

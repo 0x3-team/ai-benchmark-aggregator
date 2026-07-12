@@ -1,0 +1,6 @@
+{
+  "leaderboard": [
+    {"model_id": "Fake-Model-1", "value": "42.50", "rank": 1, "metric": "acc"},
+    {"model_id": "Unknown-Model-X", "value": "11.00", "rank": 2, "metric": "acc"}
+  ]
+}

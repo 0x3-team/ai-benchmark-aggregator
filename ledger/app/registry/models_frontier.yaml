@@ -1,0 +1,1249 @@
+models:
+- id: gpt_5_6
+  canonical_name: GPT-5.6
+  display_name: GPT-5.6
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.6
+  - gpt-5.6-sol-xhigh
+  - gpt-5.6-preview
+  - GPT 5.6
+  - openai/gpt-5.6
+- id: gpt_5_5
+  canonical_name: GPT-5.5
+  display_name: GPT-5.5
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.5
+  - gpt-5.5-high
+  - GPT 5.5
+- id: gpt_5_4
+  canonical_name: GPT-5.4
+  display_name: GPT-5.4
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.4
+  - gpt-5.4-high
+  - GPT 5.4
+  - openai/gpt-5.4
+- id: gpt_5_3_codex
+  canonical_name: GPT-5.3-Codex
+  display_name: GPT-5.3 Codex
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.3-codex
+  - GPT 5.3 Codex
+  - openai/gpt-5.3-codex
+- id: gpt_5_2
+  canonical_name: GPT-5.2
+  display_name: GPT-5.2
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.2
+  - GPT 5.2
+  - gpt-5.2-chat-latest-20260210
+  - mini-SWE-agent + GPT-5.2 (2025-12-11)
+  - mini-SWE-agent + GPT-5.2 (2025-12-11) (high reasoning)
+- id: gpt_5_2_codex
+  canonical_name: GPT-5.2-Codex
+  display_name: GPT-5.2 Codex
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.2-codex
+  - GPT 5.2 Codex
+- id: gpt_5_1
+  canonical_name: GPT-5.1
+  display_name: GPT-5.1
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.1
+  - GPT 5.1
+  - mini-SWE-agent + GPT-5.1 (2025-11-13) (medium reasoning)
+  - mini-SWE-agent + GPT-5.1-codex (medium reasoning)
+- id: gpt_5_1_codex
+  canonical_name: GPT-5.1-Codex
+  display_name: GPT-5.1 Codex
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5.1-codex
+  - GPT 5.1 Codex
+- id: gpt_5
+  canonical_name: GPT-5
+  display_name: GPT-5
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5
+  - GPT 5
+  - openai/gpt-5
+  - OpenHands + GPT-5
+  - Prometheus-v1.2 + GPT-5
+  - Prometheus-v1.2.1 + GPT-5
+- id: gpt_5_nano
+  canonical_name: GPT-5-Nano
+  display_name: GPT-5 Nano
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5-nano
+  - GPT 5 Nano
+  - mini-SWE-agent + GPT-5 nano (2025-08-07) (medium reasoning)
+- id: gpt_5_mini
+  canonical_name: GPT-5-Mini
+  display_name: GPT-5 Mini
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-5-mini
+  - GPT 5 Mini
+  - mini-SWE-agent + GPT-5-2 Codex
+  - mini-SWE-agent + GPT-5-2 (high reasoning)
+  - mini-SWE-agent + GPT-5 (2025-08-07) (medium reasoning)
+  - mini-SWE-agent + GPT-5 mini (2025-08-07) (medium reasoning)
+  - mini-SWE-agent + GPT-5 Mini
+- id: o4_mini
+  canonical_name: o4-mini
+  display_name: o4-mini
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - o4-mini
+  - o4 mini
+  - O4-Mini (Medium)
+  - O4-Mini (Low)
+  - mini-SWE-agent + o4-mini (2025-04-16)
+  - O4-Mini (High)
+  - Refact.ai Agent + Claude 4 Sonnet + o4-mini
+- id: o3_mini
+  canonical_name: o3-mini
+  display_name: o3-mini
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - o3-mini
+  - o3-mini-2025-01-31
+  - o3-mini-20250131
+  - Agentless Lite + O3 Mini (20250214)
+  - openai/o3-mini
+  - O3-Mini-2025-01-31 (Low)
+  - O3-Mini-2025-01-31 (High)
+  - O3-Mini-2025-01-31 (Med)
+  - mini-SWE-agent + o3 (2025-04-16)
+  - O3 (High)
+- id: o1
+  canonical_name: o1
+  display_name: o1
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - o1
+  - o1-preview
+  - openai/o1
+  - W&B Programmer O1 crosscheck5
+  - DeepSWE-Preview + TTS(Bo16)
+  - AIDC-AI/Marco-o1
+- id: o1_mini
+  canonical_name: o1-mini
+  display_name: o1-mini
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - o1-mini
+  - openai/o1-mini
+- id: gpt_4_1
+  canonical_name: GPT-4.1
+  display_name: GPT-4.1
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-4.1
+  - GPT 4.1
+  - JoyCode + Claude 4 Sonnet + GPT-4.1
+- id: gpt_4_1_mini
+  canonical_name: GPT-4.1-Mini
+  display_name: GPT-4.1 Mini
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-4.1-mini
+  - GPT 4.1 Mini
+  - mini-SWE-agent + GPT-4.1-mini (2025-04-14)
+  - mini-SWE-agent + GPT-4.1 (2025-04-14)
+- id: gpt_4o
+  canonical_name: GPT-4o
+  display_name: GPT-4o
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-4o
+  - GPT-4o
+  - gpt-4o-2024-05-13
+  - Agentless-1.5 + GPT 4o (2024-05-13)
+  - AppMap Navie + GPT 4o (2024-05-13)
+  - openai/gpt-4o
+  - GPT-4o-2024-05-13
+  - GPT-4O-mini-2024-07-18
+  - AutoCodeRover (v20240620) + GPT 4o (2024-05-13)
+  - GPT-4o-mini-2024-07-18
+  - SWE-agent + GPT 4o (2024-05-13)
+  - mini-SWE-agent + GPT-4o (2024-11-20)
+  - MASAI + GPT 4o (2024-06-12)
+  - GPT-4O-2024-08-06
+  - EPAM AI/Run Developer Agent + GPT4o
+- id: gpt_4o_mini
+  canonical_name: GPT-4o-mini
+  display_name: GPT-4o Mini
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-4o-mini
+  - GPT-4o Mini
+  - openai/gpt-4o-mini
+  - GPT-4o-mini-2024-07-18
+  - GPT-4O-mini-2024-07-18
+- id: gpt_4_turbo
+  canonical_name: GPT-4-Turbo
+  display_name: GPT-4 Turbo
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-4-turbo
+  - GPT-4 Turbo
+  - openai/gpt-4-turbo
+  - GPT-4-Turbo-2024-04-09
+- id: gpt_4
+  canonical_name: GPT-4
+  display_name: GPT-4
+  entity_type: chat_model
+  provider: OpenAI
+  access_type: api
+  status: active
+  aliases:
+  - gpt-4
+  - GPT-4
+  - openai/gpt-4
+  - RAG + GPT 4 (1106)
+  - SWE-agent + GPT 4 (1106)
+  - GPT-4-0613
+- id: claude_fable_5
+  canonical_name: Claude-Fable-5
+  display_name: Claude Fable 5
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-fable-5
+  - Claude Fable 5
+  - anthropic/claude-fable-5
+- id: claude_mythos_5
+  canonical_name: Claude-Mythos-5
+  display_name: Claude Mythos 5
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-mythos-5
+  - Claude Mythos 5
+  - anthropic/claude-mythos-5
+- id: claude_opus_4_8
+  canonical_name: Claude-Opus-4.8
+  display_name: Claude 4.8 Opus
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-opus-4.8
+  - Claude 4.8 Opus
+  - claude-opus-4-8-thinking
+  - anthropic/claude-opus-4.8
+  - mini-SWE-agent + Claude 4.5 Opus (high reasoning)
+  - Sonar Foundation Agent + Claude 4.5 Opus
+  - mini-SWE-agent + Claude 4.5 Opus medium (20251101)
+  - Claude 4.5 Opus
+  - live-SWE-agent + Claude 4.5 Opus medium (20251101)
+- id: claude_opus_4_7
+  canonical_name: Claude-Opus-4.7
+  display_name: Claude 4.7 Opus
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-opus-4.7
+  - Claude 4.7 Opus
+  - claude-opus-4-7
+  - claude-opus-4-7-thinking
+  - anthropic/claude-opus-4.7
+  - mini-SWE-agent + Claude 4 Opus (20250514)
+  - Tools + Claude 4 Opus (2025-05-22)
+- id: claude_sonnet_4_6
+  canonical_name: Claude-Sonnet-4.6
+  display_name: Claude 4.6 Sonnet
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-sonnet-4.6
+  - Claude 4.6 Sonnet
+  - claude-sonnet-4-6
+  - anthropic/claude-sonnet-4.6
+  - EPAM AI/Run Developer Agent v20250719 + Claude 4 Sonnet
+  - SWE-agent + Claude 4 Sonnet
+  - Tools + Claude 4 Sonnet (2025-05-22)
+  - OpenHands + Claude 4 Sonnet
+  - mini-SWE-agent + Claude 4 Sonnet (20250514)
+  - Moatless Tools + Claude 4 Sonnet
+  - Lingxi-v1.5_claude-4-sonnet-20250514
+- id: claude_opus_4_6
+  canonical_name: Claude-Opus-4.6
+  display_name: Claude 4.6 Opus
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-opus-4.6
+  - Claude 4.6 Opus
+  - claude-opus-4-6
+  - claude-opus-4-6-thinking
+  - anthropic/claude-opus-4.6
+  - mini-SWE-agent + Claude Opus 4.6
+- id: claude_haiku_4_5
+  canonical_name: Claude-Haiku-4.5
+  display_name: Claude 4.5 Haiku
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-haiku-4.5
+  - Claude 4.5 Haiku
+  - claude-haiku-4-5
+  - anthropic/claude-haiku-4.5
+- id: claude_4_5_sonnet
+  canonical_name: Claude-4.5-Sonnet
+  display_name: Claude 4.5 Sonnet
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-4.5-sonnet
+  - Claude 4.5 Sonnet
+  - anthropic/claude-4.5-sonnet
+  - Sonar Foundation Agent + Claude 4.5 Sonnet
+  - mini-SWE-agent + Claude 4.5 Sonnet (20250929)
+  - mini-SWE-agent + Claude 4.5 Sonnet (high reasoning)
+- id: claude_4_5_haiku
+  canonical_name: Claude-4.5-Haiku
+  display_name: Claude 4.5 Haiku
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-4.5-haiku
+  - Claude 4.5 Haiku
+  - anthropic/claude-4.5-haiku
+  - mini-SWE-agent + Claude 4.5 Haiku (high reasoning)
+- id: claude_4_opus
+  canonical_name: Claude-4-Opus
+  display_name: Claude 4 Opus
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-4-opus
+  - Claude 4 Opus
+  - anthropic/claude-4-opus
+- id: claude_4_sonnet
+  canonical_name: Claude-4-Sonnet
+  display_name: Claude 4 Sonnet
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-4-sonnet
+  - Claude 4 Sonnet
+  - anthropic/claude-4-sonnet
+- id: claude_3_7_sonnet
+  canonical_name: Claude-3.7-Sonnet
+  display_name: Claude 3.7 Sonnet
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-3.7-sonnet
+  - Claude 3.7 Sonnet
+  - claude-3-7-sonnet
+  - Aime-coder v1 + Anthopic Claude 3.7 Sonnet
+  - SWE-agent 1.0 (Claude 3.7 Sonnet)
+  - anthropic/claude-3.7-sonnet
+  - SWE-agent + Claude 3.7 Sonnet w/ Review Heavy
+  - mini-SWE-agent + Claude 3.7 Sonnet (20250219)
+  - Tools + Claude 3.7 Sonnet (2025-02-24)
+  - TRAE + Claude Sonnet 4 + Opus 4 + Sonnet 3.7 + Gemini 2.5 Pro
+- id: claude_3_5_sonnet
+  canonical_name: Claude-3.5-Sonnet
+  display_name: Claude 3.5 Sonnet
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-3.5-sonnet
+  - Claude 3.5 Sonnet
+  - claude-3-5-sonnet
+  - Agentless-1.5 + Claude-3.5 Sonnet (20241022)
+  - anthropic/claude-3.5-sonnet
+  - OpenHands + CodeAct v2.1 (claude-3-5-sonnet-20241022)
+  - EPAM AI/Run Developer Agent v20250219 + Anthopic Claude 3.5 Sonnet
+  - Tools + Claude 3.5 Sonnet (2024-10-22)
+  - EPAM AI/Run Developer Agent v20241212 + Anthopic Claude 3.5 Sonnet
+  - SWE-agent + Claude 3.5 Sonnet
+  - EPAM AI/Run Developer Agent v20241029 + Anthopic Claude 3.5 Sonnet
+  - Composio SWEkit + Claude 3.5 Sonnet (2024-10-16)
+  - AutoCodeRover-v2.0 (Claude-3.5-Sonnet-20241022)
+  - Claude-3.5-Sonnet-20241022
+  - AutoCodeRover-v2.1 (Claude-3.5-Sonnet-20241022)
+  - Claude-3.5-Sonnet-20240620
+- id: claude_3_5_haiku
+  canonical_name: Claude-3.5-Haiku
+  display_name: Claude 3.5 Haiku
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-3.5-haiku
+  - Claude 3.5 Haiku
+  - claude-3-5-haiku
+  - anthropic/claude-3.5-haiku
+  - Tools + Claude 3.5 Haiku
+- id: claude_3_opus
+  canonical_name: Claude-3-Opus
+  display_name: Claude 3 Opus
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-3-opus
+  - Claude 3 Opus
+  - anthropic/claude-3-opus
+  - SWE-agent + Claude 3 Opus
+  - RAG + Claude 3 Opus
+  - Claude-3-Opus-20240229
+  - Claude-Opus-4 (Thinking)
+  - claude-opus-4-6
+  - claude-opus-4-6-thinking
+  - claude-opus-4-7
+  - claude-opus-4-8-thinking
+  - claude-opus-4-8
+  - Claude-Opus-4
+  - claude-opus-4-7-thinking
+- id: claude_3_haiku
+  canonical_name: Claude-3-Haiku
+  display_name: Claude 3 Haiku
+  entity_type: chat_model
+  provider: Anthropic
+  access_type: api
+  status: active
+  aliases:
+  - claude-3-haiku
+  - Claude 3 Haiku
+  - anthropic/claude-3-haiku
+  - Claude-3-Haiku
+  - Claude-3-Haiku-20240307
+- id: gemini_3_5_flash
+  canonical_name: Gemini-3.5-Flash
+  display_name: Gemini 3.5 Flash
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-3.5-flash
+  - Gemini 3.5 Flash
+  - gemini-3.5-flash-medium
+  - gemini-3.5-flash-high
+  - google/gemini-3.5-flash
+- id: gemini_3_5_pro
+  canonical_name: Gemini-3.5-Pro
+  display_name: Gemini 3.5 Pro
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-3.5-pro
+  - Gemini 3.5 Pro
+  - google/gemini-3.5-pro
+- id: gemini_3_1_flash_lite
+  canonical_name: Gemini-3.1-Flash-Lite
+  display_name: Gemini 3.1 Flash-Lite
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-3.1-flash-lite
+  - Gemini 3.1 Flash-Lite
+  - google/gemini-3.1-flash-lite
+- id: gemini_3_pro
+  canonical_name: Gemini-3-Pro
+  display_name: Gemini 3 Pro
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-3-pro
+  - Gemini 3 Pro
+  - gemini-3-pro-preview
+  - gemini-3.1-pro-preview
+  - google/gemini-3-pro
+  - mini-SWE-agent + Gemini 3 Pro Preview (2025-11-18)
+  - mini-SWE-agent + Gemini 3 Pro
+  - live-SWE-agent + Gemini 3 Pro Preview (2025-11-18)
+- id: gemini_3
+  canonical_name: Gemini-3
+  display_name: Gemini 3
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-3
+  - Gemini 3
+  - google/gemini-3
+  - gemini-3.1-pro-preview
+  - mini-SWE-agent + Gemini 3 Flash (high reasoning)
+- id: gemini_2_5_flash
+  canonical_name: Gemini-2.5-Flash
+  display_name: Gemini 2.5 Flash
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-2.5-flash
+  - Gemini 2.5 Flash
+  - google/gemini-2.5-flash
+  - mini-SWE-agent + Gemini 2.5 Flash (2025-04-17)
+  - Gemini-2.5-Flash-05-20
+  - Gemini-2.5-Flash-04-17
+- id: gemini_2_5_pro
+  canonical_name: Gemini-2.5-Pro
+  display_name: Gemini 2.5 Pro
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-2.5-pro
+  - Gemini 2.5 Pro
+  - google/gemini-2.5-pro
+  - TRAE + Claude Sonnet 4 + Opus 4 + Sonnet 3.7 + Gemini 2.5 Pro
+  - Gemini-2.5-Pro-06-05
+  - mini-SWE-agent + Gemini 2.5 Pro (2025-05-06)
+  - Gemini-2.5-Pro-05-06
+- id: gemini_2_pro
+  canonical_name: Gemini-2-Pro
+  display_name: Gemini 2 Pro
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-2-pro
+  - Gemini 2 Pro
+  - google/gemini-2-pro
+- id: gemini_2_0_flash
+  canonical_name: Gemini-2.0-Flash
+  display_name: Gemini 2.0 Flash
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-2.0-flash
+  - Gemini 2.0 Flash
+  - google/gemini-2.0-flash
+  - Google Jules + Gemini 2.0 Flash (v20241212-experimental)
+  - mini-SWE-agent + Gemini 2.0 flash
+  - CodeShellAgent + Gemini 2.0 Flash (Experimental)
+- id: gemini_1_5_pro
+  canonical_name: Gemini-1.5-Pro
+  display_name: Gemini 1.5 Pro
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-1.5-pro
+  - Gemini 1.5 Pro
+  - google/gemini-1.5-pro
+  - Gemini-1.5-Pro-API-0514
+- id: gemini_1_5_flash
+  canonical_name: Gemini-1.5-Flash
+  display_name: Gemini 1.5 Flash
+  entity_type: chat_model
+  provider: Google
+  access_type: api
+  status: active
+  aliases:
+  - gemini-1.5-flash
+  - Gemini 1.5 Flash
+  - google/gemini-1.5-flash
+  - Gemini-1.5-Flash-API-0514
+- id: grok_4_5
+  canonical_name: Grok-4.5
+  display_name: Grok 4.5
+  entity_type: chat_model
+  provider: xAI
+  access_type: api
+  status: active
+  aliases:
+  - grok-4.5
+  - Grok 4.5
+  - xai/grok-4.5
+- id: grok_4_3
+  canonical_name: Grok-4.3
+  display_name: Grok 4.3
+  entity_type: chat_model
+  provider: xAI
+  access_type: api
+  status: active
+  aliases:
+  - grok-4.3
+  - Grok 4.3
+  - xai/grok-4.3
+- id: grok_4_20
+  canonical_name: Grok-4.20
+  display_name: Grok 4.20
+  entity_type: chat_model
+  provider: xAI
+  access_type: api
+  status: active
+  aliases:
+  - grok-4.20
+  - Grok 4.20
+  - grok-4.20-beta1
+  - xai/grok-4.20
+- id: grok_3
+  canonical_name: Grok-3
+  display_name: Grok 3
+  entity_type: chat_model
+  provider: xAI
+  access_type: api
+  status: active
+  aliases:
+  - grok-3
+  - Grok 3
+  - xai/grok-3
+  - Grok-3-Mini (High)
+- id: grok_2
+  canonical_name: Grok-2
+  display_name: Grok-2
+  entity_type: chat_model
+  provider: xAI
+  access_type: api
+  status: active
+  aliases:
+  - grok-2
+  - Grok-2
+  - xai/grok-2
+- id: grok_2_mini
+  canonical_name: Grok-2-mini
+  display_name: Grok-2 mini
+  entity_type: chat_model
+  provider: xAI
+  access_type: api
+  status: active
+  aliases:
+  - grok-2-mini
+  - Grok-2-mini
+  - xai/grok-2-mini
+- id: deepseek_v4
+  canonical_name: DeepSeek-V4
+  display_name: DeepSeek V4
+  entity_type: chat_model
+  provider: DeepSeek
+  access_type: open_weights
+  status: active
+  aliases:
+  - deepseek-v4
+  - DeepSeek-V4
+  - deepseek-ai/DeepSeek-V4
+- id: deepseek_v3_2
+  canonical_name: DeepSeek-V3.2
+  display_name: DeepSeek V3.2
+  entity_type: chat_model
+  provider: DeepSeek
+  access_type: open_weights
+  status: active
+  aliases:
+  - deepseek-v3.2
+  - DeepSeek-V3.2
+  - deepseek-ai/DeepSeek-V3.2
+  - mini-SWE-agent + DeepSeek V3.2 (high reasoning)
+- id: deepseek_v3_2_reasoner
+  canonical_name: DeepSeek-V3.2-Reasoner
+  display_name: DeepSeek V3.2 Reasoner
+  entity_type: chat_model
+  provider: DeepSeek
+  access_type: open_weights
+  status: active
+  aliases:
+  - deepseek-v3.2-reasoner
+  - DeepSeek V3.2 Reasoner
+  - mini-SWE-agent + DeepSeek V3.2 Reasoner
+- id: deepseek_v3
+  canonical_name: DeepSeek-V3
+  display_name: DeepSeek V3
+  entity_type: chat_model
+  provider: DeepSeek
+  access_type: open_weights
+  status: active
+  aliases:
+  - deepseek-v3
+  - DeepSeek-V3
+  - deepseek-ai/DeepSeek-V3
+- id: deepseek_r1
+  canonical_name: DeepSeek-R1
+  display_name: DeepSeek R1
+  entity_type: chat_model
+  provider: DeepSeek
+  access_type: open_weights
+  status: active
+  aliases:
+  - deepseek-r1
+  - DeepSeek-R1
+  - deepseek-ai/DeepSeek-R1
+  - DeepSeek-R1-0528
+- id: llama_4_405b
+  canonical_name: Llama-4-405B
+  display_name: Llama 4 405B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-4-405b
+  - Llama-4-405B
+  - meta-llama/Llama-4-405B
+- id: llama_4_70b
+  canonical_name: Llama-4-70B
+  display_name: Llama 4 70B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-4-70b
+  - Llama-4-70B
+  - meta-llama/Llama-4-70B
+- id: llama_4_8b
+  canonical_name: Llama-4-8B
+  display_name: Llama 4 8B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-4-8b
+  - Llama-4-8B
+  - meta-llama/Llama-4-8B
+  - CodeLlama-34B-Base
+  - Phind-CodeLlama-34B-v2
+  - CodeLlama-34B-Instruct
+- id: llama_4_scout
+  canonical_name: Llama-4-Scout
+  display_name: Llama 4 Scout
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-4-scout
+  - Llama 4 Scout
+  - mini-SWE-agent + Llama 4 Scout Instruct
+- id: llama_4_maverick
+  canonical_name: Llama-4-Maverick
+  display_name: Llama 4 Maverick
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-4-maverick
+  - Llama 4 Maverick
+  - mini-SWE-agent + Llama 4 Maverick Instruct
+- id: llama_3_3_70b
+  canonical_name: Llama-3.3-70B
+  display_name: Llama 3.3 70B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-3.3-70b
+  - Llama-3.3-70B
+  - meta-llama/Llama-3.3-70B-Instruct
+- id: llama_3_1_405b
+  canonical_name: Llama-3.1-405B
+  display_name: Llama 3.1 405B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-3.1-405b
+  - Llama-3.1-405B
+  - meta-llama/Llama-3.1-405B
+- id: llama_3_1_70b
+  canonical_name: Llama-3.1-70B
+  display_name: Llama 3.1 70B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-3.1-70b
+  - Llama-3.1-70B
+  - meta-llama/Llama-3.1-70B
+  - Nebius AI Qwen 2.5 72B Generator + LLama 3.1 70B Critic
+- id: llama_3_1_8b
+  canonical_name: Llama-3.1-8B
+  display_name: Llama 3.1 8B
+  entity_type: chat_model
+  provider: Meta
+  access_type: open_weights
+  status: active
+  aliases:
+  - llama-3.1-8b
+  - Llama-3.1-8B
+  - meta-llama/Llama-3.1-8B
+  - 3rd-Degree-Burn/Llama-3.1-8B-Squareroot
+  - ArliAI/Llama-3.1-8B-ArliAI-RPMax-v1.1
+  - AALF/FuseChat-Llama-3.1-8B-SFT-preview
+  - AALF/FuseChat-Llama-3.1-8B-Instruct-preview
+  - 3rd-Degree-Burn/Llama-3.1-8B-Squareroot-v1
+  - AGI-0/smartllama3.1-8B-001
+  - AGI-0/Artificium-llama3.1-8B-001
+- id: qwen_3_7_max
+  canonical_name: Qwen3.7-Max
+  display_name: Qwen 3.7 Max
+  entity_type: chat_model
+  provider: Alibaba
+  access_type: api
+  status: active
+  aliases:
+  - qwen-3.7-max
+  - Qwen3.7-Max
+  - qwen3.7-max-preview
+  - alibaba/qwen-3.7-max
+- id: qwen_3_6_plus
+  canonical_name: Qwen3.6-Plus
+  display_name: Qwen 3.6 Plus
+  entity_type: chat_model
+  provider: Alibaba
+  access_type: api
+  status: active
+  aliases:
+  - qwen-3.6-plus
+  - Qwen3.6-Plus
+  - alibaba/qwen-3.6-plus
+- id: qwen_3_5
+  canonical_name: Qwen3.5
+  display_name: Qwen 3.5
+  entity_type: chat_model
+  provider: Alibaba
+  access_type: open_weights
+  status: active
+  aliases:
+  - qwen-3.5
+  - Qwen3.5
+  - alibaba/qwen-3.5
+- id: qwen_3_coder
+  canonical_name: Qwen3-Coder
+  display_name: Qwen 3 Coder
+  entity_type: chat_model
+  provider: Alibaba
+  access_type: open_weights
+  status: active
+  aliases:
+  - qwen3-coder
+  - Qwen3 Coder
+  - mini-SWE-agent + Qwen3-Coder 480B/A35B Instruct
+  - OpenHands + Qwen3-Coder-480B-A35B-Instruct
+  - EntroPO + R2E + Qwen3-Coder-30B-A3B-Instruct
+  - OpenHands + Qwen3-Coder-30B-A3B-Instruct
+  - Qwen 2.5 Coder 32B
+  - mini-SWE-agent + Qwen2.5-Coder 32B Instruct
+- id: qwen_2_5_72b
+  canonical_name: Qwen2.5-72B
+  display_name: Qwen 2.5 72B
+  entity_type: chat_model
+  provider: Alibaba
+  access_type: open_weights
+  status: active
+  aliases:
+  - qwen-2.5-72b
+  - Qwen2.5-72B
+  - qwen/qwen-2.5-72b
+  - SWE-Fixer (Qwen2.5-7b retriever + Qwen2.5-72b editor) 20241128
+  - SWE-Fixer (Qwen2.5-7b retriever + Qwen2.5-72b editor)
+- id: qwen_2_5_coder_32b
+  canonical_name: Qwen-2.5-Coder-32B
+  display_name: Qwen 2.5 Coder 32B
+  entity_type: chat_model
+  provider: Alibaba
+  access_type: open_weights
+  status: active
+  aliases:
+  - qwen-2.5-coder-32b
+  - Qwen2.5-Coder 32B
+  - qwen/qwen-2.5-coder-32b
+  - Qwen 2.5 Coder 32B
+- id: glm_5_2
+  canonical_name: GLM-5.2
+  display_name: GLM 5.2
+  entity_type: chat_model
+  provider: Z.ai
+  access_type: open_weights
+  status: active
+  aliases:
+  - glm-5.2
+  - GLM-5.2
+  - z-ai/glm-5.2
+- id: glm_5
+  canonical_name: GLM-5
+  display_name: GLM 5
+  entity_type: chat_model
+  provider: Z.ai
+  access_type: open_weights
+  status: active
+  aliases:
+  - glm-5
+  - GLM 5
+  - mini-SWE-agent + GLM-5 (high reasoning)
+  - mini-SWE-agent + GLM-4.5 (2025-08-22)
+  - GLM-4.5
+- id: glm_4
+  canonical_name: GLM-4
+  display_name: GLM 4
+  entity_type: chat_model
+  provider: Z.ai
+  access_type: api
+  status: active
+  aliases:
+  - glm-4
+  - GLM-4
+  - z-ai/glm-4
+  - mini-SWE-agent + GLM-4.5 (2025-08-22)
+  - mini-SWE-agent + GLM-4.6 (T=1)
+  - GLM-4.5
+  - GLM-4.6
+- id: glm_4_6
+  canonical_name: GLM-4.6
+  display_name: GLM 4.6
+  entity_type: chat_model
+  provider: Z.ai
+  access_type: api
+  status: active
+  aliases:
+  - glm-4.6
+  - GLM 4.6
+- id: glm_4_5
+  canonical_name: GLM-4.5
+  display_name: GLM 4.5
+  entity_type: chat_model
+  provider: Z.ai
+  access_type: api
+  status: active
+  aliases:
+  - glm-4.5
+  - GLM 4.5
+- id: mistral_medium_3_5
+  canonical_name: Mistral-Medium-3.5
+  display_name: Mistral Medium 3.5
+  entity_type: chat_model
+  provider: Mistral
+  access_type: api
+  status: active
+  aliases:
+  - mistral-medium-3.5
+  - Mistral Medium 3.5
+  - mistral/mistral-medium-3.5
+- id: mistral_large_2
+  canonical_name: Mistral-Large-2
+  display_name: Mistral Large 2
+  entity_type: chat_model
+  provider: Mistral
+  access_type: api
+  status: active
+  aliases:
+  - mistral-large-2
+  - Mistral Large 2
+  - mistral/mistral-large-2
+  - Mistral-Large-2402
+- id: mistral_large
+  canonical_name: Mistral-Large
+  display_name: Mistral Large
+  entity_type: chat_model
+  provider: Mistral
+  access_type: api
+  status: active
+  aliases:
+  - mistral-large
+  - Mistral Large
+  - mistral/mistral-large
+- id: mixtral_8x22b
+  canonical_name: Mixtral-8x22B
+  display_name: Mixtral 8x22B
+  entity_type: chat_model
+  provider: Mistral
+  access_type: open_weights
+  status: active
+  aliases:
+  - mixtral-8x22b
+  - Mixtral 8x22B
+  - mistral/mixtral-8x22b
+  - Mixtral-8x22B-Instruct
+  - Mixtral-8x22B-Base
+- id: devstral
+  canonical_name: Devstral
+  display_name: Devstral
+  entity_type: chat_model
+  provider: Mistral
+  access_type: api
+  status: active
+  aliases:
+  - devstral
+  - Devstral
+  - mini-SWE-agent + Devstral (2512)
+- id: devstral_small
+  canonical_name: Devstral-Small
+  display_name: Devstral Small
+  entity_type: chat_model
+  provider: Mistral
+  access_type: api
+  status: active
+  aliases:
+  - devstral-small
+  - Devstral Small
+  - OpenHands + DevStral Small 2505
+  - mini-SWE-agent + Devstral small (2512)
+  - SWE-agent + DevStral Small 2507
+- id: gemma_4
+  canonical_name: Gemma-4
+  display_name: Gemma 4
+  entity_type: chat_model
+  provider: Google
+  access_type: open_weights
+  status: active
+  aliases:
+  - gemma-4
+  - Gemma 4
+  - google/gemma-4
+- id: gemma_2_27b
+  canonical_name: Gemma-2-27B
+  display_name: Gemma 2 27B
+  entity_type: chat_model
+  provider: Google
+  access_type: open_weights
+  status: active
+  aliases:
+  - gemma-2-27b
+  - Gemma 2 27B
+  - google/gemma-2-27b
+  - Gemma-2-27B-Instruct
+  - AALF/gemma-2-27b-it-SimPO-37K
+  - AALF/gemma-2-27b-it-SimPO-37K-100steps
+- id: gemma_2_9b
+  canonical_name: Gemma-2-9B
+  display_name: Gemma 2 9B
+  entity_type: chat_model
+  provider: Google
+  access_type: open_weights
+  status: active
+  aliases:
+  - gemma-2-9b
+  - Gemma 2 9B
+  - google/gemma-2-9b
+  - Gemma-2-9B-Instruct
+  - BAAI/Gemma2-9B-IT-Simpo-Infinity-Preference
+  - AELLM/gemma-2-aeria-infinity-9b
+  - AELLM/gemma-2-lyco-infinity-9b
+- id: kimi_k2_6
+  canonical_name: Kimi-K2.6
+  display_name: Kimi K2.6
+  entity_type: chat_model
+  provider: Kimi
+  access_type: api
+  status: active
+  aliases:
+  - kimi-k2.6
+  - Kimi K2.6
+  - kimi/kimi-k2.6
+- id: kimi_k2_5
+  canonical_name: Kimi-K2.5
+  display_name: Kimi K2.5
+  entity_type: chat_model
+  provider: Kimi
+  access_type: api
+  status: active
+  aliases:
+  - kimi-k2.5
+  - Kimi K2.5
+  - mini-SWE-agent + Kimi K2.5 (high reasoning)
+- id: kimi_k2_thinking
+  canonical_name: Kimi-K2-Thinking
+  display_name: Kimi K2 Thinking
+  entity_type: chat_model
+  provider: Kimi
+  access_type: api
+  status: active
+  aliases:
+  - kimi-k2-thinking
+  - Kimi K2 Thinking
+  - mini-SWE-agent + Kimi K2 Thinking
+- id: kimi_k2
+  canonical_name: Kimi-K2
+  display_name: Kimi K2
+  entity_type: chat_model
+  provider: Kimi
+  access_type: api
+  status: active
+  aliases:
+  - kimi-k2
+  - Kimi K2
+  - kimi/kimi-k2
+  - OpenHands + Kimi K2
+  - CodeSweep - SWE-agent - Kimi K2 Instruct
+  - mini-SWE-agent + Kimi K2 Instruct
+  - Lingxi v1.5 x Kimi K2
+- id: phi_4
+  canonical_name: Phi-4
+  display_name: Phi-4
+  entity_type: chat_model
+  provider: Microsoft
+  access_type: open_weights
+  status: active
+  aliases:
+  - phi-4
+  - Phi-4
+  - microsoft/phi-4
+  - 1024m/PHI-4-Hindi
+- id: phi_3_5
+  canonical_name: Phi-3.5
+  display_name: Phi-3.5
+  entity_type: chat_model
+  provider: Microsoft
+  access_type: open_weights
+  status: active
+  aliases:
+  - phi-3.5
+  - Phi-3.5
+  - microsoft/phi-3.5
+- id: minimax_m2
+  canonical_name: MiniMax-M2
+  display_name: MiniMax M2
+  entity_type: chat_model
+  provider: MiniMax
+  access_type: api
+  status: active
+  aliases:
+  - minimax-m2
+  - MiniMax M2
+  - mini-SWE-agent + Minimax M2
+- id: minimax_m2_5
+  canonical_name: MiniMax-M2.5
+  display_name: MiniMax M2.5
+  entity_type: chat_model
+  provider: MiniMax
+  access_type: api
+  status: active
+  aliases:
+  - minimax-m2.5
+  - MiniMax M2.5
+  - mini-SWE-agent + MiniMax M2.5 (high reasoning)
+- id: doubao_seed_code
+  canonical_name: Doubao-Seed-Code
+  display_name: Doubao Seed Code
+  entity_type: chat_model
+  provider: ByteDance
+  access_type: api
+  status: active
+  aliases:
+  - doubao-seed-code
+  - Doubao-Seed-Code
+  - TRAE + Doubao-Seed-Code
+- id: atlassian_rovo_dev
+  canonical_name: Atlassian-Rovo-Dev
+  display_name: Atlassian Rovo Dev
+  entity_type: chat_model
+  provider: Atlassian
+  access_type: api
+  status: active
+  aliases:
+  - atlassian-rovo-dev
+  - Atlassian Rovo Dev
+  - Atlassian Rovo Dev (2025-09-02)

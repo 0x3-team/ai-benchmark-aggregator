@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
-import type { BenchmarkCategory } from "./types";
-import { models } from "./data/models";
-import { benchmarks } from "./data/benchmarks";
+import { useMemo, useState, useEffect } from "react";
+import type { BenchmarkCategory, Model } from "./types";
+import { models as demoModels } from "./data/models";
+import { benchmarks as demoBenchmarks } from "./data/benchmarks";
+import { getScores } from "./data/scores";
+function demoScores(): ReturnType<typeof getScores> { return getScores(); }
+import { setActiveData } from "./data/registry";
+import { loadOfficialData } from "./data/official";
 import { computeRanking, sortModels } from "./lib/aggregate";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
@@ -11,6 +15,7 @@ import { CategoryLeaders } from "./components/CategoryLeaders";
 import { ModelDetail } from "./components/ModelDetail";
 import { ModelComparison } from "./components/ModelComparison";
 import { GlossaryDialog } from "./components/GlossaryDialog";
+import { DATA_MODE_LABEL, type DataMode } from "./data/dataMode";
 import {
   Sheet,
   SheetContent,
@@ -58,25 +63,85 @@ export default function App() {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
+  // Dual trust mode: demo synthetic data vs official ledger-backed claims
+  // (ADR-003). The active dataset is published to the data registry below.
+  const [dataMode, setDataMode] = useState<DataMode>("demo");
 
   const { toast } = useToast();
 
+  // Select + publish the active dataset based on trust mode. Publish in an
+  // effect (never during render) so React never sees a state update mid-render.
+  useEffect(() => {
+    if (dataMode === "official") {
+      const off = loadOfficialData();
+      setActiveData({ models: off.models, benchmarks: off.benchmarks, scores: off.scores });
+      return;
+    }
+    setActiveData({ models: demoModels, benchmarks: demoBenchmarks, scores: demoScores() });
+  }, [dataMode]);
+
+  const { models: activeModels, benchmarks: activeBenchmarks } = useMemo(() => {
+    if (dataMode === "official") {
+      const off = loadOfficialData();
+      return { models: off.models, benchmarks: off.benchmarks };
+    }
+    return { models: demoModels, benchmarks: demoBenchmarks };
+  }, [dataMode]);
+
+  const sourceUrls = useMemo(() => {
+    if (dataMode !== "official") return [];
+    const off = loadOfficialData();
+    const sources = new Map<string, string>();
+
+    const OFFICIAL_SOURCE_URLS: Record<string, string> = {
+      fake_local_fixture: "https://huggingface.co/docs/hub/eval-results",
+      hf_official_benchmark_discovery: "https://huggingface.co/api/datasets?filter=benchmark:official",
+      swe_bench_verified_official_leaderboard: "https://www.swebench.com/",
+      livecodebench_official_leaderboard: "https://livecodebench.github.io/leaderboard.html",
+      mteb_leaderboard: "https://huggingface.co/spaces/mteb/leaderboard",
+      bigcodebench_leaderboard: "https://bigcode-bench.github.io/",
+    };
+
+    off.scores.forEach((s) => {
+      if (s.officialSourceId) {
+        const url = OFFICIAL_SOURCE_URLS[s.officialSourceId];
+        if (url) {
+          sources.set(s.officialSourceId, url);
+        }
+      }
+    });
+
+    off.benchmarks.forEach((b) => {
+      if (b.sourceUrl) {
+        sources.set(b.name, b.sourceUrl);
+      }
+    });
+
+    return Array.from(sources.entries()).map(([name, url]) => {
+      const displayName = name.includes("http") ? "Source Link" : name
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+      return { name: displayName, url };
+    });
+  }, [dataMode]);
+
   const vendors = useMemo(
-    () => [...new Set(models.map((m) => m.vendor))].sort(),
-    []
+    () => [...new Set(activeModels.map((m) => m.vendor))].sort(),
+    [activeModels]
   );
 
   const visibleBenchmarks = useMemo(
     () =>
       categoryFilter
-        ? benchmarks.filter((b) => b.category === categoryFilter)
-        : benchmarks,
-    [categoryFilter]
+        ? activeBenchmarks.filter((b) => b.category === categoryFilter)
+        : activeBenchmarks,
+    [categoryFilter, activeBenchmarks]
   );
 
   const filteredModels = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return models.filter((m) => {
+    return activeModels.filter((m) => {
       if (vendorFilter.size > 0 && !vendorFilter.has(m.vendor)) return false;
       if (openWeightsOnly && !m.openWeights) return false;
       if (q) {
@@ -85,7 +150,7 @@ export default function App() {
       }
       return true;
     });
-  }, [search, vendorFilter, openWeightsOnly]);
+  }, [search, vendorFilter, openWeightsOnly, activeModels]);
 
   const sortedModels = useMemo(
     () => sortModels(filteredModels, sort, visibleBenchmarks),
@@ -100,19 +165,19 @@ export default function App() {
   }, [sortedModels, visibleBenchmarks]);
 
   const selectedBenchmark = selectedBenchmarkId
-    ? benchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
+    ? activeBenchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
     : null;
 
   const selectedModel = selectedModelId
-    ? models.find((m) => m.id === selectedModelId) ?? null
+    ? activeModels.find((m) => m.id === selectedModelId) ?? null
     : null;
 
   const selectedModelObjects = useMemo(
     () =>
       selectedModels
-        .map((id) => models.find((m) => m.id === id))
-        .filter((m): m is (typeof models)[number] => m != null),
-    [selectedModels]
+        .map((id) => activeModels.find((m) => m.id === id))
+        .filter((m): m is Model => m != null),
+    [selectedModels, activeModels]
   );
 
   function handleSort(benchmarkId: string) {
@@ -157,6 +222,21 @@ export default function App() {
     setSort(null);
   }
 
+  function handleDataModeChange(next: DataMode) {
+    if (next === dataMode) return;
+    setDataMode(next);
+    // The active dataset changes: drop any selections/filters that reference
+    // benchmark or model ids that may not exist in the other trust mode.
+    setSearch("");
+    setVendorFilter(new Set());
+    setCategoryFilter(null);
+    setOpenWeightsOnly(false);
+    setSort(null);
+    setSelectedBenchmarkId(null);
+    setSelectedModelId(null);
+    setSelectedModels([]);
+  }
+
   function openModel(id: string) {
     setSelectedModelId(id);
   }
@@ -171,12 +251,16 @@ export default function App() {
           Skip to content
         </a>
           <Header
-            totalModels={models.length}
-            totalBenchmarks={benchmarks.length}
+            totalModels={activeModels.length}
+            totalBenchmarks={activeBenchmarks.length}
             view={view}
             onViewChange={setView}
             selectedCount={selectedModels.length}
             onOpenGlossary={() => setGlossaryOpen(true)}
+            dataModeLabel={DATA_MODE_LABEL[dataMode]}
+            dataMode={dataMode}
+            onDataModeChange={handleDataModeChange}
+            sourceUrls={sourceUrls}
           />
 
           {view === "table" ? (
@@ -232,7 +316,11 @@ export default function App() {
             </main>
           ) : (
             <main id="main-content">
-              <ModelComparison models={selectedModelObjects} onOpenModel={openModel} />
+              <ModelComparison
+                models={selectedModelObjects}
+                benchmarks={activeBenchmarks}
+                onOpenModel={openModel}
+              />
             </main>
           )}
 
@@ -287,7 +375,11 @@ export default function App() {
             </SheetContent>
           </Sheet>
 
-          <GlossaryDialog open={glossaryOpen} onOpenChange={setGlossaryOpen} />
+          <GlossaryDialog
+            open={glossaryOpen}
+            onOpenChange={setGlossaryOpen}
+            benchmarks={activeBenchmarks}
+          />
         </div>
         <Toaster />
       </TooltipProvider>

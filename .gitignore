@@ -10,3 +10,9 @@ npm-debug.log*
 !.env.example
 .vscode/
 .idea/
+.npm-cache/
+ledger/.venv/
+ledger/data/
+ledger/**/__pycache__/
+ledger/**/*.egg-info/
+.grok/skills/software-orchestrator/store/*.db

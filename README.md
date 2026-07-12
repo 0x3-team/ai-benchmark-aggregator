@@ -4,8 +4,19 @@ A single-page **AI model benchmark comparison dashboard**. It ranks models acros
 organized into 8 capability categories, and lets you compare several models side by side with a
 set of glassmorphic charts.
 
-> **Status:** Demo / synthetic data only. There is **no backend** — all data lives in `src/data/*`.
-> This is a client-only SPA meant for local exploration and as a reference front-end.
+> **Status:** Demo / synthetic data by default (`Demo (synthetic)` badge).  
+> **Ledger:** `ledger/` is a Python CLI that captures **official source-backed claims**.  
+> UI rankings/averages are presentation-only and are never stored as ledger claims (see ADRs).
+
+## Architecture (unified)
+
+```text
+Official sources → ledger CLI (snapshots + claims) → export-official-json
+                                                      ↓
+Frontend SPA  ← demo synthetic data (src/data) OR official export sample
+```
+
+See `docs/adr/` and `AGENTS.md` for trust boundary and development rules.
 
 ## Features
 
@@ -19,68 +30,57 @@ set of glassmorphic charts.
   4. **Per-benchmark** grouped bars
   5. **Specs** comparison table with "leads in N" badges
 - **SOTA indicator** — best-in-column cells pulse with an animated gold ring.
+- **Trust note** in glossary; header shows data mode label.
 
 ## Tech stack
 
-- [Vite 5](https://vitejs.dev/) + [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) (strict)
-- [Tailwind CSS 3](https://tailwindcss.com/) + `tailwind-merge` + `clsx`
-- [Radix UI](https://www.radix-ui.com/) primitives in `src/components/ui/*`
-- [lucide-react](https://lucide.dev/) icons
+- Vite 5 + React 18 + TypeScript (strict)
+- Tailwind CSS 3 + tailwind-merge + clsx
+- Radix UI primitives in `src/components/ui/*` (Toast kept on Radix per ADR-002; Base UI migration planned)
+- lucide-react icons
 - Hand-rolled SVG charts (no charting library)
+- Python ledger under `ledger/` (Typer + SQLAlchemy + Pydantic)
 
-The `@/*` path alias (`@/...` → `./src/...`) is configured in both `vite.config.ts` and
-`tsconfig.json`.
-
-## Quick start
+## Quick start (frontend)
 
 ```bash
 npm install
-npm run dev        # start the Vite dev server (prints a Local: URL)
-npm run build      # type-check (tsc -b, strict) + production build (vite build)
-npm run preview    # preview the production build
+npm run dev        # Vite dev server
+npm run typecheck  # tsc --noEmit
+npm run test       # vitest unit tests
+npm run build      # tsc -b && vite build — MUST stay green
 ```
 
-`npm run build` runs `tsc -b && vite build` and must stay green.
+If local `tsc` binary lacks execute bit: `./node_modules/.bin/tsc --noEmit`.
+
+## Quick start (ledger)
+
+```bash
+cd ledger
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+benchmark-ledger init-db
+benchmark-ledger seed-registry
+benchmark-ledger ingest --source fake_local_fixture
+benchmark-ledger claims list
+benchmark-ledger review queue
+pytest -q
+```
 
 ## Project structure
 
 ```
-src/
-  App.tsx              # all view state, routing between views, two Sheets, Toaster
-  main.tsx             # React root
-  index.css            # Tailwind + glass utilities + SOTA pulse animation
-  types.ts             # Model, Benchmark, BenchmarkCategory, CATEGORIES, CATEGORY_LABELS
-  data/
-    models.ts          # model catalog
-    benchmarks.ts      # 17 benchmarks (id, name, category, scaleMax, higherIsBetter, ...)
-    scores.ts          # getValue(modelId, benchmarkId) — the single score accessor
-  lib/
-    aggregate.ts       # ranking + averages
-    color.ts           # heatmap color scale
-    categories.ts      # category colors / tints
-    palette.ts         # shared per-model color palette
-    utils.ts           # cn()
-  components/
-    ScoreTable.tsx     # leaderboard table
-    ScoreHeatmap.tsx   # compare heatmap matrix
-    BenchmarkBars.tsx  # per-benchmark grouped bars
-    RadarChart.tsx     # SVG radar chart
-    ModelComparison.tsx# compare layout
-    ModelDetail.tsx    # model Sheet content
-    BenchmarkCard.tsx  # benchmark Sheet content
-    CategoryLeaders.tsx# strip of per-category leaders
-    Filters.tsx, Header.tsx, GlossaryDialog.tsx
-    ui/                # Radix-based UI primitives
+src/                 # React SPA
+ledger/              # Official claim capture CLI
+docs/adr/            # Architecture decisions
+contracts/           # Shared export schemas (growing)
+.orchestrator/       # Task corpus for software orchestration
+AGENTS.md            # Agent rules for both systems
 ```
 
 ## Notes for developers
 
 - `getValue(modelId, benchmarkId)` (in `src/data/scores.ts`) is the **only** way to read a score.
-  It returns `number | null`; a `null` means the model has no score for that benchmark (e.g. a
-  non-vision model on a vision benchmark). All views render null as "no data".
-- See [`handoff.md`](./handoff.md) for full orientation, conventions, and the pending
-  Radix → Base UI migration task.
-
-## License
-
-[MIT](./LICENSE)
+- Sticky table columns: plain `overflow-x-auto` + sticky left — never ScrollArea.
+- Ledger MVP is CLI-only (no ledger web UI).
+- Secrets (`HF_TOKEN`) must never be logged or committed.

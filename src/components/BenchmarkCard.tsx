@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import type { Benchmark, Model } from "../types";
-import { getValue } from "../data/scores";
+import { getValue } from "../data/registry";
 import { columnStats } from "../lib/color";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";

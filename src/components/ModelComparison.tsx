@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Model } from "../types";
+import type { Benchmark, Model } from "../types";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
-import { benchmarks } from "../data/benchmarks";
 import { radarAverages, categoryLeader } from "../lib/aggregate";
 import { RadarChart, type RadarSeries } from "./RadarChart";
 import { ScoreHeatmap } from "./ScoreHeatmap";
@@ -17,10 +16,11 @@ import { cn } from "@/lib/utils";
 
 interface ModelComparisonProps {
   models: Model[];
+  benchmarks: Benchmark[];
   onOpenModel: (modelId: string) => void;
 }
 
-export function ModelComparison({ models, onOpenModel }: ModelComparisonProps) {
+export function ModelComparison({ models, benchmarks, onOpenModel }: ModelComparisonProps) {
   const allSeries: RadarSeries[] = useMemo(
     () =>
       models.map((m, i) => ({
@@ -39,7 +39,7 @@ export function ModelComparison({ models, onOpenModel }: ModelComparisonProps) {
 
   const leaders = useMemo(
     () => categoryLeader(models, benchmarks),
-    [models]
+    [models, benchmarks]
   );
   const leadsByModel = useMemo(() => {
     const map: Record<string, number> = {};
@@ -170,9 +170,9 @@ export function ModelComparison({ models, onOpenModel }: ModelComparisonProps) {
         </CardContent>
       </Card>
 
-      <ScoreHeatmap models={models} onOpenModel={onOpenModel} />
+      <ScoreHeatmap models={models} benchmarks={benchmarks} onOpenModel={onOpenModel} />
 
-      <BenchmarkBars models={models} onOpenModel={onOpenModel} />
+      <BenchmarkBars models={models} benchmarks={benchmarks} onOpenModel={onOpenModel} />
 
       <Card className="glass-strong border-white/10">
         <CardHeader>

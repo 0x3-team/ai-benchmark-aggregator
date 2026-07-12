@@ -1,0 +1,152 @@
+benchmarks:
+  - id: hf_official_benchmarks
+    canonical_name: Hugging Face Official Benchmarks
+    display_name: Hugging Face Official Benchmarks
+    benchmark_family: meta_registry
+    owner_name: Hugging Face
+    official_home_url: https://huggingface.co/docs/hub/eval-results
+    has_official_leaderboard: true
+    has_official_result_api: true
+    primary_metric: varies
+    known_splits: []
+    known_metrics: []
+    status: active
+
+  - id: swe_bench_verified
+    canonical_name: SWE-bench Verified
+    display_name: SWE-bench Verified
+    benchmark_family: software_engineering
+    owner_name: SWE-bench
+    official_home_url: https://www.swebench.com/
+    official_leaderboard_url: https://www.swebench.com/
+    has_official_leaderboard: true
+    primary_metric: "% Resolved"
+    known_splits:
+      - Verified
+    known_metrics:
+      - "% Resolved"
+    status: active
+    aliases:
+      - SWE-bench Verified
+      - SWE-bench
+
+  - id: livecodebench
+    canonical_name: LiveCodeBench
+    display_name: LiveCodeBench
+    benchmark_family: coding
+    owner_name: LiveCodeBench
+    official_home_url: https://livecodebench.github.io/
+    official_leaderboard_url: https://livecodebench.github.io/leaderboard.html
+    has_official_leaderboard: true
+    primary_metric: Pass@1
+    known_metrics:
+      - Pass@1
+    status: active
+    aliases:
+      - LiveCodeBench
+
+  - id: mteb
+    canonical_name: Massive Text Embedding Benchmark
+    display_name: MTEB
+    benchmark_family: embedding
+    owner_name: MTEB
+    official_home_url: https://huggingface.co/spaces/mteb/leaderboard
+    official_leaderboard_url: https://huggingface.co/spaces/mteb/leaderboard
+    official_dataset_url: https://huggingface.co/datasets/mteb/results
+    has_official_leaderboard: true
+    has_official_result_files: true
+    primary_metric: score
+    known_metrics:
+      - score
+    known_splits:
+      - train
+    status: active
+    aliases:
+      - Massive Text Embedding Benchmark
+
+  - id: helm
+    canonical_name: Holistic Evaluation of Language Models
+    display_name: HELM
+    benchmark_family: holistic_evaluation
+    owner_name: Stanford CRFM
+    official_home_url: https://crfm.stanford.edu/helm/latest/
+    official_leaderboard_url: https://crfm.stanford.edu/helm/latest/
+    official_repo_url: https://github.com/stanford-crfm/helm
+    has_official_leaderboard: true
+    primary_metric: various
+    known_metrics: []
+    known_splits: []
+    status: active
+    aliases:
+      - Holistic Evaluation of Language Models
+
+  - id: opencompass
+    canonical_name: OpenCompass
+    display_name: OpenCompass
+    benchmark_family: platform
+    owner_name: OpenCompass
+    official_home_url: https://opencompass.org.cn/
+    official_leaderboard_url: https://opencompass.org.cn/leaderboard
+    official_repo_url: https://github.com/open-compass/opencompass
+    has_official_leaderboard: true
+    primary_metric: various
+    known_metrics: []
+    known_splits: []
+    status: active
+    aliases:
+      - OpenCompass 司南
+
+  - id: bigcodebench
+    canonical_name: BigCodeBench
+    display_name: BigCodeBench
+    benchmark_family: coding
+    owner_name: BigCode
+    official_home_url: https://bigcode-bench.github.io/
+    official_leaderboard_url: https://bigcode-bench.github.io/
+    official_dataset_url: https://huggingface.co/datasets/bigcode/bigcodebench-results
+    has_official_leaderboard: true
+    has_official_result_files: true
+    primary_metric: complete (Pass@1)
+    known_metrics:
+      - complete
+      - instruct
+    known_splits:
+      - Full
+      - Hard
+    status: active
+    aliases:
+      - BigCodeBench
+      - LiveCodeBench
+
+  - id: chatbot_arena
+    canonical_name: LMSYS Chatbot Arena
+    display_name: LMSYS Chatbot Arena
+    benchmark_family: human_evaluation
+    owner_name: LMSYS
+    official_home_url: https://lmarena.ai/
+    official_leaderboard_url: https://lmarena.ai/leaderboard
+    has_official_leaderboard: true
+    primary_metric: Elo
+    known_metrics:
+      - Elo
+    status: active
+    aliases:
+      - LMSYS Chatbot Arena
+      - Chatbot Arena
+      - LMSYS
+
+  - id: artificial_analysis
+    canonical_name: Artificial Analysis
+    display_name: Artificial Analysis
+    benchmark_family: aggregator
+    owner_name: Artificial Analysis
+    official_home_url: https://artificialanalysis.ai/
+    official_leaderboard_url: https://artificialanalysis.ai/
+    has_official_leaderboard: true
+    primary_metric: Intelligence Index
+    known_metrics:
+      - Intelligence Index
+    status: active
+    aliases:
+      - Artificial Analysis
+
