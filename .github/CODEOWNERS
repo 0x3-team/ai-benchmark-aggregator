@@ -1,0 +1,22 @@
+# CODEOWNERS
+# These owners will be automatically requested for review on PRs matching the patterns.
+
+# Global owners
+* @0x3-team/core
+
+# Ledger (Python CLI)
+/ledger/ @0x3-team/ledger
+
+# Frontend (React SPA)
+/src/ @0x3-team/frontend
+/package.json @0x3-team/frontend
+/vite.config.ts @0x3-team/frontend
+/tsconfig.json @0x3-team/frontend
+
+# CI/CD
+/.github/ @0x3-team/core
+
+# Documentation
+/docs/ @0x3-team/core
+/README.md @0x3-team/core
+/AGENTS.md @0x3-team/core

@@ -1,0 +1,86 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ledger:
+    name: Ledger Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ledger
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -e .
+          pip install pytest pytest-cov
+      - name: Run ledger tests
+        run: |
+          source .venv/bin/activate
+          pytest -q
+
+  frontend:
+    name: Frontend (Typecheck + Build + Test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+
+  export-sanity:
+    name: Export Sanity Check
+    runs-on: ubuntu-latest
+    needs: [ledger, frontend]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check export.from-ledger.json exists and has content
+        run: |
+          if [ ! -f "src/data/official/export.from-ledger.json" ]; then
+            echo "::error::export.from-ledger.json missing — run ledger export-official-json"
+            exit 1
+          fi
+          MODELS=$(jq '.models | length' src/data/official/export.from-ledger.json)
+          BENCHMARKS=$(jq '.benchmarks | length' src/data/official/export.from-ledger.json)
+          SCORES=$(jq '.scores | length' src/data/official/export.from-ledger.json)
+          echo "Models: $MODELS, Benchmarks: $BENCHMARKS, Scores: $SCORES"
+          if [ "$MODELS" -lt 1000 ]; then
+            echo "::error::Expected >=1000 models, got $MODELS"
+            exit 1
+          fi
+          if [ "$BENCHMARKS" -lt 20 ]; then
+            echo "::error::Expected >=20 benchmarks, got $BENCHMARKS"
+            exit 1
+          fi
+          if [ "$SCORES" -lt 2000 ]; then
+            echo "::error::Expected >=2000 scores, got $SCORES"
+            exit 1
+          fi

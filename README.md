@@ -1,59 +1,33 @@
 # AI Benchmark Aggregator
 
-A single-page **AI model benchmark comparison dashboard**. It ranks models across ~17 benchmarks
-organized into 8 capability categories, and lets you compare several models side by side with a
-set of glassmorphic charts.
+**Organization:** 0x3-team  
+**Repository:** `0x3-team/ai-benchmark-aggregator`  
+**Status:** Private — Production-ready dual-mode benchmark platform
 
-> **Status:** Demo / synthetic data by default (`Demo (synthetic)` badge).  
-> **Ledger:** `ledger/` is a Python CLI that captures **official source-backed claims**.  
-> UI rankings/averages are presentation-only and are never stored as ledger claims (see ADRs).
+A single-page **AI model benchmark comparison dashboard** with a **dual-mode data architecture**:
 
-## Architecture (unified)
+| Mode | Source | Purpose |
+|------|--------|---------|
+| **Demo (Synthetic)** | `src/data/scores.ts` — curated demo fixtures | Instant UI development, zero dependencies |
+| **Official (Ledger)** | `ledger/` CLI → `src/data/official/export.from-ledger.json` | Source-backed, immutable claims from official results |
 
-```text
-Official sources → ledger CLI (snapshots + claims) → export-official-json
-                                                      ↓
-Frontend SPA  ← demo synthetic data (src/data) OR official export sample
-```
+> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims.
 
-See `docs/adr/` and `AGENTS.md` for trust boundary and development rules.
+---
 
-## Features
+## Quick Start
 
-- **Leaderboard table** — models ranked and grouped by category, heatmap-colored cells, sortable,
-  with per-benchmark detail popovers and a "best in column" footer.
-- **Heatmap** — compact color-graded view of every model × benchmark score.
-- **Compare view** — select up to 6 models and see them side by side as five stacked glass cards:
-  1. Capability **radar** chart (SVG, hover-to-highlight)
-  2. **By-category** averaged bars
-  3. **Score heatmap** matrix
-  4. **Per-benchmark** grouped bars
-  5. **Specs** comparison table with "leads in N" badges
-- **SOTA indicator** — best-in-column cells pulse with an animated gold ring.
-- **Trust note** in glossary; header shows data mode label.
-
-## Tech stack
-
-- Vite 5 + React 18 + TypeScript (strict)
-- Tailwind CSS 3 + tailwind-merge + clsx
-- Radix UI primitives in `src/components/ui/*` (Toast kept on Radix per ADR-002; Base UI migration planned)
-- lucide-react icons
-- Hand-rolled SVG charts (no charting library)
-- Python ledger under `ledger/` (Typer + SQLAlchemy + Pydantic)
-
-## Quick start (frontend)
+### Frontend (React SPA)
 
 ```bash
 npm install
-npm run dev        # Vite dev server
-npm run typecheck  # tsc --noEmit
-npm run test       # vitest unit tests
-npm run build      # tsc -b && vite build — MUST stay green
+npm run dev          # Vite dev server
+npm run typecheck    # tsc --noEmit (must pass)
+npm run test         # vitest unit tests
+npm run build        # tsc -b && vite build (must pass)
 ```
 
-If local `tsc` binary lacks execute bit: `./node_modules/.bin/tsc --noEmit`.
-
-## Quick start (ledger)
+### Ledger (Python CLI)
 
 ```bash
 cd ledger
@@ -61,26 +35,143 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 benchmark-ledger init-db
 benchmark-ledger seed-registry
-benchmark-ledger ingest --source fake_local_fixture
-benchmark-ledger claims list
-benchmark-ledger review queue
-pytest -q
+benchmark-ledger ingest --all           # Pulls from all 50+ official sources
+benchmark-ledger review auto-verify-matched
+benchmark-ledger export-official-json  # Writes src/data/official/export.from-ledger.json
+pytest -q                               # 49 tests must pass
 ```
 
-## Project structure
+---
+
+## Project Structure
 
 ```
-src/                 # React SPA
-ledger/              # Official claim capture CLI
-docs/adr/            # Architecture decisions
-contracts/           # Shared export schemas (growing)
-.orchestrator/       # Task corpus for software orchestration
-AGENTS.md            # Agent rules for both systems
+ai-benchmark-aggregator/
+├── .github/                    # GitHub org config
+│   ├── workflows/verify.yml    # CI: ledger tests + frontend typecheck/build/test + export sanity
+│   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
+│   ├── dependabot.yml          # Weekly dependency updates (npm, pip, actions)
+│   └── CODEOWNERS              # Auto-review assignment
+├── src/                        # React SPA (Vite + TS + Tailwind)
+│   ├── components/             # UI components (glassmorphism, charts, tables)
+│   ├── data/                   # Data access layer
+│   │   ├── official/           # Ledger export (git-ignored, regenerated)
+│   │   ├── registry.ts         # Benchmark/model catalog
+│   │   └── scores.ts           # getValue() — single score accessor
+│   ├── lib/                    # Utilities (colors, aggregation, categories)
+│   └── types.ts                # Shared TypeScript types
+├── ledger/                     # Python CLI (Typer + SQLAlchemy + Pydantic)
+│   ├── app/
+│   │   ├── cli.py              # Typer commands
+│   │   ├── db/                 # SQLAlchemy models, engine, repositories
+│   │   ├── ingestion/          # Adapters (official_sources.yaml → claims)
+│   │   ├── matching/           # Model/benchmark alias resolution
+│   │   ├── registry/           # official_sources.yaml + seed_loader
+│   │   ├── export/             # export-official-json
+│   │   └── schemas/            # Pydantic boundaries
+│   ├── tests/                  # 49 pytest fixtures + tests
+│   └── pyproject.toml
+├── docs/adr/                   # Architecture Decision Records (ADR-001..004)
+├── AGENTS.md                   # Agent rules for both systems
+├── CONTINUATION-HANDOFF.md     # Session continuity notes
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-## Notes for developers
+---
 
-- `getValue(modelId, benchmarkId)` (in `src/data/scores.ts`) is the **only** way to read a score.
-- Sticky table columns: plain `overflow-x-auto` + sticky left — never ScrollArea.
-- Ledger MVP is CLI-only (no ledger web UI).
-- Secrets (`HF_TOKEN`) must never be logged or committed.
+## CI / CD
+
+**GitHub Actions** (`.github/workflows/verify.yml`) runs on every PR:
+
+1. **Ledger tests** — `pytest -q` (49 tests)
+2. **Frontend** — `npm run typecheck && npm run build && npm test`
+3. **Export sanity** — verifies `export.from-ledger.json` has ≥1000 models, ≥20 benchmarks
+
+**Branch protection** recommended: require `verify` workflow + code review from `CODEOWNERS`.
+
+---
+
+## Data Pipeline
+
+```
+Official Sources (API/CSV/JSON/HTML/S3/GCS)
+         ↓
+ledger/official_sources.yaml   # 50+ source definitions (active/inactive)
+         ↓
+benchmark-ledger seed-registry # Upserts sources + benchmark/model catalogs
+         ↓
+benchmark-ledger ingest --all  # Snapshots source → extracts claims (idempotent)
+         ↓
+benchmark-ledger review auto-verify-matched  # Parser-verified → human review queue
+         ↓
+benchmark-ledger export-official-json        # Frontend-consumable JSON
+         ↓
+src/data/official/export.from-ledger.json    # Committed, powers Official mode
+```
+
+**Key adapters (50+ sources):**
+
+| Adapter | Sources |
+|---------|---------|
+| `generic_json` | MMLU, GPQA, MATH, HumanEval, MBPP, LiveBench, LiveCodeBench, LMSYS, SWE-Bench, PaperBench, BFCL, GAIA, AgentBench, Terminal-Bench, WebArena, APEX-Agents, ToolBench, BrowseComp, TruthfulQA, FrontierCode, Aider Polyglot, τ-bench (S3) |
+| `generic_csv` | HELM (JSON→CSV), IMO AnswerBench |
+| `hf_datasets_server` | MMLU-Pro, GPQA Diamond, HLE |
+| `artificial_analysis_api` | GPQA Diamond (AA), MATH-500 (AA), AIME 2024/2025 (AA) — *requires API key* |
+| `github_yaml` | Aider Polyglot (YAML in repo) |
+| `taubench_s3` | τ-bench (S3 paginated) |
+| `frontiermath_epoch` | FrontierMath (Epoch AI) |
+| `imo_answerbench` | IMO AnswerBench (GitHub CSV — inactive, no model scores) |
+| `helm_json` | HELM (GCS — URL 404, needs rediscovery) |
+
+---
+
+## Environment Variables
+
+| Variable | Required For | Notes |
+|----------|--------------|-------|
+| `HF_TOKEN` | HF datasets server sources | Read token, never log |
+| `ARTIFICIAL_ANALYSIS_API_KEY` | AA API sources | [REDACTED] in .env.example |
+
+Copy `ledger/.env.example` → `ledger/.env` and fill.
+
+---
+
+## Development Rules (from AGENTS.md)
+
+- **Ledger:** Preserve raw source values exactly. No recalculation. Idempotent ingestion (rerun = no dup claims).
+- **Frontend:** `getValue(modelId, benchmarkId)` is the **only** score accessor. Null scores render as `—` (dashed).
+- **UI:** Glassmorphism via `cn(...)` + Tailwind. Sticky columns = `overflow-x-auto` + sticky left. SOTA = gold ring (`.sota-cell`).
+- **Quality gates:** `npm run typecheck && npm run build && npm test` + `cd ledger && pytest -q` **must pass** before merge.
+
+---
+
+## ADRs (Architecture Decisions)
+
+| ID | Title | Summary |
+|----|-------|---------|
+| ADR-001 | Monorepo Layout | `src/` + `ledger/` at root, shared `AGENTS.md` |
+| ADR-002 | Toast Strategy | Radix Toast retained; other primitives → Base UI |
+| ADR-003 | Data Feed | Dual-mode: demo synthetic + ledger export |
+| ADR-004 | Python Stack | Typer, SQLAlchemy 2.0, Pydantic v2, Typer CLI |
+
+See `docs/adr/` for full records.
+
+---
+
+## License
+
+MIT — see `LICENSE`.
+
+---
+
+## Team & Contacts
+
+| Role | GitHub Team | Slack |
+|------|-------------|-------|
+| Core / Infra | `@0x3-team/core` | #0x3-core |
+| Ledger | `@0x3-team/ledger` | #0x3-ledger |
+| Frontend | `@0x3-team/frontend` | #0x3-frontend |
+
+For questions, open an issue using the templates in `.github/ISSUE_TEMPLATE/`.

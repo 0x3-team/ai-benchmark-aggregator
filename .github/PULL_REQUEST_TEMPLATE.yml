@@ -1,0 +1,65 @@
+name: PR Description
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Summary
+        What does this PR change?
+
+  - type: checkboxes
+    id: type
+    attributes:
+      label: Type
+      options:
+        - label: "Bug fix"
+        - label: "New feature (benchmark source / adapter / UI)"
+        - label: "Refactor / cleanup"
+        - label: "Docs / CI"
+        - label: "Dependency update"
+
+  - type: textarea
+    id: changes
+    attributes:
+      label: Key Changes
+      description: Bullet list of what changed and why
+      placeholder: |
+        - Added tau_bench_s3 adapter with S3 pagination fix
+        - Fixed seed idempotency by truncating dependent tables
+        - Updated official_sources.yaml with 4 new sources
+
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Quality Gates (must pass)
+      options:
+        - label: "Ledger tests pass (cd ledger && pytest -q)"
+        - label: "Frontend typecheck passes (npm run typecheck)"
+        - label: "Frontend build passes (npm run build)"
+        - label: "Frontend tests pass (npm test)"
+        - label: "Export sanity: 1000+ models, 20+ benchmarks, 2000+ scores"
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Done
+      description: How did you verify this works?
+      placeholder: |
+        - Ran full pipeline: seed -> ingest --all -> review auto-verify-matched -> export
+        - Verified 47 tau-bench claims extracted
+        - Confirmed export.from-ledger.json updated
+
+  - type: checkboxes
+    id: docs
+    attributes:
+      label: Documentation
+      options:
+        - label: "Updated README.md if architecture changed"
+        - label: "Updated docs/adr/ if new decision"
+        - label: "Added fixture test for new adapter"
+        - label: "No docs needed"
+
+  - type: textarea
+    id: breaking
+    attributes:
+      label: Breaking Changes
+      description: Any breaking changes? Migration notes?

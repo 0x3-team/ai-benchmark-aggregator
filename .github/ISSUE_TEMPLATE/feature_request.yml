@@ -1,0 +1,65 @@
+name: Feature Request
+about: Propose a new benchmark source, adapter, UI feature, or workflow
+title: "[Feature] "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Summary
+        Brief description of the feature.
+
+  - type: checkboxes
+    id: area
+    attributes:
+      label: Area
+      options:
+        - label: New Benchmark Source (add to official_sources.yaml)
+        - label: New Adapter (ledger/app/ingestion/adapters/)
+        - label: Frontend UI / Visualization
+        - label: Data Pipeline / Export
+        - label: Ledger Core (matching, review, snapshots)
+        - label: CI / DevEx
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this solve? Why is it needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How should it work? Include source URLs, adapter type, schema notes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this to be "done"?
+      placeholder: |
+        - Source added to official_sources.yaml with correct parser_config
+        - Adapter extracts claims with source_snapshot_id + evidence_location
+        - Fixture test added in ledger/tests/
+        - Ingest + verify + export passes CI
+        - Frontend shows benchmark in Official mode
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: "I've searched existing sources (official_sources.yaml) for duplicates"
+        - label: "I've checked if the source has a machine-readable API/structured file"
+        - label: "I understand ledger rules: raw values preserved, no recalculation, idempotent"

@@ -1,0 +1,58 @@
+name: Bug Report
+about: Report a bug in the ledger, frontend, or data pipeline
+title: "[Bug] "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Summary
+        Brief description of the bug.
+
+  - type: checkboxes
+    id: component
+    attributes:
+      label: Component
+      options:
+        - label: Ledger (ingestion, registry, matching, export)
+        - label: Frontend (React SPA, data mode, UI components)
+        - label: Data Pipeline (official_sources.yaml, adapters, export)
+        - label: CI / Infrastructure
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: Include error messages, logs, screenshots
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, Python version, Node version, Commit SHA
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
