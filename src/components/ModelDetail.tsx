@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Plus, Check, Trophy } from "lucide-react";
-import type { Benchmark, Model } from "../types";
-import { getValue, getScoreEntry } from "../data/registry";
+import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
 import { categoryLeader } from "../lib/aggregate";
 import { CATEGORY_LABELS } from "../types";
@@ -11,11 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { fmtScore } from "../lib/format";
+import {
+  formatContextWindow,
+  formatOpenWeights,
+  formatPricePair,
+} from "../lib/metadata";
+import { ClaimEvidence } from "./ClaimEvidence";
 
 interface ModelDetailProps {
-  model: Model;
-  models: Model[];
-  benchmarks: Benchmark[];
+  model: DatasetModel;
+  models: readonly DatasetModel[];
+  benchmarks: readonly DatasetBenchmark[];
   selectedModels: string[];
   onToggleModelSelect: (id: string) => void;
 }
@@ -27,6 +32,7 @@ export function ModelDetail({
   selectedModels,
   onToggleModelSelect,
 }: ModelDetailProps) {
+  const { getValue, getScoreEntry } = useDataset();
   const selected = selectedModels.includes(model.id);
 
   const statsByBench = useMemo(() => {
@@ -38,11 +44,11 @@ export function ModelDetail({
       );
     }
     return map;
-  }, [models, benchmarks]);
+  }, [models, benchmarks, getValue]);
 
   const leaders = useMemo(
-    () => categoryLeader(models, benchmarks),
-    [models, benchmarks]
+    () => categoryLeader(models, benchmarks, getValue),
+    [models, benchmarks, getValue]
   );
   const leadsCats = leaders
     .filter((l) => l.modelId === model.id)
@@ -122,16 +128,12 @@ export function ModelDetail({
       </h3>
       <div className="glass-inset grid grid-cols-2 gap-3 rounded-lg p-3 sm:grid-cols-3">
         <Spec label="Vendor" value={model.vendor} />
-        <Spec label="Params" value={model.paramsB == null ? "—" : `${model.paramsB}B`} />
-        <Spec label="Context" value={`${model.contextWindowK}k`} mono />
-        <Spec label="Open" value={model.openWeights ? "yes" : "no"} />
+        <Spec label="Params" value={model.paramsB == null ? "Not supplied" : `${model.paramsB}B`} />
+        <Spec label="Context" value={formatContextWindow(model.contextWindowK)} mono />
+        <Spec label="Open" value={formatOpenWeights(model.openWeights)} />
         <Spec
           label="Price (in/out)"
-          value={
-            model.priceInPer1M == null
-              ? "—"
-              : `$${model.priceInPer1M}/${model.priceOutPer1M}`
-          }
+          value={formatPricePair(model.priceInPer1M, model.priceOutPer1M)}
           mono
         />
         <Spec label="Modalities" value={model.modalities.join(", ")} />
@@ -146,11 +148,7 @@ export function ModelDetail({
         {benchmarks.map((b) => {
           const v = getValue(model.id, b.id);
           const entry = getScoreEntry(model.id, b.id);
-          const prov =
-            entry &&
-            (entry.officialSourceId || entry.scoreRaw || entry.captureStatus)
-              ? entry
-              : null;
+          const claim = entry?.officialProvenance ? entry : null;
           const stats = statsByBench[b.id];
           const isBest = v != null && stats.best != null && v === stats.best;
           const bg = heatmapColor(v, stats, b);
@@ -168,13 +166,11 @@ export function ModelDetail({
                 <span className="truncate text-sm text-foreground/90">
                   {b.name}
                 </span>
-                {prov && (
-                  <span className="truncate font-mono text-[10px] text-muted-foreground/70">
-                    source {prov.officialSourceId ?? "—"} · raw{" "}
-                    {prov.scoreRaw ?? "—"}
-                    {prov.captureStatus ? ` · ${prov.captureStatus}` : ""}
+                {claim ? (
+                  <span className="truncate text-[10px] text-muted-foreground/70">
+                    Governed claim evidence available
                   </span>
-                )}
+                ) : null}
               </span>
               {isBest && (
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-300">
@@ -189,6 +185,11 @@ export function ModelDetail({
               >
                 {display}
               </span>
+              <ClaimEvidence
+                entry={claim}
+                modelName={model.name}
+                benchmarkName={b.fullName}
+              />
             </div>
           );
         })}

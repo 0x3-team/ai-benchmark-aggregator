@@ -1,0 +1,39 @@
+{
+  "attempts": [
+    {
+      "attemptNumber": 1,
+      "causeCode": "LOCAL_FIXTURE_RECORDED",
+      "endedAt": "2026-07-15T00:10:01Z",
+      "outcome": "local_recorded",
+      "retryAt": null,
+      "safeProviderMessageReferenceSha256": null,
+      "startedAt": "2026-07-15T00:10:01Z"
+    }
+  ],
+  "availability": "operations_record_only",
+  "canary": { "canaryId": null, "expectedBy": null, "isCanary": false, "observedAt": null },
+  "deadLetter": { "deadLetterReferenceId": null, "nextActionCode": "NONE_REQUIRED", "status": "none" },
+  "effects": { "acknowledgesIncident": false, "mutatesEvidence": false, "resolvesIncident": false },
+  "intentBinding": {
+    "adapterId": "local-json-fixture-adapter",
+    "adapterVersion": "v1",
+    "intentContentSha256": "c15ddab47fc04075bb46820ae370e2f733a57b16f5029ffe0bf53f34c1199d1d",
+    "intentDedupeKeySha256": "c3f6b0a221fc82611996d48b9ee2a70976e21226e29bb4acc1841274c51566a2",
+    "intentId": "notification-intent-c3f6b0a221fc82611996d48b9ee2a70976e21226e29bb4acc1841274c51566a2",
+    "payloadSha256": "8b7f7da26d8a27bac157a8300592ccf0ece4a3724683945538fe7aa819c215b8",
+    "routeId": "local-json-fixture-v1"
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-incident-json-v1",
+    "attemptCount": 1,
+    "contentSha256": "1f6804feccbc9b6e90c3efda1ecd98356b86696155d886ff225d47ae4cad581a"
+  },
+  "mode": "synthetic_fixture",
+  "outcome": "local_fixture_recorded",
+  "policyVersion": "notification-receipt-v1",
+  "receiptDedupeKeySha256": "9cbc5f5edbbe72b5cd2f8788164b09856797061429a0c6cfb09e4ed438b637fb",
+  "receiptId": "notification-receipt-9cbc5f5edbbe72b5cd2f8788164b09856797061429a0c6cfb09e4ed438b637fb",
+  "recovery": { "priorReceiptId": null, "recoveredAt": null, "recoveryIntentId": null },
+  "routeAuthorityStatus": "local_fixture_only",
+  "schemaVersion": "1.0.0"
+}

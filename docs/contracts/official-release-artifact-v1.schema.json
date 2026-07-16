@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/official-release-artifact-v1.schema.json",
+  "title": "Official Release Artifact v1 — containment baseline",
+  "description": "The only FEED-01 shape accepted during containment. It is intentionally unavailable and data-free; candidate projections and reconciliation reports are separate contracts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactKind",
+    "artifactId",
+    "availability",
+    "policyVersion",
+    "manifest",
+    "reason",
+    "models",
+    "benchmarks",
+    "sourceManifest",
+    "scores"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "artifactKind": { "const": "official-release-artifact" },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "availability": { "const": "unavailable" },
+    "policyVersion": { "const": "official-release-artifact-v1" },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "modelCount",
+        "benchmarkCount",
+        "sourceSnapshotCount",
+        "scoreCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "modelCount": { "const": 0 },
+        "benchmarkCount": { "const": 0 },
+        "sourceSnapshotCount": { "const": 0 },
+        "scoreCount": { "const": 0 }
+      }
+    },
+    "reason": { "type": "string", "minLength": 1 },
+    "models": { "type": "array", "maxItems": 0 },
+    "benchmarks": { "type": "array", "maxItems": 0 },
+    "sourceManifest": { "type": "array", "maxItems": 0 },
+    "scores": { "type": "array", "maxItems": 0 }
+  }
+}

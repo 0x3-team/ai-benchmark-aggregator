@@ -6,27 +6,12 @@ from typing import Any
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
 from app.ingestion.extractors.normalize import try_parse_score
-from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultClaimInput, SourceFetchResult
+from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultClaimInput
 
 
 class GitHubYAMLAdapter(SourceAdapter):
     source_type = "github_yaml"
-
-    def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        import httpx
-        from app.config import get_settings
-
-        settings = get_settings()
-        with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-            resp = client.get(source.source_url, headers={"User-Agent": settings.http_user_agent})
-            return SourceFetchResult(
-                raw_bytes=resp.content,
-                content_type=resp.headers.get("content-type", "text/yaml"),
-                http_status=resp.status_code,
-                etag=resp.headers.get("etag"),
-                last_modified_header=resp.headers.get("last-modified"),
-                final_url=str(resp.url),
-            )
+    accepted_content_types = frozenset({"text/yaml", "text/x-yaml", "application/x-yaml"})
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes

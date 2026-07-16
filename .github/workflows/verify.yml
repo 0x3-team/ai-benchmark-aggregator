@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Verification only needs the checked-out repository. It never receives an
+# id-token, package publication credential, production database credential, or
+# source-ingestion authority.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,24 +20,108 @@ jobs:
   ledger:
     name: Ledger Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Official PostgreSQL 16.14 multi-platform manifest, pinned so the
+        # real-dialect gate cannot drift between otherwise identical runs.
+        image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        env:
+          POSTGRES_DB: benchmark_phase2a_test
+          POSTGRES_PASSWORD: ledger_test_only
+          POSTGRES_USER: ledger_test
+        ports:
+          - 5432:5432
+        volumes:
+          # The host-visible Unix socket lets the recovery gate exercise the
+          # fixed PG16 tools without weakening its verify-full rule for TCP.
+          - /tmp/ai-benchmark-data10-pg-socket:/var/run/postgresql
+        options: >-
+          --health-cmd "pg_isready -U ledger_test -d benchmark_phase2a_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_POSTGRESQL_ALLOW_RESET: "1"
+      TEST_POSTGRESQL_URL: postgresql+psycopg://ledger_test:ledger_test_only@127.0.0.1:5432/benchmark_phase2a_test
     defaults:
       run:
         working-directory: ledger
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.11'
       - name: Install dependencies
         run: |
+          set -euo pipefail
           python -m venv .venv
           source .venv/bin/activate
-          pip install -e .
-          pip install pytest pytest-cov
+          python -m pip install --disable-pip-version-check --no-input -r requirements-ci.lock
+          python -m pip install --disable-pip-version-check --no-input --no-deps --no-build-isolation -e .
+      - name: Prepare isolated PostgreSQL recovery and adversary targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          if [ ! -x "$pg_bin/pg_dump" ] || [ ! -x "$pg_bin/pg_restore" ] || [ ! -x "$pg_bin/createdb" ]; then
+            sudo apt-get update
+            sudo apt-get install --yes --no-install-recommends postgresql-client-16
+          fi
+          "$pg_bin/pg_dump" --version | grep -E '^pg_dump \(PostgreSQL\) 16\.'
+          "$pg_bin/pg_restore" --version | grep -E '^pg_restore \(PostgreSQL\) 16\.'
+
+          socket_root=/tmp/ai-benchmark-data10-pg-socket
+          test -S "$socket_root/.s.PGSQL.5432"
+          source_db=benchmark_disposable_data10_source_ci
+          inspection_db=benchmark_disposable_data10_inspection_ci
+          restore_db=benchmark_disposable_data10_restore_ci
+          adversary_source_db=benchmark_disposable_data10_adversary_source_ci
+          adversary_publication_db=benchmark_disposable_data10_adversary_publication_ci
+          adversary_large_object_db=benchmark_disposable_data10_adversary_large_object_ci
+          for database in \
+            "$source_db" \
+            "$inspection_db" \
+            "$restore_db" \
+            "$adversary_source_db" \
+            "$adversary_publication_db" \
+            "$adversary_large_object_db"; do
+            if "$pg_bin/psql" -h "$socket_root" -U ledger_test -d postgres -Atqc \
+              "SELECT 1 FROM pg_database WHERE datname = '$database'" | grep -qx 1; then
+              echo "::error::DATA-10 recovery database unexpectedly already exists"
+              exit 1
+            fi
+            "$pg_bin/createdb" -h "$socket_root" -U ledger_test "$database"
+          done
+
+          socket_query=%2Ftmp%2Fai-benchmark-data10-pg-socket
+          source_url="postgresql+psycopg://ledger_test@/$source_db?host=$socket_query&port=5432"
+          inspection_url="postgresql+psycopg://ledger_test@/$inspection_db?host=$socket_query&port=5432"
+          restore_url="postgresql+psycopg://ledger_test@/$restore_db?host=$socket_query&port=5432"
+          adversary_source_url="postgresql+psycopg://ledger_test@/$adversary_source_db?host=$socket_query&port=5432"
+          adversary_publication_url="postgresql+psycopg://ledger_test@/$adversary_publication_db?host=$socket_query&port=5432"
+          adversary_large_object_url="postgresql+psycopg://ledger_test@/$adversary_large_object_db?host=$socket_query&port=5432"
+          for source_database in "$source_db" "$adversary_source_db"; do
+            source_database_url="postgresql+psycopg://ledger_test@/$source_database?host=$socket_query&port=5432"
+            DATABASE_URL="$source_database_url" .venv/bin/alembic -c alembic.ini upgrade head
+            .venv/bin/python -c \
+              'from app.db.postgresql import render_least_privilege_role_sql; print(render_least_privilege_role_sql())' \
+              | "$pg_bin/psql" -X -v ON_ERROR_STOP=1 -h "$socket_root" -U ledger_test -d "$source_database"
+          done
+
+          echo "TEST_POSTGRESQL_RECOVERY_SOURCE_URL=$source_url" >> "$GITHUB_ENV"
+          echo "TEST_POSTGRESQL_RECOVERY_INSPECTION_URL=$inspection_url" >> "$GITHUB_ENV"
+          echo "TEST_POSTGRESQL_RECOVERY_RESTORE_URL=$restore_url" >> "$GITHUB_ENV"
+          echo "TEST_POSTGRESQL_RECOVERY_ADVERSARY_SOURCE_URL=$adversary_source_url" >> "$GITHUB_ENV"
+          echo "TEST_POSTGRESQL_RECOVERY_ADVERSARY_PUBLICATION_URL=$adversary_publication_url" >> "$GITHUB_ENV"
+          echo "TEST_POSTGRESQL_RECOVERY_ADVERSARY_LARGE_OBJECT_URL=$adversary_large_object_url" >> "$GITHUB_ENV"
       - name: Run ledger tests
         run: |
+          set -euo pipefail
           source .venv/bin/activate
           pytest -q
 
@@ -40,47 +130,53 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      - name: Verify tracked Official artifact
+        run: npm run verify:official-artifact
       - name: Typecheck
         run: npm run typecheck
-      - name: Build
-        run: npm run build
       - name: Test
         run: npm test
+      - name: Build
+        run: npm run build
 
-  export-sanity:
-    name: Export Sanity Check
+  clean-archive:
+    name: Clean Archive Frontend Check
     runs-on: ubuntu-latest
     needs: [ledger, frontend]
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Check export.from-ledger.json exists and has content
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Build a fresh tracked archive without local ledger output
+        shell: bash
         run: |
-          if [ ! -f "src/data/official/export.from-ledger.json" ]; then
-            echo "::error::export.from-ledger.json missing — run ledger export-official-json"
-            exit 1
-          fi
-          MODELS=$(jq '.models | length' src/data/official/export.from-ledger.json)
-          BENCHMARKS=$(jq '.benchmarks | length' src/data/official/export.from-ledger.json)
-          SCORES=$(jq '.scores | length' src/data/official/export.from-ledger.json)
-          echo "Models: $MODELS, Benchmarks: $BENCHMARKS, Scores: $SCORES"
-          if [ "$MODELS" -lt 1000 ]; then
-            echo "::error::Expected >=1000 models, got $MODELS"
-            exit 1
-          fi
-          if [ "$BENCHMARKS" -lt 20 ]; then
-            echo "::error::Expected >=20 benchmarks, got $BENCHMARKS"
-            exit 1
-          fi
-          if [ "$SCORES" -lt 2000 ]; then
-            echo "::error::Expected >=2000 scores, got $SCORES"
-            exit 1
-          fi
+          set -euo pipefail
+          archive_dir="$(mktemp -d)"
+          trap 'rm -rf "$archive_dir"' EXIT
+          git archive --format=tar HEAD | tar -xf - -C "$archive_dir"
+          test -f "$archive_dir/src/data/official/export.unavailable.json"
+          test ! -e "$archive_dir/src/data/official/export.from-ledger.json"
+          cd "$archive_dir"
+          npm ci
+          npm run verify:official-artifact
+          npm run typecheck
+          npm test
+          npm run build

@@ -1,12 +1,17 @@
-import { useMemo, useState, useEffect } from "react";
-import type { BenchmarkCategory, Model } from "./types";
+import { useMemo, useState } from "react";
+import type { BenchmarkCategory } from "./types";
 import { models as demoModels } from "./data/models";
 import { benchmarks as demoBenchmarks } from "./data/benchmarks";
 import { getScores } from "./data/scores";
-function demoScores(): ReturnType<typeof getScores> { return getScores(); }
-import { setActiveData } from "./data/registry";
-import { loadOfficialData } from "./data/official";
-import { computeRanking, sortModels } from "./lib/aggregate";
+import {
+  DatasetProvider,
+  useDataset,
+  type DatasetInput,
+  type DatasetModel,
+} from "./data/dataset";
+import { loadOfficialData, type OfficialLoadResult } from "./data/official";
+import { selectDataset } from "./data/dataSelection";
+import { computeRanking, sortModels, type RankRow } from "./lib/aggregate";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ScoreTable } from "./components/ScoreTable";
@@ -15,6 +20,7 @@ import { CategoryLeaders } from "./components/CategoryLeaders";
 import { ModelDetail } from "./components/ModelDetail";
 import { ModelComparison } from "./components/ModelComparison";
 import { GlossaryDialog } from "./components/GlossaryDialog";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { DATA_MODE_LABEL, type DataMode } from "./data/dataMode";
 import {
   Sheet,
@@ -33,6 +39,11 @@ import {
 import { useToast } from "./components/ui/use-toast";
 
 const MAX_COMPARE = 6;
+const DEMO_DATASET: DatasetInput = {
+  models: demoModels,
+  benchmarks: demoBenchmarks,
+  scores: getScores(),
+};
 
 function Toaster() {
   const { toasts } = useToast();
@@ -53,6 +64,64 @@ function Toaster() {
 }
 
 export default function App() {
+  const officialLoadResult = useMemo(() => loadOfficialData(), []);
+  return (
+    <AppWithDataSources
+      demoData={DEMO_DATASET}
+      officialLoadResult={officialLoadResult}
+    />
+  );
+}
+
+/**
+ * The production App supplies only the fixed containment loader above. This
+ * exported seam lets UI tests exercise a previously verified published result
+ * without giving the runtime a second artifact import or a fallback path.
+ */
+export function AppWithDataSources({
+  demoData,
+  officialLoadResult,
+}: {
+  demoData: DatasetInput;
+  officialLoadResult: OfficialLoadResult;
+}) {
+  // The discriminated selection is intentionally above DatasetProvider: every
+  // commit receives one matching mode label and immutable data snapshot. The
+  // current loader returns the tracked unavailable artifact, so `official`
+  // can never become selected without a later REL-05 release authorization.
+  const [requestedDataMode, setRequestedDataMode] = useState<DataMode>("demo");
+  const selection = useMemo(
+    () => selectDataset(requestedDataMode, demoData, officialLoadResult),
+    [requestedDataMode, demoData, officialLoadResult]
+  );
+
+  return (
+    <AppErrorBoundary
+      resetKey={selection.data}
+      sourceLabel={DATA_MODE_LABEL[selection.mode]}
+    >
+      <DatasetProvider data={selection.data}>
+        <AppContent
+          dataMode={selection.mode}
+          officialLoadResult={selection.official}
+          onRequestedDataModeChange={setRequestedDataMode}
+        />
+      </DatasetProvider>
+    </AppErrorBoundary>
+  );
+}
+
+interface AppContentProps {
+  dataMode: DataMode;
+  officialLoadResult: OfficialLoadResult;
+  onRequestedDataModeChange: (mode: DataMode) => void;
+}
+
+function AppContent({
+  dataMode,
+  officialLoadResult,
+  onRequestedDataModeChange,
+}: AppContentProps) {
   const [view, setView] = useState<"table" | "compare">("table");
   const [search, setSearch] = useState("");
   const [vendorFilter, setVendorFilter] = useState<Set<string>>(new Set());
@@ -63,68 +132,28 @@ export default function App() {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  // Dual trust mode: demo synthetic data vs official ledger-backed claims
-  // (ADR-003). The active dataset is published to the data registry below.
-  const [dataMode, setDataMode] = useState<DataMode>("demo");
-
+  const [officialUnavailableAnnouncement, setOfficialUnavailableAnnouncement] = useState<string | null>(
+    null
+  );
+  const [officialUnavailableAnnouncementId, setOfficialUnavailableAnnouncementId] = useState(0);
   const { toast } = useToast();
 
-  // Select + publish the active dataset based on trust mode. Publish in an
-  // effect (never during render) so React never sees a state update mid-render.
-  useEffect(() => {
-    if (dataMode === "official") {
-      const off = loadOfficialData();
-      setActiveData({ models: off.models, benchmarks: off.benchmarks, scores: off.scores });
-      return;
-    }
-    setActiveData({ models: demoModels, benchmarks: demoBenchmarks, scores: demoScores() });
-  }, [dataMode]);
+  const officialUnavailableReason =
+    officialLoadResult.availability === "unavailable"
+      ? officialLoadResult.reason
+      : undefined;
+  const officialArtifact =
+    officialLoadResult.availability === "published"
+      ? officialLoadResult.artifact
+      : undefined;
 
-  const { models: activeModels, benchmarks: activeBenchmarks } = useMemo(() => {
-    if (dataMode === "official") {
-      const off = loadOfficialData();
-      return { models: off.models, benchmarks: off.benchmarks };
-    }
-    return { models: demoModels, benchmarks: demoBenchmarks };
-  }, [dataMode]);
-
-  const sourceUrls = useMemo(() => {
-    if (dataMode !== "official") return [];
-    const off = loadOfficialData();
-    const sources = new Map<string, string>();
-
-    const OFFICIAL_SOURCE_URLS: Record<string, string> = {
-      fake_local_fixture: "https://huggingface.co/docs/hub/eval-results",
-      hf_official_benchmark_discovery: "https://huggingface.co/api/datasets?filter=benchmark:official",
-      swe_bench_verified_official_leaderboard: "https://www.swebench.com/",
-      livecodebench_official_leaderboard: "https://livecodebench.github.io/leaderboard.html",
-      mteb_leaderboard: "https://huggingface.co/spaces/mteb/leaderboard",
-      bigcodebench_leaderboard: "https://bigcode-bench.github.io/",
-    };
-
-    off.scores.forEach((s) => {
-      if (s.officialSourceId) {
-        const url = OFFICIAL_SOURCE_URLS[s.officialSourceId];
-        if (url) {
-          sources.set(s.officialSourceId, url);
-        }
-      }
-    });
-
-    off.benchmarks.forEach((b) => {
-      if (b.sourceUrl) {
-        sources.set(b.name, b.sourceUrl);
-      }
-    });
-
-    return Array.from(sources.entries()).map(([name, url]) => {
-      const displayName = name.includes("http") ? "Source Link" : name
-        .split("_")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-      return { name: displayName, url };
-    });
-  }, [dataMode]);
+  // Every data-dependent render reads the atomic provider snapshot selected
+  // above this component. No handler can relabel a Demo snapshot as Official.
+  const {
+    models: activeModels,
+    benchmarks: activeBenchmarks,
+    getValue,
+  } = useDataset();
 
   const vendors = useMemo(
     () => [...new Set(activeModels.map((m) => m.vendor))].sort(),
@@ -152,17 +181,39 @@ export default function App() {
     });
   }, [search, vendorFilter, openWeightsOnly, activeModels]);
 
+  // The presentation cohort is the entire immutable dataset snapshot. Search,
+  // vendor, category, and open-weights filters only control visible rows; they
+  // cannot promote a partial or filtered model into an overall leader.
+  const presentationRanking = useMemo(
+    () => computeRanking(activeModels, activeBenchmarks, getValue),
+    [activeModels, activeBenchmarks, getValue]
+  );
+
   const sortedModels = useMemo(
-    () => sortModels(filteredModels, sort, visibleBenchmarks),
-    [filteredModels, sort, visibleBenchmarks]
+    () =>
+      sortModels(
+        filteredModels,
+        sort,
+        visibleBenchmarks,
+        activeBenchmarks,
+        getValue,
+        presentationRanking
+      ),
+    [
+      filteredModels,
+      sort,
+      visibleBenchmarks,
+      activeBenchmarks,
+      getValue,
+      presentationRanking,
+    ]
   );
 
   const rankMap = useMemo(() => {
-    const ranking = computeRanking(sortedModels, visibleBenchmarks);
-    const map: Record<string, number> = {};
-    ranking.forEach((r, i) => (map[r.model.id] = i + 1));
+    const map: Record<string, RankRow> = {};
+    presentationRanking.forEach((row) => (map[row.model.id] = row));
     return map;
-  }, [sortedModels, visibleBenchmarks]);
+  }, [presentationRanking]);
 
   const selectedBenchmark = selectedBenchmarkId
     ? activeBenchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
@@ -176,7 +227,7 @@ export default function App() {
     () =>
       selectedModels
         .map((id) => activeModels.find((m) => m.id === id))
-        .filter((m): m is Model => m != null),
+        .filter((m): m is DatasetModel => m != null),
     [selectedModels, activeModels]
   );
 
@@ -196,6 +247,13 @@ export default function App() {
       else next.add(v);
       return next;
     });
+  }
+
+  function handleCategoryFilter(next: BenchmarkCategory | null) {
+    setCategoryFilter(next);
+    // A column sort must never stay active after its column leaves the visible
+    // category. Clearing is less surprising than retaining a hidden order.
+    setSort(null);
   }
 
   function toggleModelSelect(id: string) {
@@ -222,19 +280,30 @@ export default function App() {
     setSort(null);
   }
 
-  function handleDataModeChange(next: DataMode) {
-    if (next === dataMode) return;
-    setDataMode(next);
-    // The active dataset changes: drop any selections/filters that reference
-    // benchmark or model ids that may not exist in the other trust mode.
-    setSearch("");
-    setVendorFilter(new Set());
-    setCategoryFilter(null);
-    setOpenWeightsOnly(false);
-    setSort(null);
+  function resetDataDependentState() {
+    // React batches this event's state work with the selected dataset change.
+    // A future Official release may have different ids, categories, and
+    // availability, so no old filter, sort, selection, or Compare view may
+    // survive the trust-boundary transition.
+    setView("table");
+    clearFilters();
     setSelectedBenchmarkId(null);
     setSelectedModelId(null);
     setSelectedModels([]);
+  }
+
+  function handleDataModeChange(next: DataMode) {
+    if (next === "official" && officialLoadResult.availability !== "published") {
+      const message = `Official claims remain unavailable. ${officialLoadResult.reason} Visible data remains Demo (synthetic).`;
+      setOfficialUnavailableAnnouncement(message);
+      setOfficialUnavailableAnnouncementId((current) => current + 1);
+      toast({ description: message });
+      return;
+    }
+    if (next === dataMode) return;
+    setOfficialUnavailableAnnouncement(null);
+    onRequestedDataModeChange(next);
+    resetDataDependentState();
   }
 
   function openModel(id: string) {
@@ -260,7 +329,10 @@ export default function App() {
             dataModeLabel={DATA_MODE_LABEL[dataMode]}
             dataMode={dataMode}
             onDataModeChange={handleDataModeChange}
-            sourceUrls={sourceUrls}
+            officialUnavailableReason={officialUnavailableReason}
+            officialArtifact={officialArtifact}
+            officialUnavailableAnnouncement={officialUnavailableAnnouncement}
+            officialUnavailableAnnouncementId={officialUnavailableAnnouncementId}
           />
 
           {view === "table" ? (
@@ -272,15 +344,16 @@ export default function App() {
                 vendorFilter={vendorFilter}
                 onToggleVendor={toggleVendor}
                 categoryFilter={categoryFilter}
-                onCategory={setCategoryFilter}
+                onCategory={handleCategoryFilter}
                 openWeightsOnly={openWeightsOnly}
                 onToggleOpenWeights={setOpenWeightsOnly}
                 onClear={clearFilters}
                 resultCount={sortedModels.length}
               />
               <CategoryLeaders
-                models={sortedModels}
-                benchmarks={visibleBenchmarks}
+                models={activeModels}
+                benchmarks={activeBenchmarks}
+                categoryFilter={categoryFilter}
                 onOpenModel={openModel}
               />
               {sortedModels.length === 0 ? (
@@ -311,6 +384,7 @@ export default function App() {
                   onToggleModelSelect={toggleModelSelect}
                   selectedModels={selectedModels}
                   rankMap={rankMap}
+                  rankCohortTotal={activeBenchmarks.length}
                 />
               )}
             </main>

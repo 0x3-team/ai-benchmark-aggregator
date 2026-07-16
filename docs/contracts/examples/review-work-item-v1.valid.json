@@ -1,0 +1,62 @@
+{
+  "assigneeId": null,
+  "authority": {
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "certifiesSources": false,
+    "classification": "operations_record_only",
+    "frontendLoadable": false,
+    "mutatesEvidence": false,
+    "timeoutMayApprove": false
+  },
+  "availability": "operations_record_only",
+  "currentState": "OPEN",
+  "duePolicy": {
+    "businessCalendarId": null,
+    "calculationStatus": "blocked_owner_policy",
+    "dueAt": null,
+    "dueKind": "business_calendar",
+    "nextReviewAt": null,
+    "onTime": null,
+    "policyDecisionReference": null,
+    "policyRevisionId": "review-due-policy-draft-v1",
+    "policyStatus": "provisional_unapproved",
+    "terminalAt": null,
+    "timeZone": null
+  },
+  "events": [
+    {
+      "actorRole": "operations-owner",
+      "decisionReference": null,
+      "eventId": "work-event-2f66be86f54cdf4127b120422dc90297556893170fe6d8df7ac019ed377c60b7",
+      "eventOrdinal": 1,
+      "eventType": "CREATED",
+      "expectedPriorEventId": null,
+      "fromState": null,
+      "nextReviewAt": null,
+      "occurredAt": "2026-07-15T00:12:00Z",
+      "reasonCode": "REVIEW_REQUIRED",
+      "safeContext": { "contextCode": "SYNTHETIC_FIXTURE_ONLY", "sourceControlledDataIncluded": false },
+      "toState": "OPEN"
+    }
+  ],
+  "environment": "fixture-shadow",
+  "manifest": {
+    "algorithm": "sha256-canonical-incident-json-v1",
+    "contentSha256": "b58ef99231705d8ceaae108fe72e56eed48510f49a01195b4deb561ea1896bae",
+    "eventCount": 1,
+    "subjectReferenceCount": 1
+  },
+  "mode": "synthetic_fixture",
+  "ownerRole": "identity-reviewer",
+  "policyVersion": "review-work-item-v1",
+  "publicationBlocking": true,
+  "reasonCode": "MODEL_AMBIGUOUS",
+  "schemaVersion": "1.0.0",
+  "subjectRefs": [
+    { "referenceId": "source-revision-fixture-v1", "referenceType": "source_revision" }
+  ],
+  "workClass": "model_system_identity",
+  "workItemFingerprintSha256": "ba67ffe16d13f1a4f5a264b64e54aa22bb3e11a5570c3a8f43215fd55cc8f386",
+  "workItemId": "work-item-ba67ffe16d13f1a4f5a264b64e54aa22bb3e11a5570c3a8f43215fd55cc8f386"
+}

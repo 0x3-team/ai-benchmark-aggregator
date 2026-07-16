@@ -1,7 +1,7 @@
 # ADR-004: Python packaging and test stack
 
 **Status:** Accepted  
-**Date:** 2026-07-11  
+**Date:** 2026-07-11; PostgreSQL driver update 2026-07-15
 **Decision ID:** DEC-004
 
 ## Context
@@ -14,7 +14,8 @@ Ledger MVP needs stable, common libraries and fixture-heavy tests.
 |---------|--------|
 | Packaging | `pyproject.toml` (setuptools) |
 | Schemas | Pydantic v2 |
-| DB | SQLAlchemy 2.x + SQLite (Postgres-compatible types where easy) |
+| DB | SQLAlchemy 2.x; SQLite locally plus psycopg 3 and real PostgreSQL-native target tests |
+| Schema migrations | Alembic (see ADR-006) |
 | CLI | Typer |
 | HTTP | httpx |
 | YAML | PyYAML |
@@ -25,4 +26,7 @@ Ledger MVP needs stable, common libraries and fixture-heavy tests.
 ## Consequences
 
 - Local SQLite via `DATABASE_URL=sqlite:///./data/benchmark_ledger.db`.
+- PostgreSQL URLs require the reviewed psycopg 3 binary extra; migrations use
+  direct/session connections while runtime pooling remains a later measured
+  configuration gate.
 - Adapters never write DB directly; runner persists typed objects.

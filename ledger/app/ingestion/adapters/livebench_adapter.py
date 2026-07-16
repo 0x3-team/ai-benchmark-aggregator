@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
-from typing import Any
 
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
@@ -11,71 +9,17 @@ from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultCla
 
 class LiveBenchAdapter(SourceAdapter):
     source_type = "livebench_adapter"
+    requires_central_fetch = False
 
     def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        import httpx
-        from app.config import get_settings
-
-        settings = get_settings()
-        headers = {"User-Agent": settings.http_user_agent}
-
-        try:
-            # 1. Fetch homepage
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                r = client.get("https://livebench.ai/", headers=headers)
-                r.raise_for_status()
-
-                # Find main JS file
-                m = re.search(r'src=["\']\./static/js/main\.[a-f0-9]+\.js["\']', r.text)
-                if not m:
-                    m = re.search(r'static/js/main\.[a-f0-9]+\.js', r.text)
-
-                js_url = "https://livebench.ai/static/js/main.699ee9e4.js"  # default fallback
-                if m:
-                    js_path = m.group(0).replace('src="', '').replace('"', '').replace("'", "").lstrip(".")
-                    if not js_path.startswith("/"):
-                        js_path = "/" + js_path
-                    js_url = f"https://livebench.ai{js_path}"
-
-                # 2. Fetch JS file to get latest version
-                r_js = client.get(js_url, headers=headers)
-                r_js.raise_for_status()
-
-                # Find pe array
-                pe_match = re.search(r'pe\s*=\s*\[(.*?)\]', r_js.text)
-                version = "2026-06-25"  # default fallback
-                if pe_match:
-                    versions = [v.strip(' "') for v in pe_match.group(1).split(",")]
-                    if versions:
-                        version = versions[-1]
-
-                v_underscore = version.replace("-", "_")
-
-                # 3. Fetch table CSV and categories JSON
-                csv_url = f"https://livebench.ai/table_{v_underscore}.csv"
-                cats_url = f"https://livebench.ai/categories_{v_underscore}.json"
-
-                r_csv = client.get(csv_url, headers=headers)
-                r_csv.raise_for_status()
-
-                r_cats = client.get(cats_url, headers=headers)
-                r_cats.raise_for_status()
-
-                # Return combined payload as JSON dict
-                payload = {
-                    "csv": r_csv.text,
-                    "categories": r_cats.json(),
-                    "version": version,
-                }
-
-                return SourceFetchResult(
-                    raw_bytes=json.dumps(payload).encode("utf-8"),
-                    content_type="application/json",
-                    http_status=200,
-                    final_url=csv_url,
-                )
-        except Exception as exc:
-            raise RuntimeError(f"Fetch failed for {source.id}: {exc}") from exc
+        # The old path assembled a homepage, JavaScript bundle, CSV, and
+        # categories JSON, then calculated a score. That is derived analytics,
+        # not one verbatim source-reported result record, so it cannot produce
+        # Official claims until a future source-specific certification ticket.
+        raise RuntimeError(
+            "LiveBench adapter is retired: assembled artifacts and derived aggregates "
+            "cannot produce Official benchmark result claims."
+        )
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes
@@ -84,6 +28,8 @@ class LiveBenchAdapter(SourceAdapter):
         from io import StringIO
         from app.ingestion.extractors.normalize import try_parse_score
 
+        if source.parser_config.get("mode") == "retired":
+            return []
         try:
             payload = json.loads(raw_bytes.decode("utf-8"))
         except Exception:
@@ -137,29 +83,28 @@ class LiveBenchAdapter(SourceAdapter):
                     metric_raw="overall",
                     score_numeric=try_parse_score(score_raw),
                     evidence_location={
-                        "type": "livebench_derived",
+                        "type": "derived_analytics",
                         "model": model_raw,
                         "version": payload.get("version"),
                         "categories_computed": len(cat_averages),
                     },
-                    capture_method="livebench_adapter_parser",
-                    capture_confidence=0.95,
-                    capture_status="parser_verified",
+                    capture_method="livebench_derived_analytics",
+                    # Offline fixture parsing can exercise the aggregation
+                    # mechanics, but the calculated value is never a
+                    # source-reported Official claim.
+                    capture_confidence=0.0,
+                    capture_status="unreviewed",
                     officialness_level=source.officialness_level,
                 )
             )
         return claims
 
     def validate_claim(self, claim: ResultClaimInput, raw_bytes: bytes) -> list[ClaimValidationInput]:
-        try:
-            text = raw_bytes.decode("utf-8")
-        except Exception:
-            text = ""
-        outcome = "pass" if claim.model_raw and claim.model_raw in text else "uncertain"
         return [
             ClaimValidationInput(
-                validation_type="json_path_match",
-                outcome=outcome,
+                validation_type="derived_aggregate",
+                outcome="fail",
                 validator="LiveBenchAdapter",
+                notes="retired derived aggregate is not source-reported benchmark evidence",
             )
         ]

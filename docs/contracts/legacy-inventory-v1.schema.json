@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/legacy-inventory-v1.schema.json",
+  "title": "Legacy Inventory Report v1",
+  "description": "Offline, deterministic reconciliation report. It is not an Official publication artifact and never changes historical ledger evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "manifest",
+    "summary",
+    "claims",
+    "snapshots",
+    "conflicts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "legacy-inventory-v1" },
+    "availability": { "const": "report_only" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } },
+    "snapshots": { "type": "array", "items": { "$ref": "#/$defs/snapshot" } },
+    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } }
+  },
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "count": { "type": "integer", "minimum": 0 },
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "claimCount",
+        "snapshotCount",
+        "candidateClaimCount",
+        "excludedClaimCount",
+        "conflictedClaimCount",
+        "conflictCellCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/digest" },
+        "claimCount": { "$ref": "#/$defs/count" },
+        "snapshotCount": { "$ref": "#/$defs/count" },
+        "candidateClaimCount": { "$ref": "#/$defs/count" },
+        "excludedClaimCount": { "$ref": "#/$defs/count" },
+        "conflictedClaimCount": { "$ref": "#/$defs/count" },
+        "conflictCellCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "countRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "count"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "count": { "$ref": "#/$defs/count" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateProjectionStatus",
+        "selectedCellCount",
+        "reportOnlyQuarantine",
+        "dispositionCounts",
+        "omissionReasonCounts",
+        "observedRiskSignalCounts",
+        "evidenceCounts",
+        "explicitQuarantineDecisionCount",
+        "explicitRevocationDecisionCount"
+      ],
+      "properties": {
+        "candidateProjectionStatus": { "enum": ["candidate", "conflict"] },
+        "selectedCellCount": { "$ref": "#/$defs/count" },
+        "reportOnlyQuarantine": { "const": true },
+        "dispositionCounts": { "type": "array", "items": { "$ref": "#/$defs/countRow" } },
+        "omissionReasonCounts": { "type": "array", "items": { "$ref": "#/$defs/countRow" } },
+        "observedRiskSignalCounts": { "type": "array", "items": { "$ref": "#/$defs/countRow" } },
+        "evidenceCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claimsWithEvidenceLocation", "claimsWithEvidenceText", "snapshotsWithContentHash"],
+          "properties": {
+            "claimsWithEvidenceLocation": { "$ref": "#/$defs/count" },
+            "claimsWithEvidenceText": { "$ref": "#/$defs/count" },
+            "snapshotsWithContentHash": { "$ref": "#/$defs/count" }
+          }
+        },
+        "explicitQuarantineDecisionCount": { "$ref": "#/$defs/count" },
+        "explicitRevocationDecisionCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "officialSourceId",
+        "officialSourcePresent",
+        "sourceRevisionId",
+        "sourceRevisionPresent",
+        "sourceType",
+        "sourceRevisionStatus"
+      ],
+      "properties": {
+        "officialSourceId": { "type": "string", "minLength": 1 },
+        "officialSourcePresent": { "type": "boolean" },
+        "sourceRevisionId": { "$ref": "#/$defs/nullableString" },
+        "sourceRevisionPresent": { "type": "boolean" },
+        "sourceType": { "$ref": "#/$defs/nullableString" },
+        "sourceRevisionStatus": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "raw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "benchmark", "score", "metric", "split", "setting", "evaluationVersion"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "benchmark": { "type": "string", "minLength": 1 },
+        "score": { "type": "string", "minLength": 1 },
+        "metric": { "$ref": "#/$defs/nullableString" },
+        "split": { "$ref": "#/$defs/nullableString" },
+        "setting": { "$ref": "#/$defs/nullableString" },
+        "evaluationVersion": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "parsed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scoreNumeric", "scoreNumericState", "scoreUnit"],
+      "properties": {
+        "scoreNumeric": { "type": ["number", "null"] },
+        "scoreNumericState": { "enum": ["finite", "missing_or_non_finite"] },
+        "scoreUnit": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "status", "scientificStatus", "confidence", "officialnessLevel"],
+      "properties": {
+        "method": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "scientificStatus": { "type": "string", "minLength": 1 },
+        "confidence": { "type": ["number", "null"] },
+        "officialnessLevel": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["location", "hasLocation", "locationSha256", "hasEvidenceText", "evidenceTextSha256"],
+      "properties": {
+        "location": {},
+        "hasLocation": { "type": "boolean" },
+        "locationSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "hasEvidenceText": { "type": "boolean" },
+        "evidenceTextSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effectiveDecisionId", "outcome", "reasonCode", "chainValid"],
+      "properties": {
+        "effectiveDecisionId": { "$ref": "#/$defs/nullableString" },
+        "outcome": { "$ref": "#/$defs/nullableString" },
+        "reasonCode": { "$ref": "#/$defs/nullableString" },
+        "chainValid": { "type": "boolean" }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captureSource", "review", "publication"],
+      "properties": {
+        "captureSource": { "$ref": "#/$defs/decision" },
+        "review": { "$ref": "#/$defs/decision" },
+        "publication": { "$ref": "#/$defs/decision" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimId",
+        "sourceSnapshotId",
+        "sourceSnapshotPresent",
+        "source",
+        "raw",
+        "parsed",
+        "capture",
+        "evidence",
+        "decisions",
+        "reportDisposition",
+        "omissionReasonCode",
+        "observedRiskSignals"
+      ],
+      "properties": {
+        "claimId": { "type": "string", "minLength": 1 },
+        "sourceSnapshotId": { "type": "string", "minLength": 1 },
+        "sourceSnapshotPresent": { "type": "boolean" },
+        "source": { "$ref": "#/$defs/source" },
+        "raw": { "$ref": "#/$defs/raw" },
+        "parsed": { "$ref": "#/$defs/parsed" },
+        "capture": { "$ref": "#/$defs/capture" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "decisions": { "$ref": "#/$defs/decisions" },
+        "reportDisposition": { "enum": ["candidate", "omitted", "conflicted"] },
+        "omissionReasonCode": { "$ref": "#/$defs/nullableString" },
+        "observedRiskSignals": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshotId",
+        "officialSourceId",
+        "sourceRevisionId",
+        "contentSha256",
+        "capturedAt",
+        "contentType",
+        "hasRawContentUri",
+        "claimCount"
+      ],
+      "properties": {
+        "snapshotId": { "type": "string", "minLength": 1 },
+        "officialSourceId": { "type": "string", "minLength": 1 },
+        "sourceRevisionId": { "type": "string", "minLength": 1 },
+        "contentSha256": { "type": "string", "minLength": 1 },
+        "capturedAt": { "$ref": "#/$defs/nullableString" },
+        "contentType": { "$ref": "#/$defs/nullableString" },
+        "hasRawContentUri": { "type": "boolean" },
+        "claimCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelId", "benchmarkId", "metric", "split", "setting", "evaluationVersion"],
+      "properties": {
+        "modelId": { "type": "string", "minLength": 1 },
+        "benchmarkId": { "type": "string", "minLength": 1 },
+        "metric": { "$ref": "#/$defs/nullableString" },
+        "split": { "$ref": "#/$defs/nullableString" },
+        "setting": { "$ref": "#/$defs/nullableString" },
+        "evaluationVersion": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cell", "claimIds"],
+      "properties": {
+        "cell": { "$ref": "#/$defs/cell" },
+        "claimIds": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

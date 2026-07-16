@@ -1,18 +1,19 @@
 import { useMemo } from "react";
-import type { Benchmark, Model } from "../types";
-import { getValue } from "../data/registry";
+import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { modelColor } from "../lib/palette";
 import { cn } from "@/lib/utils";
+import { ClaimEvidence } from "./ClaimEvidence";
 
 interface BenchmarkBarsProps {
-  models: Model[];
-  benchmarks: Benchmark[];
+  models: readonly DatasetModel[];
+  benchmarks: readonly DatasetBenchmark[];
   onOpenModel: (modelId: string) => void;
 }
 
 export function BenchmarkBars({ models, benchmarks, onOpenModel }: BenchmarkBarsProps) {
+  const { getValue, getScoreEntry } = useDataset();
   const colorById = useMemo(() => {
     const map: Record<string, string> = {};
     models.forEach((m, i) => (map[m.id] = modelColor(i)));
@@ -66,6 +67,8 @@ export function BenchmarkBars({ models, benchmarks, onOpenModel }: BenchmarkBars
                     <div className="flex flex-col gap-1">
                       {models.map((m) => {
                         const v = getValue(m.id, b.id);
+                        const entry = getScoreEntry(m.id, b.id);
+                        const claim = entry?.officialProvenance ? entry : null;
                         const color = colorById[m.id];
                         const pct = v == null ? null : (v / scaleMax) * 100;
                         return (
@@ -84,6 +87,25 @@ export function BenchmarkBars({ models, benchmarks, onOpenModel }: BenchmarkBars
                               <span className="absolute left-1 top-1/2 flex h-3.5 -translate-y-1/2 items-center">
                                 <span className="h-0 w-10 border-t border-dashed border-white/30" />
                               </span>
+                            ) : claim ? (
+                              <ClaimEvidence
+                                entry={claim}
+                                modelName={m.name}
+                                benchmarkName={b.fullName}
+                                trigger={
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      "data-claim-evidence block h-full rounded-sm transition-[width] duration-300 focus:outline-none focus:ring-2 focus:ring-ring"
+                                    )}
+                                    style={{
+                                      width: `${Math.max(pct, 2)}%`,
+                                      background: color,
+                                    }}
+                                    aria-label={`View claim evidence for ${m.name} on ${b.fullName}`}
+                                  />
+                                }
+                              />
                             ) : (
                               <button
                                 type="button"

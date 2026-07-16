@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "evaluation-subject-v1",
+  "availability": "identity_definition_only",
+  "subjectRevisionId": "example-submission-subject-revision-v1",
+  "subjectId": "example-submission-subject",
+  "supersedesSubjectRevisionId": null,
+  "lifecycleStatus": "draft",
+  "decisionReference": null,
+  "reasonCode": "LOCAL_UNRESOLVED_SUBMISSION_EXAMPLE",
+  "subjectType": "opaque_submission",
+  "resolutionStatus": "unresolved",
+  "subjectFingerprintSha256": "06e16b2ee0b51dea317f1dff4766f4884f8d641bfe5fe8bed4d275637f91ba32",
+  "observedCompositionFingerprintSha256": "df07edd8970f342ed0a1e160f7a027cd7fa27d9d2854968e5d4af335516f904c",
+  "authority": {
+    "classification": "evaluation_subject_definition_only",
+    "reviewStatus": "draft_unreviewed",
+    "establishesClaimMapping": false,
+    "rewritesClaims": false,
+    "promotesValidation": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "e201945a8c1361ae4ccb4d3bc77b56b2a3681f7b94ab25e8c4084eb6401f6bae",
+    "componentLinkCount": 0,
+    "provenanceReferenceCount": 1
+  },
+  "displayIdentity": {
+    "modelEntityId": null,
+    "displayName": "Example opaque submission (unresolved)",
+    "entityType": "opaque_submission",
+    "preservesGetValueModelIdentity": true,
+    "frontendComparable": false
+  },
+  "rawSourceIdentity": {
+    "modelRaw": "Team Example / Submission 17",
+    "providerRaw": "Example Organization",
+    "configurationRaw": "Configuration not disclosed by source",
+    "sourceObservationReference": "candidate-example-submission-v1",
+    "sourceSnapshotReference": null,
+    "evidenceReferenceIds": ["example-submission-observation"],
+    "preservedExactly": true,
+    "normalizationApplied": false
+  },
+  "typeDetails": {
+    "detailType": "opaque_submission",
+    "submissionRaw": "Team Example / Submission 17"
+  },
+  "components": [],
+  "provenanceReferences": [
+    {
+      "provenanceId": "example-submission-observation",
+      "provenanceType": "discovery_candidate",
+      "referenceId": "candidate-example-submission-v1",
+      "contentSha256": null,
+      "mappingAuthority": "context_only_not_identity_proof"
+    }
+  ],
+  "baseModelMapping": {
+    "status": "unresolved",
+    "componentLinkId": null,
+    "decisionReference": null,
+    "fabricated": false
+  },
+  "claimBinding": {
+    "mayBindFutureClaims": false,
+    "requiresIdentityDecision": true,
+    "rewritesExistingClaims": false,
+    "preservesModelRaw": true,
+    "promotesValidationOrPublication": false
+  }
+}

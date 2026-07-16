@@ -1,65 +1,87 @@
-name: PR Description
+name: Change description
 body:
   - type: markdown
     attributes:
       value: |
-        ## Summary
-        What does this PR change?
+        ## Trust-boundary reminder
 
-  - type: checkboxes
-    id: type
-    attributes:
-      label: Type
-      options:
-        - label: "Bug fix"
-        - label: "New feature (benchmark source / adapter / UI)"
-        - label: "Refactor / cleanup"
-        - label: "Docs / CI"
-        - label: "Dependency update"
+        Demo values are synthetic. Candidate projections, legacy reports, test fixtures,
+        samples, ignored local exports, and source-fetch output are never public Official
+        data. Official mode remains unavailable unless a separately governed REL-05
+        authorization pins one release artifact and digest.
 
   - type: textarea
-    id: changes
+    id: summary
     attributes:
-      label: Key Changes
-      description: Bullet list of what changed and why
+      label: Summary and user impact
+      description: What changed, why, and which launch track/status it affects.
       placeholder: |
-        - Added tau_bench_s3 adapter with S3 pagination fix
-        - Fixed seed idempotency by truncating dependent tables
-        - Updated official_sources.yaml with 4 new sources
+        - Keeps the visible dataset in Demo (synthetic).
+        - Adds a fail-closed validation check for a governed future artifact.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: trust_surface
+    attributes:
+      label: Trust surface
+      options:
+        - "UI only — no dataset or Official-mode behavior"
+        - "Demo/unavailable status or frontend containment"
+        - "Ledger schema, source, fetch, claim, review, or publication boundary"
+        - "CI, release process, security, or documentation"
+        - "Governed Official release work (requires linked approval)"
+    validations:
+      required: true
 
   - type: checkboxes
-    id: gates
+    id: containment
     attributes:
-      label: Quality Gates (must pass)
+      label: Containment checks
       options:
-        - label: "Ledger tests pass (cd ledger && pytest -q)"
-        - label: "Frontend typecheck passes (npm run typecheck)"
-        - label: "Frontend build passes (npm run build)"
-        - label: "Frontend tests pass (npm test)"
-        - label: "Export sanity: 1000+ models, 20+ benchmarks, 2000+ scores"
+        - label: "I did not make candidate, legacy, sample, ignored local-export, or fixture data a frontend input."
+          required: true
+        - label: "I did not enable Official mode, live ingestion, public export, benchmark execution, or production secrets in CI."
+          required: true
+        - label: "I did not overwrite claims/snapshots or use reset, delete, truncate, downgrade, or destructive migration recovery."
+          required: true
+        - label: "If this touches score display, it preserves DatasetProvider/getValue and truthful no-data behavior."
+          required: true
 
   - type: textarea
-    id: testing
+    id: evidence
     attributes:
-      label: Testing Done
-      description: How did you verify this works?
+      label: Validation evidence
+      description: List exact commands, fixtures, browser/manual checks, and their result. Do not claim unrun environments.
       placeholder: |
-        - Ran full pipeline: seed -> ingest --all -> review auto-verify-matched -> export
-        - Verified 47 tau-bench claims extracted
-        - Confirmed export.from-ledger.json updated
+        - npm run typecheck
+        - npm test -- src/lib/aggregate.test.ts
+        - cd ledger && pytest -q tests/test_safe_fetch.py
+    validations:
+      required: true
+
+  - type: textarea
+    id: data_governance
+    attributes:
+      label: Data/governance impact (if applicable)
+      description: Name source revision, policy/decision IDs, artifact digest, review authority, or explicitly state “not applicable”.
+      placeholder: "Not applicable — no ledger data, source, or Official artifact changed."
+    validations:
+      required: true
+
+  - type: textarea
+    id: migration_release
+    attributes:
+      label: Migration, release, or rollback impact
+      description: State “not applicable” or link the copy-only rehearsal/release/withdrawal evidence. Never propose a downgrade as recovery.
+      placeholder: "Not applicable — no durable schema, host, or release artifact changed."
+    validations:
+      required: true
 
   - type: checkboxes
     id: docs
     attributes:
       label: Documentation
       options:
-        - label: "Updated README.md if architecture changed"
-        - label: "Updated docs/adr/ if new decision"
-        - label: "Added fixture test for new adapter"
-        - label: "No docs needed"
-
-  - type: textarea
-    id: breaking
-    attributes:
-      label: Breaking Changes
-      description: Any breaking changes? Migration notes?
+        - label: "I updated relevant README, ADR, runbook, and/or plan documentation."
+        - label: "No documentation change is needed; rationale is included above."

@@ -1,11 +1,13 @@
 from pathlib import Path
 
+import pytest
+
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.generic_csv import GenericCSVAdapter
 from app.ingestion.adapters.generic_html_table import GenericHTMLTableAdapter
 from app.ingestion.adapters.generic_json import GenericJSONAdapter
 from app.ingestion.adapters.hf_benchmark_api import HFBenchmarkAPIAdapter
-from app.schemas.boundary import OfficialSource
+from app.schemas.boundary import OfficialSource, ResultClaimInput
 
 SNAP = SourceSnapshot(
     id="11111111-1111-1111-1111-111111111111",
@@ -28,7 +30,62 @@ def test_json_adapter_fixture():
     )
     claims = GenericJSONAdapter().extract_claims(source, SNAP, raw)
     assert claims[0].score_raw == "90.1"
+    assert claims[0].score_numeric is None
+    assert claims[0].evidence_location == {
+        "type": "json_path_v1",
+        "record_path": "$.results[0]",
+        "fields": {"model_raw": "model", "score_raw": "score"},
+    }
     assert GenericJSONAdapter().validate_claim(claims[0], raw)[0].outcome == "pass"
+
+
+def test_json_adapter_preserves_numeric_score_lexemes_without_coercing_other_json_types():
+    raw = (
+        b'{"results":['
+        b'{"model":"Model-A","score":1.2300},'
+        b'{"model":7,"score":2.50},'
+        b'{"model":"Model-C","score":true},'
+        b'{"model":"Model-D","score":null}'
+        b']}'
+    )
+    source = OfficialSource(
+        id="json-lexeme",
+        source_name="json-lexeme",
+        source_url="https://example.com/lexemes.json",
+        source_type="static_json",
+        officialness_level="O5",
+        benchmark_id="livecodebench",
+        parser_config={
+            "records_path": "results",
+            "model_field": "model",
+            "score_field": "score",
+        },
+    )
+
+    claims = GenericJSONAdapter().extract_claims(source, SNAP, raw)
+
+    assert [(claim.model_raw, claim.score_raw, claim.score_numeric) for claim in claims] == [
+        ("Model-A", "1.2300", None)
+    ]
+    assert claims[0].evidence_location["record_path"] == "$.results[0]"
+
+
+def test_json_adapter_requires_an_explicit_configured_record_path():
+    source = OfficialSource(
+        id="json-no-fallback",
+        source_name="json-no-fallback",
+        source_url="https://example.com/no-fallback.json",
+        source_type="static_json",
+        officialness_level="O5",
+        benchmark_id="livecodebench",
+        parser_config={"model_field": "model", "score_field": "score"},
+    )
+
+    assert GenericJSONAdapter().extract_claims(
+        source,
+        SNAP,
+        b'{"results":[{"model":"Model-A","score":1.0}]}',
+    ) == []
 
 
 def test_csv_adapter_fixture():
@@ -206,3 +263,34 @@ def test_hf_leaderboard_fixture_offline():
     assert claims[0].score_raw == "55.5"
     assert claims[0].model_raw == "org/model-a"
     assert HFBenchmarkAPIAdapter().validate_claim(claims[0], raw)[0].outcome == "pass"
+
+
+def test_hf_discovery_mode_is_retired_and_never_emits_pseudo_claims():
+    source = OfficialSource(
+        id="hf-discovery",
+        source_name="hf discovery",
+        source_url="https://example.invalid/discovery",
+        source_type="hf_benchmark_api",
+        officialness_level="O5",
+        benchmark_id="hf_official_benchmarks",
+        parser_config={"mode": "discovery"},
+    )
+    adapter = HFBenchmarkAPIAdapter()
+
+    assert adapter.extract_claims(source, SNAP, b'[{"id":"dataset/example"}]') == []
+    with pytest.raises(RuntimeError, match="discovery mode is retired"):
+        adapter.fetch(source)
+    validation = adapter.validate_claim(
+        ResultClaimInput(
+            official_source_id=source.id,
+            source_snapshot_id=SNAP.id,
+            benchmark_id=source.benchmark_id,
+            model_raw="dataset/example",
+            benchmark_raw="hf_official_benchmarks",
+            score_raw="n/a",
+            evidence_location={"type": "json_path_v1"},
+            capture_method="legacy_discovery",
+        ),
+        b'[{"id":"dataset/example"}]',
+    )
+    assert validation[0].outcome == "fail"

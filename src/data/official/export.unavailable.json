@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactKind": "official-release-artifact",
+  "artifactId": "official-unavailable-containment-v1",
+  "availability": "unavailable",
+  "policyVersion": "official-release-artifact-v1",
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "2c23381eecb8943ee1072d25d4b387a824960575ce0b3bb0e6ff3278dee1712a",
+    "modelCount": 0,
+    "benchmarkCount": 0,
+    "sourceSnapshotCount": 0,
+    "scoreCount": 0
+  },
+  "reason": "Official publication is intentionally disabled until the governed source, evidence, review, immutable release-artifact, and explicit release-approval gates are complete.",
+  "models": [],
+  "benchmarks": [],
+  "sourceManifest": [],
+  "scores": []
+}

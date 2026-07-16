@@ -3,9 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import httpx
-
-from app.config import get_settings
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
 from app.ingestion.extractors.normalize import try_parse_score
@@ -13,46 +10,25 @@ from app.schemas.boundary import (
     ClaimValidationInput,
     OfficialSource,
     ResultClaimInput,
-    SourceFetchResult,
 )
 
 
 class HFBenchmarkAPIAdapter(SourceAdapter):
     source_type = "hf_benchmark_api"
+    accepted_content_types = frozenset({"application/json", "application/*+json", "text/json"})
 
-    def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        settings = get_settings()
-        headers = {"User-Agent": settings.http_user_agent}
-        if settings.hf_token:
-            # Never log token; only use as Authorization header
-            headers["Authorization"] = f"Bearer {settings.hf_token}"
+    def fetch(self, source: OfficialSource):  # type: ignore[no-untyped-def]
         mode = source.parser_config.get("mode", "discovery")
-        url = source.source_url
-        if mode == "leaderboard" and source.parser_config.get("dataset_id"):
-            ds = source.parser_config["dataset_id"]
-            url = f"https://huggingface.co/api/datasets/{ds}/leaderboard"
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(url, headers=headers)
-        except httpx.HTTPError as exc:
+        if mode == "discovery":
+            # Dataset discovery is useful catalogue metadata, but it is never
+            # an official model-result feed. Refuse before any network request
+            # so this retired route cannot be revived by a direct adapter call.
             raise RuntimeError(
-                f"Network error fetching HF source={source.id}: {exc}"
-            ) from exc
-        if resp.status_code >= 400:
-            raise RuntimeError(
-                f"HTTP {resp.status_code} fetching HF source={source.id} ({url})"
+                "HF benchmark discovery mode is retired: dataset metadata cannot produce result claims."
             )
-        raw = resp.content
-        return SourceFetchResult(
-            raw_bytes=raw,
-            content_type=resp.headers.get("content-type"),
-            http_status=resp.status_code,
-            etag=resp.headers.get("etag"),
-            last_modified_header=resp.headers.get("last-modified"),
-            final_url=str(resp.url),
-            headers={k: v for k, v in resp.headers.items() if k.lower() in {"etag", "last-modified", "content-type"}},
-            metadata={"mode": mode, "url": url},
-        )
+        # A source revision must name the actual endpoint. URL construction or
+        # token attachment in an adapter would evade the immutable allowlist.
+        return super().fetch(source)
 
     def extract_claims(
         self,
@@ -63,31 +39,10 @@ class HFBenchmarkAPIAdapter(SourceAdapter):
         data = json.loads(raw_bytes.decode("utf-8"))
         mode = source.parser_config.get("mode", "discovery")
         if mode == "discovery":
-            # Discovery lists datasets; store metadata rows as low-confidence claims only if value present
-            items = data if isinstance(data, list) else data.get("datasets") or []
-            claims: list[ResultClaimInput] = []
-            for i, item in enumerate(items[:500]):
-                if not isinstance(item, dict):
-                    continue
-                model_raw = str(item.get("id") or item.get("name") or f"dataset-{i}")
-                claims.append(
-                    ResultClaimInput(
-                        official_source_id=source.id,
-                        source_snapshot_id=snapshot.id,
-                        benchmark_id=source.benchmark_id,
-                        model_raw=model_raw,
-                        benchmark_raw="hf_official_benchmarks",
-                        score_raw="n/a",
-                        metric_raw="discovery",
-                        evidence_location={"type": "json_path", "path": f"$[{i}].id"},
-                        capture_method="hf_api",
-                        capture_confidence=0.5,
-                        capture_status="parser_verified",
-                        officialness_level=source.officialness_level,
-                        evidence_text=json.dumps({k: item.get(k) for k in ("id", "author") if k in item}),
-                    )
-                )
-            return claims
+            # Existing raw discovery snapshots may still be retained as
+            # evidence, but extraction must never reinterpret a dataset name
+            # as a model or fabricate a pseudo-score such as "n/a".
+            return []
 
         # leaderboard mode
         rows = data if isinstance(data, list) else data.get("leaderboard") or data.get("entries") or []
@@ -134,10 +89,10 @@ class HFBenchmarkAPIAdapter(SourceAdapter):
         if claim.score_raw == "n/a":
             return [
                 ClaimValidationInput(
-                    validation_type="schema_validation",
-                    outcome="pass",
+                    validation_type="retired_discovery_metadata",
+                    outcome="fail",
                     validator="HFBenchmarkAPIAdapter",
-                    notes="discovery metadata row",
+                    notes="dataset discovery metadata is not a benchmark result claim",
                 )
             ]
         try:

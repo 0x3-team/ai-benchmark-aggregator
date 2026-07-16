@@ -1,5 +1,6 @@
 import { BookOpen } from "lucide-react";
-import { CATEGORIES, CATEGORY_LABELS, type Benchmark } from "../types";
+import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import type { DatasetBenchmark } from "../data/dataset";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 interface GlossaryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  benchmarks: Benchmark[];
+  benchmarks: readonly DatasetBenchmark[];
 }
 
 export function GlossaryDialog({ open, onOpenChange, benchmarks }: GlossaryDialogProps) {

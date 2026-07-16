@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "scheduled-cycle-v1",
+  "availability": "operations_record_only",
+  "mode": "synthetic_fixture",
+  "cycleId": "cycle_8104aaab3763f0366193c92d8bda9a4c464cc930b42b40c7b15bb677f206a353",
+  "environment": "shadow-eu",
+  "lane": "recheck",
+  "schedulePolicyRevisionId": "schedule-policy-example-v1",
+  "slot": {
+    "anchorUtc": "2026-01-01T00:00:00Z",
+    "cadenceSeconds": 43200,
+    "slotOrdinal": 390,
+    "scheduledFor": "2026-07-15T00:00:00Z",
+    "nextScheduledFor": "2026-07-15T12:00:00Z",
+    "completionWindowEndsAt": "2026-07-15T02:00:00Z",
+    "catchUpDisposition": "scheduled",
+    "missedSlotCount": 0
+  },
+  "wakeups": [
+    {
+      "wakeupId": "wakeup-example-cron",
+      "kind": "cloudflare_cron",
+      "observedAt": "2026-07-15T00:00:01Z",
+      "opaqueTriggerId": "trigger-example-390",
+      "deliveryAttempt": 1,
+      "authoritative": false
+    },
+    {
+      "wakeupId": "wakeup-example-queue-redelivery",
+      "kind": "queue",
+      "observedAt": "2026-07-15T00:00:05Z",
+      "opaqueTriggerId": "trigger-example-390",
+      "deliveryAttempt": 2,
+      "authoritative": false
+    }
+  ],
+  "state": "terminal",
+  "jobs": [
+    {
+      "jobId": "job_54c9ba3917c707a34eead5220ff80a16ad9ba0eff108156ad2ee8f007d7ec05c",
+      "idempotencyKeySha256": "54c9ba3917c707a34eead5220ff80a16ad9ba0eff108156ad2ee8f007d7ec05c",
+      "targetType": "source_revision",
+      "targetRevisionId": "source-revision-example-v1",
+      "sourceRevisionId": "source-revision-example-v1",
+      "dueDisposition": "due",
+      "dispositionReasonCode": "DUE_BY_SCHEDULE",
+      "attemptReceiptIds": [
+        "attempt_b6f095c1fe7d8d591bada41f3cf32ffa1ef8957342a458f29e42476700a0fd78"
+      ],
+      "attemptCount": 1,
+      "terminalDisposition": "completed_changed",
+      "terminalOutputReference": {
+        "referenceType": "source_check_receipt",
+        "referenceId": "source-check-receipt-example-v1",
+        "contentSha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    }
+  ],
+  "counts": {
+    "expected": 1,
+    "due": 1,
+    "notDue": 0,
+    "blocked": 0,
+    "terminal": 1,
+    "succeeded": 1,
+    "reviewRequired": 0,
+    "failed": 0
+  },
+  "authority": {
+    "classification": "schedule_receipt_only",
+    "certifiesSources": false,
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false,
+    "wakeupAuthoritative": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-operations-json-v1",
+    "contentSha256": "7bbb1d805267eaeb7c9b5c13b519bfdc4e9e7bec33d7e0ff216eaa7c17d1c976",
+    "jobCount": 1,
+    "wakeupCount": 2
+  }
+}

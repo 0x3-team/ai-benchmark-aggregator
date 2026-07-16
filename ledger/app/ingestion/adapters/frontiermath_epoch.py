@@ -3,33 +3,15 @@ from __future__ import annotations
 import csv
 import io
 
-import httpx
-
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
 from app.ingestion.extractors.normalize import try_parse_score
-from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultClaimInput, SourceFetchResult
+from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultClaimInput
 
 
 class FrontierMathEpochAdapter(SourceAdapter):
     source_type = "frontiermath_epoch"
-
-    def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        from app.config import get_settings
-
-        settings = get_settings()
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(source.source_url, headers={"User-Agent": settings.http_user_agent})
-                resp.raise_for_status()
-                return SourceFetchResult(
-                    raw_bytes=resp.content,
-                    content_type=resp.headers.get("content-type", "text/csv"),
-                    http_status=resp.status_code,
-                    final_url=str(resp.url),
-                )
-        except Exception as exc:
-            raise RuntimeError(f"Fetch failed for {source.id}: {exc}") from exc
+    accepted_content_types = frozenset({"text/csv", "application/csv"})
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes

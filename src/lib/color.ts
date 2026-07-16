@@ -1,5 +1,7 @@
 import type { Benchmark } from "../types";
 
+type BenchmarkDirection = Pick<Benchmark, "higherIsBetter">;
+
 // Interpolate between two rgb triplets, t in [0,1], with a fixed alpha.
 function lerpRgba(
   a: [number, number, number],
@@ -18,22 +20,22 @@ const LOW_RGB: [number, number, number] = [59, 130, 246];
 const HIGH_RGB: [number, number, number] = [34, 197, 94];
 
 export interface ColumnStats {
-  min: number;
-  max: number;
-  best: number;
-  worst: number;
-  avg: number;
+  min: number | null;
+  max: number | null;
+  best: number | null;
+  worst: number | null;
+  avg: number | null;
   count: number;
 }
 
 // Returns normalized stats for a benchmark column using only present values.
 export function columnStats(
   values: (number | null)[],
-  benchmark: Benchmark
+  benchmark: BenchmarkDirection
 ): ColumnStats {
   const present = values.filter((v): v is number => v != null);
   if (present.length === 0) {
-    return { min: 0, max: 0, best: 0, worst: 0, avg: 0, count: 0 };
+    return { min: null, max: null, best: null, worst: null, avg: null, count: 0 };
   }
   const sorted = [...present].sort((a, b) => a - b);
   const best = benchmark.higherIsBetter ? sorted[sorted.length - 1] : sorted[0];
@@ -55,9 +57,9 @@ export function columnStats(
 export function heatmapColor(
   value: number | null,
   stats: ColumnStats,
-  benchmark: Benchmark
+  benchmark: BenchmarkDirection
 ): string {
-  if (value == null || stats.max === stats.min) {
+  if (value == null || stats.min == null || stats.max == null || stats.max === stats.min) {
     return "transparent";
   }
   const span = (value - stats.min) / (stats.max - stats.min);

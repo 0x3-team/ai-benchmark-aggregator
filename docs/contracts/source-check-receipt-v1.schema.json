@@ -1,0 +1,639 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark.example.invalid/contracts/source-check-receipt-v1.schema.json",
+  "title": "AI Benchmark Platform source check receipt v1",
+  "description": "Immutable evidence describing one fenced source-check attempt. receiptId is deterministically derived from attemptId so replay cannot create a second logical receipt identity. contractDigestSha256 binds the final certified envelope; contractDefinitionSha256 separately binds the certification-neutral governed definition reviewed by the external decision. A receipt never certifies a source, authorizes capture/publication, creates claims, or becomes a frontend artifact. State-machine, contract-binding, accounting, chronology, identity, and digest invariants are additionally enforced by ledger.app.schemas.source_contracts.validate_source_check_receipt; composition with supplied scheduled attempts/cycles is enforced by ledger.app.schemas.continuous_contracts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "receiptId",
+    "identity",
+    "manifest",
+    "authority",
+    "terminalDisposition",
+    "reasonCode",
+    "certificationCheck",
+    "request",
+    "networkEvidence",
+    "response",
+    "conditionalMetadata",
+    "snapshot",
+    "extraction",
+    "incidentReferences",
+    "execution"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "source-check-receipt-v1" },
+    "availability": { "enum": ["operational_receipt_only", "synthetic_evidence_only"] },
+    "receiptId": { "$ref": "#/$defs/stableId" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "sourceRevisionId",
+        "contractId",
+        "contractRevisionId",
+        "contractDigestSha256",
+        "contractDefinitionSha256",
+        "certificationDecisionId",
+        "certificationDecisionDigestSha256",
+        "schedulePolicyRevisionId",
+        "scheduledSlot",
+        "jobId",
+        "attemptId",
+        "attemptNumber",
+        "fencingToken",
+        "expectedFencingToken"
+      ],
+      "properties": {
+        "sourceId": { "$ref": "#/$defs/stableId" },
+        "sourceRevisionId": { "$ref": "#/$defs/stableId" },
+        "contractId": { "$ref": "#/$defs/stableId" },
+        "contractRevisionId": { "$ref": "#/$defs/stableId" },
+        "contractDigestSha256": { "$ref": "#/$defs/sha256" },
+        "contractDefinitionSha256": { "$ref": "#/$defs/sha256" },
+        "certificationDecisionId": { "$ref": "#/$defs/nullableStableId" },
+        "certificationDecisionDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "schedulePolicyRevisionId": { "$ref": "#/$defs/stableId" },
+        "scheduledSlot": { "$ref": "#/$defs/instant" },
+        "jobId": { "$ref": "#/$defs/stableId" },
+        "attemptId": { "$ref": "#/$defs/stableId" },
+        "attemptNumber": { "type": "integer", "minimum": 1 },
+        "fencingToken": { "type": "integer", "minimum": 1 },
+        "expectedFencingToken": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "incidentReferenceCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "incidentReferenceCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "certifiesSource", "authorizesCapture", "authorizesPublication", "createsClaims", "frontendLoadable"],
+      "properties": {
+        "classification": { "const": "source_check_receipt_only" },
+        "certifiesSource": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "createsClaims": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "terminalDisposition": {
+      "enum": [
+        "completed_unchanged",
+        "completed_changed",
+        "completed_with_review",
+        "policy_blocked",
+        "terms_quarantined",
+        "retryable_failed",
+        "attempted_policy_failed",
+        "schema_quarantined",
+        "snapshot_integrity_failed",
+        "extraction_incomplete",
+        "identity_review_required",
+        "display_conflict",
+        "operator_paused"
+      ]
+    },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "certificationCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "checkedDecisionId", "checkedDecisionDigestSha256", "checkedSourceRevisionId", "checkedContractDigestSha256", "checkedContractDefinitionSha256", "checkedBeforeFetch", "checkedBeforeClaimWrite", "effectiveForAttempt"],
+      "properties": {
+        "outcome": { "enum": ["certified", "missing", "expired", "mismatch", "quarantined", "revoked"] },
+        "checkedDecisionId": { "$ref": "#/$defs/nullableStableId" },
+        "checkedDecisionDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "checkedSourceRevisionId": { "$ref": "#/$defs/stableId" },
+        "checkedContractDigestSha256": { "$ref": "#/$defs/sha256" },
+        "checkedContractDefinitionSha256": { "$ref": "#/$defs/sha256" },
+        "checkedBeforeFetch": { "const": true },
+        "checkedBeforeClaimWrite": { "const": true },
+        "effectiveForAttempt": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "certified" } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "checkedDecisionId": { "$ref": "#/$defs/stableId" },
+              "checkedDecisionDigestSha256": { "$ref": "#/$defs/sha256" },
+              "effectiveForAttempt": { "const": true }
+            }
+          },
+          "else": { "properties": { "effectiveForAttempt": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "missing" } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "checkedDecisionId": { "type": "null" },
+              "checkedDecisionDigestSha256": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "outcome": { "enum": ["expired", "mismatch", "quarantined", "revoked"] } }, "required": ["outcome"] },
+          "then": {
+            "properties": {
+              "checkedDecisionId": { "$ref": "#/$defs/stableId" },
+              "checkedDecisionDigestSha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "method", "requestedUrl", "finalUrl", "lastApprovedUrl", "redirectCount", "statusCode", "conditionalRequestUsed", "responseBodyReceived", "failureStage", "failureCode"],
+      "properties": {
+        "disposition": { "enum": ["not_started", "attempted_failed", "completed"] },
+        "method": { "const": "GET" },
+        "requestedUrl": { "$ref": "#/$defs/httpsUrl" },
+        "finalUrl": { "$ref": "#/$defs/nullableHttpsUrl" },
+        "lastApprovedUrl": {
+          "description": "Exact policy-approved URL being attempted or last reached. It is present even when DNS, connect, or TLS fails, so a failure after approved redirects remains attributable without recording an unapproved target.",
+          "$ref": "#/$defs/nullableHttpsUrl"
+        },
+        "redirectCount": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "statusCode": {
+          "oneOf": [
+            { "type": "integer", "minimum": 100, "maximum": 599 },
+            { "type": "null" }
+          ]
+        },
+        "conditionalRequestUsed": { "type": "boolean" },
+        "responseBodyReceived": { "type": "boolean" },
+        "failureStage": {
+          "oneOf": [
+            { "enum": ["dns", "connect", "tls_peer", "request", "redirect", "response_headers", "response_body"] },
+            { "type": "null" }
+          ]
+        },
+        "failureCode": {
+          "oneOf": [
+            {
+              "enum": [
+                "DNS_POLICY_FAILED", "DNS_REBIND_DETECTED", "DNS_RESOLUTION_FAILED",
+                "CONNECT_FAILED", "CONNECT_TIMEOUT",
+                "CONNECTED_PEER_PROOF_MISSING", "CONNECTED_PEER_UNSAFE", "TLS_FAILED",
+                "CONNECTION_RESET", "REQUEST_TIMEOUT",
+                "REDIRECT_LIMIT_EXCEEDED", "REDIRECT_UNAPPROVED",
+                "CONTENT_LENGTH_EXCEEDED", "HTTP_429", "HTTP_5XX", "MIME_UNAPPROVED",
+                "BODY_SIZE_EXCEEDED", "BODY_TIMEOUT", "BODY_TRUNCATED"
+              ]
+            },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "disposition": { "const": "not_started" } }, "required": ["disposition"] },
+          "then": {
+            "properties": {
+              "finalUrl": { "type": "null" },
+              "lastApprovedUrl": { "type": "null" },
+              "redirectCount": { "const": 0 },
+              "statusCode": { "type": "null" },
+              "conditionalRequestUsed": { "const": false },
+              "responseBodyReceived": { "const": false },
+              "failureStage": { "type": "null" },
+              "failureCode": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "disposition": { "const": "completed" } }, "required": ["disposition"] },
+          "then": {
+            "properties": {
+              "finalUrl": { "$ref": "#/$defs/httpsUrl" },
+              "lastApprovedUrl": { "$ref": "#/$defs/httpsUrl" },
+              "statusCode": { "type": "integer", "minimum": 100, "maximum": 599 },
+              "failureStage": { "type": "null" },
+              "failureCode": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "disposition": { "const": "attempted_failed" } }, "required": ["disposition"] },
+          "then": {
+            "properties": {
+              "responseBodyReceived": { "const": false },
+              "failureStage": { "type": "string" },
+              "failureCode": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "networkEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dnsPolicyStatus", "connectedPeerStatus", "tlsStatus", "connectedPeerAddressClass", "finalHost"],
+      "properties": {
+        "dnsPolicyStatus": { "enum": ["not_checked", "passed", "failed"] },
+        "connectedPeerStatus": { "enum": ["not_checked", "passed", "failed", "required_not_implemented"] },
+        "tlsStatus": { "enum": ["not_checked", "passed", "failed"] },
+        "connectedPeerAddressClass": { "enum": ["not_observed", "public", "unsafe"] },
+        "finalHost": { "$ref": "#/$defs/nullablePublicHost" }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentChanged", "bytesReceived", "contentSha256", "mimeType", "retryClassification", "retryAfterSeconds"],
+      "properties": {
+        "contentChanged": { "type": ["boolean", "null"] },
+        "bytesReceived": { "$ref": "#/$defs/count" },
+        "contentSha256": { "$ref": "#/$defs/nullableSha256" },
+        "mimeType": { "oneOf": [{ "$ref": "#/$defs/observedMimeType" }, { "type": "null" }] },
+        "retryClassification": { "enum": ["none", "transient", "rate_limited", "non_retryable_policy", "non_retryable_contract"] },
+        "retryAfterSeconds": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1, "maximum": 86400 },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "retryClassification": { "const": "rate_limited" } }, "required": ["retryClassification"] },
+          "then": { "properties": { "retryAfterSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 } } },
+          "else": { "properties": { "retryAfterSeconds": { "type": "null" } } }
+        }
+      ]
+    },
+    "conditionalMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["previousSnapshotId", "previousSnapshotContentSha256", "previousSnapshotVerificationReceiptSha256", "etagRequestSha256", "lastModifiedRequestSha256", "etagResponseSha256", "lastModifiedResponseSha256"],
+      "properties": {
+        "previousSnapshotId": { "$ref": "#/$defs/nullableStableId" },
+        "previousSnapshotContentSha256": { "$ref": "#/$defs/nullableSha256" },
+        "previousSnapshotVerificationReceiptSha256": { "$ref": "#/$defs/nullableSha256" },
+        "etagRequestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "lastModifiedRequestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "etagResponseSha256": { "$ref": "#/$defs/nullableSha256" },
+        "lastModifiedResponseSha256": { "$ref": "#/$defs/nullableSha256" }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotId", "snapshotContentSha256", "storageReceiptSha256", "status", "immutable", "readBackVerified", "committedBeforeExtraction"],
+      "properties": {
+        "snapshotId": { "$ref": "#/$defs/nullableStableId" },
+        "snapshotContentSha256": { "$ref": "#/$defs/nullableSha256" },
+        "storageReceiptSha256": { "$ref": "#/$defs/nullableSha256" },
+        "status": { "enum": ["not_created", "committed_reverified", "integrity_failed"] },
+        "immutable": { "type": "boolean" },
+        "readBackVerified": { "type": "boolean" },
+        "committedBeforeExtraction": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not_created" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "snapshotId": { "type": "null" },
+              "snapshotContentSha256": { "type": "null" },
+              "storageReceiptSha256": { "type": "null" },
+              "immutable": { "const": false },
+              "readBackVerified": { "const": false },
+              "committedBeforeExtraction": { "const": false }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "committed_reverified" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "snapshotId": { "$ref": "#/$defs/stableId" },
+              "snapshotContentSha256": { "$ref": "#/$defs/sha256" },
+              "storageReceiptSha256": { "$ref": "#/$defs/sha256" },
+              "immutable": { "const": true },
+              "readBackVerified": { "const": true },
+              "committedBeforeExtraction": { "const": true }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "integrity_failed" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "readBackVerified": { "const": false },
+              "committedBeforeExtraction": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "sourceRecordsObserved", "rowsParsed", "claimCandidatesEmitted", "claimsAdmitted", "recordsExcluded", "recordsRejected", "recordsQuarantined", "evidenceLocatorCoverageCount", "duplicateLocatorCount", "unexplainedRecordCount", "schemaFingerprintSha256", "batchReceiptSha256", "dimensionsObserved"],
+      "properties": {
+        "disposition": { "enum": ["not_run", "accounted", "quarantined"] },
+        "sourceRecordsObserved": { "$ref": "#/$defs/count" },
+        "rowsParsed": { "$ref": "#/$defs/count" },
+        "claimCandidatesEmitted": { "$ref": "#/$defs/count" },
+        "claimsAdmitted": { "$ref": "#/$defs/count" },
+        "recordsExcluded": { "$ref": "#/$defs/count" },
+        "recordsRejected": { "$ref": "#/$defs/count" },
+        "recordsQuarantined": { "$ref": "#/$defs/count" },
+        "evidenceLocatorCoverageCount": { "$ref": "#/$defs/count" },
+        "duplicateLocatorCount": { "$ref": "#/$defs/count" },
+        "unexplainedRecordCount": { "$ref": "#/$defs/count" },
+        "schemaFingerprintSha256": { "$ref": "#/$defs/nullableSha256" },
+        "batchReceiptSha256": { "$ref": "#/$defs/nullableSha256" },
+        "dimensionsObserved": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/displayDimension" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "disposition": { "const": "not_run" } }, "required": ["disposition"] },
+          "then": {
+            "properties": {
+              "sourceRecordsObserved": { "const": 0 },
+              "rowsParsed": { "const": 0 },
+              "claimCandidatesEmitted": { "const": 0 },
+              "claimsAdmitted": { "const": 0 },
+              "recordsExcluded": { "const": 0 },
+              "recordsRejected": { "const": 0 },
+              "recordsQuarantined": { "const": 0 },
+              "evidenceLocatorCoverageCount": { "const": 0 },
+              "duplicateLocatorCount": { "const": 0 },
+              "unexplainedRecordCount": { "const": 0 },
+              "schemaFingerprintSha256": { "type": "null" },
+              "batchReceiptSha256": { "type": "null" },
+              "dimensionsObserved": { "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "schemaFingerprintSha256": { "$ref": "#/$defs/sha256" },
+              "batchReceiptSha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      ]
+    },
+    "incidentReferences": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/stableId" }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "finishedAt", "durationMs"],
+      "properties": {
+        "startedAt": { "$ref": "#/$defs/instant" },
+        "finishedAt": { "$ref": "#/$defs/instant" },
+        "durationMs": { "$ref": "#/$defs/count" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "availability": { "const": "synthetic_evidence_only" } }, "required": ["availability"] },
+      "then": {
+        "properties": {
+          "terminalDisposition": { "not": { "pattern": "^completed_" } },
+          "request": { "properties": { "disposition": { "const": "not_started" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "request": { "properties": { "disposition": { "const": "completed" } }, "required": ["disposition"] } }, "required": ["request"] },
+      "then": {
+        "properties": {
+          "networkEvidence": {
+            "properties": {
+              "dnsPolicyStatus": { "const": "passed" },
+              "connectedPeerStatus": { "const": "passed" },
+              "tlsStatus": { "const": "passed" },
+              "connectedPeerAddressClass": { "const": "public" },
+              "finalHost": { "$ref": "#/$defs/publicHost" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "request": { "properties": { "disposition": { "const": "not_started" } }, "required": ["disposition"] } }, "required": ["request"] },
+      "then": {
+        "properties": {
+          "networkEvidence": {
+            "properties": {
+              "dnsPolicyStatus": { "const": "not_checked" },
+              "connectedPeerStatus": { "const": "not_checked" },
+              "tlsStatus": { "const": "not_checked" },
+              "connectedPeerAddressClass": { "const": "not_observed" },
+              "finalHost": { "type": "null" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "enum": ["policy_blocked", "terms_quarantined", "operator_paused"] } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "request": { "properties": { "disposition": { "const": "not_started" } } },
+          "snapshot": { "properties": { "status": { "const": "not_created" } } },
+          "extraction": { "properties": { "disposition": { "const": "not_run" } } },
+          "incidentReferences": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "const": "completed_unchanged" } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "availability": { "const": "operational_receipt_only" },
+          "certificationCheck": { "properties": { "outcome": { "const": "certified" } } },
+          "request": {
+            "properties": {
+              "disposition": { "const": "completed" },
+              "statusCode": { "const": 304 },
+              "conditionalRequestUsed": { "const": true },
+              "responseBodyReceived": { "const": false }
+            }
+          },
+          "response": {
+            "properties": {
+              "contentChanged": { "const": false },
+              "bytesReceived": { "const": 0 },
+              "contentSha256": { "type": "null" },
+              "mimeType": { "type": "null" },
+              "retryClassification": { "const": "none" }
+            }
+          },
+          "conditionalMetadata": {
+            "properties": {
+              "previousSnapshotId": { "$ref": "#/$defs/stableId" },
+              "previousSnapshotContentSha256": { "$ref": "#/$defs/sha256" },
+              "previousSnapshotVerificationReceiptSha256": { "$ref": "#/$defs/sha256" }
+            }
+          },
+          "snapshot": { "properties": { "status": { "const": "not_created" } } },
+          "extraction": { "properties": { "disposition": { "const": "not_run" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "enum": ["completed_changed", "completed_with_review", "schema_quarantined", "extraction_incomplete", "identity_review_required", "display_conflict"] } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "availability": { "const": "operational_receipt_only" },
+          "certificationCheck": { "properties": { "outcome": { "const": "certified" } } },
+          "request": {
+            "properties": {
+              "disposition": { "const": "completed" },
+              "statusCode": { "const": 200 },
+              "responseBodyReceived": { "const": true }
+            }
+          },
+          "response": {
+            "properties": {
+              "contentChanged": { "const": true },
+              "bytesReceived": { "minimum": 1 },
+              "contentSha256": { "$ref": "#/$defs/sha256" },
+              "mimeType": { "$ref": "#/$defs/mimeType" },
+              "retryClassification": { "const": "none" }
+            }
+          },
+          "snapshot": { "properties": { "status": { "const": "committed_reverified" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "enum": ["completed_changed", "completed_with_review", "identity_review_required", "display_conflict"] } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "extraction": {
+            "properties": {
+              "disposition": { "const": "accounted" },
+              "sourceRecordsObserved": { "minimum": 1 },
+              "claimCandidatesEmitted": { "minimum": 1 },
+              "dimensionsObserved": {
+                "const": ["benchmark_raw", "evaluation_version_raw", "metric_raw", "setting_raw", "split_raw"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "enum": ["schema_quarantined", "extraction_incomplete"] } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "extraction": { "properties": { "disposition": { "const": "quarantined" } } },
+          "incidentReferences": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "const": "snapshot_integrity_failed" } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "certificationCheck": { "properties": { "outcome": { "const": "certified" } } },
+          "request": { "properties": { "disposition": { "const": "completed" }, "statusCode": { "const": 200 }, "responseBodyReceived": { "const": true } } },
+          "response": { "properties": { "contentChanged": { "const": true }, "bytesReceived": { "minimum": 1 }, "contentSha256": { "$ref": "#/$defs/sha256" } } },
+          "snapshot": { "properties": { "status": { "const": "integrity_failed" } } },
+          "extraction": { "properties": { "disposition": { "const": "not_run" } } },
+          "incidentReferences": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "const": "retryable_failed" } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "certificationCheck": { "properties": { "outcome": { "const": "certified" } } },
+          "request": { "properties": { "disposition": { "const": "attempted_failed" } } },
+          "response": { "properties": { "retryClassification": { "enum": ["transient", "rate_limited"] } } },
+          "snapshot": { "properties": { "status": { "const": "not_created" } } },
+          "extraction": { "properties": { "disposition": { "const": "not_run" } } },
+          "incidentReferences": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "const": "attempted_policy_failed" } }, "required": ["terminalDisposition"] },
+      "then": {
+        "properties": {
+          "certificationCheck": { "properties": { "outcome": { "const": "certified" } } },
+          "request": { "properties": { "disposition": { "const": "attempted_failed" } } },
+          "response": { "properties": { "retryClassification": { "enum": ["non_retryable_policy", "non_retryable_contract"] } } },
+          "snapshot": { "properties": { "status": { "const": "not_created" } } },
+          "extraction": { "properties": { "disposition": { "const": "not_run" } } },
+          "incidentReferences": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminalDisposition": { "enum": ["completed_unchanged", "completed_changed"] } }, "required": ["terminalDisposition"] },
+      "else": { "properties": { "incidentReferences": { "minItems": 1 } } }
+    }
+  ],
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "$ref": "#/$defs/stableId" }, { "type": "null" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nullableSha256": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "instant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "httpsUrl": { "type": "string", "format": "uri", "pattern": "^https://[^/?#]+/[^#]*$" },
+    "nullableHttpsUrl": { "oneOf": [{ "$ref": "#/$defs/httpsUrl" }, { "type": "null" }] },
+    "publicHost": {
+      "type": "string",
+      "pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+    },
+    "nullablePublicHost": { "oneOf": [{ "$ref": "#/$defs/publicHost" }, { "type": "null" }] },
+    "count": { "type": "integer", "minimum": 0 },
+    "mimeType": {
+      "enum": [
+        "application/*+json",
+        "application/json",
+        "application/ld+json",
+        "application/octet-stream",
+        "application/parquet",
+        "application/vnd.apache.parquet",
+        "text/csv",
+        "text/html",
+        "text/tab-separated-values"
+      ]
+    },
+    "observedMimeType": {
+      "type": "string",
+      "pattern": "^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+*-]+$"
+    },
+    "displayDimension": {
+      "enum": ["benchmark_raw", "evaluation_version_raw", "metric_raw", "setting_raw", "split_raw"]
+    }
+  }
+}

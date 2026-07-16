@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/scheduled-cycle-v1.schema.json",
+  "title": "Scheduled Cycle v1",
+  "description": "Immutable terminal accounting for one deterministic UTC schedule slot. Trigger and Queue facts are non-authoritative wake-ups; this record cannot certify, capture, publish, or supply frontend data.",
+  "$comment": "Semantic validation MUST derive cycleId only from environment, lane, scheduledFor, and schedulePolicyRevisionId; derive each job identity from that tuple plus targetRevisionId; reconcile all due/not_due/blocked and terminal counts; require exactly one admission attempt for a blocked source so its source-check receipt can exist; cap attempts at three; reject duplicate logical jobs; and treat every trigger/Queue delivery as a supporting non-authoritative fact. Set-like jobs, wakeups, and attemptReceiptIds are sorted for sha256-canonical-operations-json-v1 before hashing after manifest.contentSha256 is replaced with null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "policyVersion", "availability", "mode", "cycleId",
+    "environment", "lane", "schedulePolicyRevisionId", "slot", "wakeups",
+    "state", "jobs", "counts", "authority", "manifest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "scheduled-cycle-v1" },
+    "availability": { "const": "operations_record_only" },
+    "mode": { "enum": ["synthetic_fixture", "shadow", "production"] },
+    "cycleId": { "$ref": "#/$defs/stableId" },
+    "environment": { "$ref": "#/$defs/stableId" },
+    "lane": { "$ref": "#/$defs/lane" },
+    "schedulePolicyRevisionId": { "$ref": "#/$defs/stableId" },
+    "slot": { "$ref": "#/$defs/slot" },
+    "wakeups": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/wakeup" }
+    },
+    "state": { "const": "terminal" },
+    "jobs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/job" }
+    },
+    "counts": { "$ref": "#/$defs/counts" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" }
+  },
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "utcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "count": { "type": "integer", "minimum": 0 },
+    "lane": { "enum": ["discovery", "recheck", "maintenance"] },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification", "certifiesSources", "authorizesCapture",
+        "authorizesPublication", "frontendLoadable", "wakeupAuthoritative"
+      ],
+      "properties": {
+        "classification": { "const": "schedule_receipt_only" },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false },
+        "wakeupAuthoritative": { "const": false }
+      }
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchorUtc", "cadenceSeconds", "slotOrdinal", "scheduledFor",
+        "nextScheduledFor", "completionWindowEndsAt", "catchUpDisposition",
+        "missedSlotCount"
+      ],
+      "properties": {
+        "anchorUtc": { "$ref": "#/$defs/utcTimestamp" },
+        "cadenceSeconds": { "type": "integer", "minimum": 1 },
+        "slotOrdinal": { "type": "integer", "minimum": 0 },
+        "scheduledFor": { "$ref": "#/$defs/utcTimestamp" },
+        "nextScheduledFor": { "$ref": "#/$defs/utcTimestamp" },
+        "completionWindowEndsAt": { "$ref": "#/$defs/utcTimestamp" },
+        "catchUpDisposition": { "enum": ["scheduled", "catch_up", "reconciled_missed"] },
+        "missedSlotCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "wakeup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wakeupId", "kind", "observedAt", "opaqueTriggerId",
+        "deliveryAttempt", "authoritative"
+      ],
+      "properties": {
+        "wakeupId": { "$ref": "#/$defs/stableId" },
+        "kind": {
+          "enum": [
+            "cloudflare_cron", "cloudflare_workflow", "queue", "reconciler",
+            "manual_fixture"
+          ]
+        },
+        "observedAt": { "$ref": "#/$defs/utcTimestamp" },
+        "opaqueTriggerId": { "$ref": "#/$defs/stableId" },
+        "deliveryAttempt": { "type": "integer", "minimum": 1 },
+        "authoritative": { "const": false }
+      }
+    },
+    "outputReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["referenceType", "referenceId", "contentSha256"],
+      "properties": {
+        "referenceType": {
+          "enum": [
+            "source_check_receipt", "discovery_receipt", "maintenance_receipt",
+            "schedule_disposition_receipt", "source_snapshot",
+            "discovery_observation", "quarantine_receipt", "incident"
+          ]
+        },
+        "referenceId": { "$ref": "#/$defs/stableId" },
+        "contentSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobId", "idempotencyKeySha256", "targetType", "targetRevisionId",
+        "sourceRevisionId", "dueDisposition", "dispositionReasonCode",
+        "attemptReceiptIds", "attemptCount", "terminalDisposition",
+        "terminalOutputReference"
+      ],
+      "properties": {
+        "jobId": { "$ref": "#/$defs/stableId" },
+        "idempotencyKeySha256": { "$ref": "#/$defs/sha256" },
+        "targetType": { "enum": ["discovery_target", "source_revision", "maintenance_task"] },
+        "targetRevisionId": { "$ref": "#/$defs/stableId" },
+        "sourceRevisionId": { "$ref": "#/$defs/nullableStableId" },
+        "dueDisposition": { "enum": ["due", "not_due", "blocked"] },
+        "dispositionReasonCode": {
+          "enum": [
+            "DUE_BY_SCHEDULE", "CATCH_UP_DUE", "RECONCILED_DUE", "DISPATCH_MISSED",
+            "NOT_DUE_BY_POLICY", "MAINTENANCE_NOT_DUE", "SOURCE_POLICY_BLOCKED",
+            "TERMS_POLICY_BLOCKED", "OPERATOR_PAUSED",
+            "SOURCE_REVISION_UNCERTIFIED", "SOURCE_REVISION_EXPIRED"
+          ]
+        },
+        "attemptReceiptIds": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "attemptCount": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "terminalDisposition": {
+          "enum": [
+            "not_due", "completed_unchanged", "completed_changed",
+            "completed_with_review", "attempted_policy_failed",
+            "discovery_unchanged", "discovery_changed",
+            "maintenance_completed", "identity_review_required", "retry_exhausted",
+            "dispatch_missed", "policy_blocked", "terms_quarantined",
+            "operator_paused", "source_uncertified", "source_expired",
+            "snapshot_integrity_failed", "schema_quarantined",
+            "extraction_incomplete", "display_conflict"
+          ]
+        },
+        "terminalOutputReference": { "$ref": "#/$defs/outputReference" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected", "due", "notDue", "blocked", "terminal", "succeeded",
+        "reviewRequired", "failed"
+      ],
+      "properties": {
+        "expected": { "$ref": "#/$defs/count" },
+        "due": { "$ref": "#/$defs/count" },
+        "notDue": { "$ref": "#/$defs/count" },
+        "blocked": { "$ref": "#/$defs/count" },
+        "terminal": { "$ref": "#/$defs/count" },
+        "succeeded": { "$ref": "#/$defs/count" },
+        "reviewRequired": { "$ref": "#/$defs/count" },
+        "failed": { "$ref": "#/$defs/count" }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "jobCount", "wakeupCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-operations-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "jobCount": { "$ref": "#/$defs/count" },
+        "wakeupCount": { "$ref": "#/$defs/count" }
+      }
+    }
+  }
+}

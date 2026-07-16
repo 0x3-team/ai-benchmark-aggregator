@@ -41,3 +41,18 @@ describe("heatmapColor lowerIsBetter", () => {
     expect(gLow).toBeGreaterThan(gHigh);
   });
 });
+
+describe("no-data column statistics", () => {
+  it("keeps an empty column absent instead of inventing zero-valued extrema", () => {
+    const stats = columnStats([null, null], higher);
+    expect(stats).toEqual({
+      min: null,
+      max: null,
+      best: null,
+      worst: null,
+      avg: null,
+      count: 0,
+    });
+    expect(heatmapColor(null, stats, higher)).toBe("transparent");
+  });
+});

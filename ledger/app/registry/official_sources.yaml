@@ -10,8 +10,11 @@ sources:
     supports_history: false
     update_cadence: manual
     parser_name: fake
-    status: active
-    parser_config: {}
+    status: inactive
+    notes: "Retired LDR-06: synthetic local fixture values are test data, not source-reported benchmark evidence."
+    parser_config:
+      mode: retired
+      retirement_reason: synthetic fixture data is never Official benchmark evidence
 
   - id: hf_official_benchmark_discovery
     benchmark_id: hf_official_benchmarks
@@ -24,9 +27,11 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_benchmark_api
-    status: active
+    status: inactive
+    notes: "Retired LDR-06: this endpoint enumerates datasets and does not report model benchmark result claims."
     parser_config:
       mode: discovery
+      retirement_reason: dataset discovery metadata is not benchmark result evidence
 
   - id: swe_bench_verified_official_leaderboard
     benchmark_id: swe_bench_verified
@@ -54,8 +59,11 @@ sources:
     supports_history: false
     update_cadence: manual
     parser_name: livecodebench_adapter
-    status: active
-    parser_config: {}
+    status: inactive
+    notes: "Retired LDR-06: the adapter selected a date window and calculated an aggregate, not a source-reported result record."
+    parser_config:
+      mode: retired
+      retirement_reason: date-window aggregate is not Official claim evidence
 
   - id: mteb_leaderboard
     benchmark_id: mteb
@@ -135,8 +143,11 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: lmsys_arena_api
-    status: active
-    parser_config: {}
+    status: inactive
+    notes: "Retired LDR-06: the route retried through a third-party fallback and has no certified direct result-evidence contract."
+    parser_config:
+      mode: retired
+      retirement_reason: third-party fallback route is not source-reported benchmark evidence
 
   - id: artificial_analysis_leaderboard
     benchmark_id: artificial_analysis
@@ -149,11 +160,14 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: artificial_analysis_api
-    status: active
+    status: inactive
+    notes: "Retired LDR-06: third-party aggregate required private API access and fabricated mock fallback scores; it is not official result evidence."
     parser_config:
       api_key_env: ARTIFICIAL_ANALYSIS_API_KEY
+      mode: retired
+      retirement_reason: third-party aggregate with mock fallback is not source-reported benchmark evidence
 
-  - id: helm_leaderboard
+  - id: helm_spa_legacy
     benchmark_id: helm
     source_name: HELM official leaderboard
     source_url: https://crfm.stanford.edu/helm/latest/
@@ -191,8 +205,11 @@ sources:
     supports_history: false
     update_cadence: monthly
     parser_name: livebench_adapter
-    status: active
-    parser_config: {}
+    status: inactive
+    notes: "Retired LDR-06: the adapter assembled multiple artifacts and computed a derived aggregate, not a source-reported result record."
+    parser_config:
+      mode: retired
+      retirement_reason: assembled artifacts and calculated aggregate are not Official claim evidence
 
   - id: open_llm_leaderboard_v2_gpqa
     benchmark_id: gpqa_diamond
@@ -467,7 +484,7 @@ sources:
     parser_config: {dataset_id: "MathArena/aime_2026_I_outputs"}
     notes: "HuggingFace dataset contains per-problem responses; per-model aggregated accuracies are not directly available without custom aggregation."
 
-  - id: frontiermath_epoch
+  - id: frontiermath_epoch_manual
     benchmark_id: frontiermath
     source_name: Epoch AI FrontierMath
     source_url: https://epoch.ai/data/benchmark_data.zip
@@ -765,9 +782,14 @@ sources:
     supports_history: false
     update_cadence: on_release
     parser_name: taubench_s3
-    status: active
-    parser_config: {bucket: sierra-tau-bench-public, prefix: submissions/, max_keys: 50}
-    notes: "Lists public S3, fetches submissions/*/submission.json, aggregates mean pass_rate."
+    status: inactive
+    parser_config:
+      bucket: sierra-tau-bench-public
+      prefix: submissions/
+      max_keys: 50
+      mode: retired
+      retirement_reason: aggregated submission metrics are not Official claim evidence
+    notes: "Retired LDR-06: the adapter listed submission artifacts and calculated a mean pass rate, not a source-reported result record."
 
   - id: imo_answerbench_github
     benchmark_id: imo_answerbench

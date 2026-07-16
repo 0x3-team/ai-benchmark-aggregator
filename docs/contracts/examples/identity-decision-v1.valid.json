@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "identity-decision-v1",
+  "availability": "identity_decision_only",
+  "decisionId": "example-identity-decision-draft-v1",
+  "candidateReference": "candidate-example-submission-v1",
+  "observationReference": "example-submission-observation",
+  "identityItemFingerprintSha256": "baa65eecb9ef14a96cc6333b154b246e9e858bd7cb854f0b5d745009c95238d6",
+  "expectedPriorDecisionId": null,
+  "decisionSequence": 1,
+  "decisionStatus": "draft",
+  "decidedAt": null,
+  "governanceDecisionReference": null,
+  "outcome": "unresolved",
+  "selectedSubjectId": null,
+  "supersedingCandidateReference": null,
+  "reasonCode": "LOCAL_DRAFT_RETAINS_UNRESOLVED_IDENTITY",
+  "actor": {
+    "actorId": "local-contract-fixture",
+    "actorType": "service",
+    "role": "contract-fixture-generator",
+    "authorityReference": null
+  },
+  "authority": {
+    "classification": "itemized_identity_decision_only",
+    "approvalStatus": "draft_unapproved",
+    "actorAuthorityVerified": false,
+    "permitsIdentityReadProjection": false,
+    "rewritesClaims": false,
+    "promotesCapture": false,
+    "promotesValidation": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "d73ac5e42bfbdecc88c2867d1bfde47897899d7a4b28e71053468890f9dbf6ad",
+    "itemCount": 1,
+    "sourceEvidenceReferenceCount": 1,
+    "aliasProvenanceReferenceCount": 1,
+    "collisionSubjectCount": 0
+  },
+  "rawObservation": {
+    "modelRaw": "Team Example / Submission 17",
+    "providerRaw": "Example Organization",
+    "configurationRaw": "Configuration not disclosed by source",
+    "rawLabelSha256": "37635b29b88cb8c2c283dc1eee25a276a4e60b4aff76a82cda6165748186d123",
+    "sourceEvidenceReferenceIds": ["example-submission-observation"],
+    "preservedExactly": true
+  },
+  "aliasProposal": {
+    "aliasRaw": "Team Example / Submission 17",
+    "matchMethod": "exact",
+    "normalizedAlias": null,
+    "provenanceReferenceIds": ["example-submission-observation"],
+    "scope": {
+      "scopeType": "source_revision",
+      "ownerId": "example-owner",
+      "benchmarkEditionIds": ["example-benchmark-edition-v1"],
+      "sourceRevisionIds": ["example-source-revision-v1"]
+    },
+    "proposedAction": "no_alias"
+  },
+  "collisionFacts": {
+    "status": "none",
+    "matchingPriority": "none",
+    "conflictingSubjectIds": [],
+    "reasonCode": null
+  },
+  "effects": {
+    "itemized": true,
+    "identityReadProjectionEffect": "none",
+    "rewritesExistingClaims": false,
+    "mutatesRawFields": false,
+    "promotesCaptureStatus": false,
+    "promotesValidationStatus": false,
+    "authorizesPublication": false
+  }
+}

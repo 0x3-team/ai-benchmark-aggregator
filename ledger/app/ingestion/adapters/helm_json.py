@@ -3,9 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import httpx
-
-from app.config import get_settings
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
 from app.ingestion.extractors.normalize import try_parse_score
@@ -13,7 +10,6 @@ from app.schemas.boundary import (
     ClaimValidationInput,
     OfficialSource,
     ResultClaimInput,
-    SourceFetchResult,
 )
 
 # Accuracy-like metric name patterns; skip metadata / count / runtime stats
@@ -38,38 +34,7 @@ def _is_accuracy_metric(name: str) -> bool:
 
 class HelmJSONAdapter(SourceAdapter):
     source_type = "helm_json"
-
-    def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        settings = get_settings()
-        headers = {"User-Agent": settings.http_user_agent}
-        url = source.source_url
-        try:
-            with httpx.Client(
-                timeout=settings.http_timeout_seconds, follow_redirects=True
-            ) as client:
-                resp = client.get(url, headers=headers)
-        except httpx.HTTPError as exc:
-            raise RuntimeError(
-                f"Network error fetching HELM source={source.id}: {exc}"
-            ) from exc
-        if resp.status_code >= 400:
-            raise RuntimeError(
-                f"HTTP {resp.status_code} fetching HELM source={source.id} ({url})"
-            )
-        return SourceFetchResult(
-            raw_bytes=resp.content,
-            content_type=resp.headers.get("content-type"),
-            http_status=resp.status_code,
-            etag=resp.headers.get("etag"),
-            last_modified_header=resp.headers.get("last-modified"),
-            final_url=str(resp.url),
-            headers={
-                k: v
-                for k, v in resp.headers.items()
-                if k.lower() in {"etag", "last-modified", "content-type"}
-            },
-            metadata={"url": url},
-        )
+    accepted_content_types = frozenset({"application/json", "application/*+json", "text/json"})
 
     def extract_claims(
         self,

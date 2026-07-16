@@ -1,0 +1,624 @@
+schemaVersion: 1.0.0
+policyVersion: coverage-universe-v1
+availability: coverage_definition_only
+universeRevisionId: coverage-universe-2026-07-15-v1
+supersedesUniverseRevisionId: null
+effectiveOn: null
+decisionReference: null
+authority:
+  classification: coverage_definition_only
+  approvalStatus: draft_unapproved
+  certifiesSources: false
+  authorizesCapture: false
+  authorizesPublication: false
+  frontendLoadable: false
+manifest:
+  algorithm: sha256-canonical-json-v1
+  contentSha256: 1ffa3438cb26853ea898894b8d4566d6c694760b8cff47a886923fbae9fc8593
+  benchmarkCount: 42
+  configuredSourceRouteCount: 53
+  sourceClassCount: 5
+  exclusionCount: 6
+scope:
+  name: Baseline configured benchmark and source-route universe
+  boundedStatement: >-
+    This revision contains every unique benchmark ID from benchmarks*.yaml and
+    every unique configured route ID from official_sources.yaml at the pinned
+    semantic digests below. It is a bounded configuration census, not a claim
+    of internet-wide, model-wide, certified-source, or published-score coverage.
+  internetComplete: false
+  registryInputs:
+    - inputPath: ledger/app/registry/benchmarks*.yaml
+      recordType: benchmark
+      selectionRule: all_unique_stable_ids
+      expectedUniqueCount: 42
+      semanticSha256: f0ab8b3fe1c1213963cffb295752744dfabc19bde7f3a5e4e643e011b6e570c7
+    - inputPath: ledger/app/registry/official_sources.yaml
+      recordType: configured_source_route
+      selectionRule: all_unique_stable_ids
+      expectedUniqueCount: 53
+      semanticSha256: e1dc4f03628a1e72c20ab0f30ebdb3e8366fe36eda948282c6821abb289a0f3b
+cohorts:
+  - cohortId: baseline-configured-benchmarks
+    name: Baseline configured benchmarks
+    purpose: Complete bounded denominator for the current benchmark registries.
+    memberBenchmarkIds:
+      - agentbench
+      - aider_polyglot
+      - aime2024
+      - aime2025
+      - apex_agents
+      - arc_agi
+      - artificial_analysis
+      - bbh
+      - bfcl
+      - bigcodebench
+      - browsecomp
+      - chatbot_arena
+      - frontiercode
+      - frontiermath
+      - gaia
+      - gpqa_diamond
+      - helm
+      - hf_official_benchmarks
+      - hle
+      - humaneval
+      - imo_answerbench
+      - livebench
+      - livecodebench
+      - math
+      - math500
+      - matharena
+      - mbpp
+      - mmlu
+      - mmlu_pro
+      - mmmu
+      - mtbench
+      - mteb
+      - olympiadbench
+      - opencompass
+      - paperbench
+      - swe_bench_verified
+      - tau_bench
+      - terminal_bench
+      - toolbench
+      - truthfulqa
+      - usamo
+      - webarena
+benchmarks:
+  - benchmarkId: agentbench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: aider_polyglot
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: aime2024
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: aime2025
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: apex_agents
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: arc_agi
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: artificial_analysis
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: bbh
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: bfcl
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: bigcodebench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: browsecomp
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: chatbot_arena
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: frontiercode
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: frontiermath
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: gaia
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: gpqa_diamond
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: helm
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: hf_official_benchmarks
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: hle
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: humaneval
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: imo_answerbench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: livebench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: livecodebench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: math
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: math500
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: matharena
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: mbpp
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: mmlu
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: mmlu_pro
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: mmmu
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: mtbench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: mteb
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: olympiadbench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: opencompass
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: paperbench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: swe_bench_verified
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: tau_bench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: terminal_bench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: toolbench
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: truthfulqa
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: usamo
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+  - benchmarkId: webarena
+    coverageStatus: configured
+    reasonCode: BASELINE_REGISTRY_MEMBER
+    cohortIds: [baseline-configured-benchmarks]
+configuredSourceRoutes:
+  - sourceRouteId: agentbench_official_sheet
+    benchmarkId: agentbench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: aider_polyglot_yaml
+    benchmarkId: aider_polyglot
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: aime2024_aa
+    benchmarkId: aime2024
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: aime2025_aa
+    benchmarkId: aime2025
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: apex_agents_mercor
+    benchmarkId: apex_agents
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: arc_agi_official
+    benchmarkId: arc_agi
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: artificial_analysis_leaderboard
+    benchmarkId: artificial_analysis
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: bfcl_leaderboard_html
+    benchmarkId: bfcl
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: bigcodebench_leaderboard
+    benchmarkId: bigcodebench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: browsecomp_llmstats
+    benchmarkId: browsecomp
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: fake_local_fixture
+    benchmarkId: hf_official_benchmarks
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: frontiercode_benchmarklist
+    benchmarkId: frontiercode
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: frontiermath_epoch
+    benchmarkId: frontiermath
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: frontiermath_epoch_manual
+    benchmarkId: frontiermath
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: gaia_results_public
+    benchmarkId: gaia
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: gpqa_diamond_aa
+    benchmarkId: gpqa_diamond
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: helm_leaderboard
+    benchmarkId: helm
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: helm_spa_legacy
+    benchmarkId: helm
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: hf_official_benchmark_discovery
+    benchmarkId: hf_official_benchmarks
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: hle_aa
+    benchmarkId: hle
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: hle_scale
+    benchmarkId: hle
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: humaneval_evalplus
+    benchmarkId: humaneval
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: imo_answerbench_deepmind
+    benchmarkId: imo_answerbench
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: imo_answerbench_github
+    benchmarkId: imo_answerbench
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: livebench_leaderboard
+    benchmarkId: livebench
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: livecodebench_official_leaderboard
+    benchmarkId: livecodebench
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: lmsys_arena_leaderboard
+    benchmarkId: chatbot_arena
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: manual_arc_agi
+    benchmarkId: arc_agi
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: manual_frontiermath
+    benchmarkId: frontiermath
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: manual_hle
+    benchmarkId: hle
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: manual_usamo
+    benchmarkId: usamo
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: math500_aa
+    benchmarkId: math500
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: matharena_hf
+    benchmarkId: matharena
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: mbpp_codesota
+    benchmarkId: mbpp
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: mmlu_openllm_v2
+    benchmarkId: mmlu
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: mmmu_hf
+    benchmarkId: mmmu
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: mt_bench_lmsys
+    benchmarkId: mtbench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: mteb_leaderboard
+    benchmarkId: mteb
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: olympiadbench_readme
+    benchmarkId: olympiadbench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: open_llm_leaderboard_v2
+    benchmarkId: hf_official_benchmarks
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: open_llm_leaderboard_v2_bbh
+    benchmarkId: bbh
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: open_llm_leaderboard_v2_gpqa
+    benchmarkId: gpqa_diamond
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: open_llm_leaderboard_v2_math
+    benchmarkId: math
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: open_llm_leaderboard_v2_mmlu_pro
+    benchmarkId: mmlu_pro
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: opencompass_leaderboard
+    benchmarkId: opencompass
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: paperbench_frontier_evals
+    benchmarkId: paperbench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: swe_bench_verified_official_leaderboard
+    benchmarkId: swe_bench_verified
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: tau_bench_s3
+    benchmarkId: tau_bench
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: terminal_bench_tbench_leaderboard
+    benchmarkId: terminal_bench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: toolbench_openbmb
+    benchmarkId: toolbench
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: truthfulqa_openllm_v2
+    benchmarkId: truthfulqa
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+  - sourceRouteId: usamo_matharena
+    benchmarkId: usamo
+    registryStatus: inactive
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
+  - sourceRouteId: webarena_official_sheet
+    benchmarkId: webarena
+    registryStatus: active
+    coverageStatus: configured
+    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+sourceClasses:
+  - sourceClassId: official-result-api
+    priority: 1
+    methodFamily: Approved official result API
+    candidateUse: Locate structured result endpoints and immutable revision evidence.
+    discoveryOnly: false
+    captureRequiresSeparateCertification: true
+    publicationRequiresSeparateDecision: true
+  - sourceClassId: revision-pinned-structured-artifact
+    priority: 2
+    methodFamily: Revision-pinned official JSON, CSV, Parquet, or repository release artifact
+    candidateUse: Locate complete structured artifacts with immutable revisions.
+    discoveryOnly: false
+    captureRequiresSeparateCertification: true
+    publicationRequiresSeparateDecision: true
+  - sourceClassId: official-manifest-or-export
+    priority: 3
+    methodFamily: Official dataset manifest, file manifest, or spreadsheet export
+    candidateUse: Locate complete official file sets and export metadata.
+    discoveryOnly: false
+    captureRequiresSeparateCertification: true
+    publicationRequiresSeparateDecision: true
+  - sourceClassId: deterministic-structured-page
+    priority: 4
+    methodFamily: Deterministic official HTML or embedded structured data
+    candidateUse: Locate stable structured records when stronger formats are unavailable.
+    discoveryOnly: false
+    captureRequiresSeparateCertification: true
+    publicationRequiresSeparateDecision: true
+  - sourceClassId: browser-rendered-reconnaissance
+    priority: 5
+    methodFamily: Bounded browser-rendered official-surface reconnaissance
+    candidateUse: Discover official leads and detect rendering changes only.
+    discoveryOnly: true
+    captureRequiresSeparateCertification: true
+    publicationRequiresSeparateDecision: true
+refreshPolicy:
+  discoveryPlanningCadence: PT12H
+  registryReconciliationCadence: P1D
+  coverageOwnerReviewCadence: P30D
+  stalenessThreshold: P30D
+  termsReviewPolicy: Per-target terms evidence and cadence; pause rather than crawl when access is not permitted.
+  sourceRecheckAuthority: separate_certified_source_contract_only
+exclusions:
+  - exclusionId: arbitrary-internet-surfaces
+    excludedClass: arbitrary_internet
+    reasonCode: OUTSIDE_BOUNDED_UNIVERSE
+    rationale: Search-engine results and arbitrary web crawling do not define the reviewed coverage denominator.
+    reconsiderationPolicy: Add only through a new owner-reviewed universe revision with a governed official root.
+    ownerRole: product_data_governance_owner
+    reviewDueOn: "2026-08-15"
+  - exclusionId: nonofficial-secondary-content
+    excludedClass: nonofficial_secondary_content
+    reasonCode: NONOFFICIAL_SOURCE_CLASS
+    rationale: Articles, vendor blogs, newsletters, and social posts cannot become Official result evidence.
+    reconsiderationPolicy: They may provide manual leads only when independently verified at an official origin.
+    ownerRole: product_data_governance_owner
+    reviewDueOn: "2026-08-15"
+  - exclusionId: preview-or-incomplete-artifacts
+    excludedClass: preview_or_incomplete_artifact
+    reasonCode: INCOMPLETE_RESULT_ARTIFACT
+    rationale: Preview and partial artifacts cannot satisfy complete result-record accounting.
+    reconsiderationPolicy: Reconsider only when a complete official artifact and completeness rule are available.
+    ownerRole: ledger_review_owner
+    reviewDueOn: "2026-08-15"
+  - exclusionId: terms-or-permission-blocked
+    excludedClass: terms_or_permission_blocked
+    reasonCode: TERMS_OR_PERMISSION_BLOCKED
+    rationale: Automation must not violate terms or access restrictions to improve coverage.
+    reconsiderationPolicy: Reconsider after explicit permission or a documented terms review permits the exact access.
+    ownerRole: product_data_governance_owner
+    reviewDueOn: "2026-08-15"
+  - exclusionId: access-controlled-without-authority
+    excludedClass: access_controlled_without_authority
+    reasonCode: ACCESS_AUTHORITY_MISSING
+    rationale: Credentials or private access are not implied by a configured benchmark or route.
+    reconsiderationPolicy: Reconsider only after named credential, privacy, and recipient authority is approved.
+    ownerRole: security_privacy_owner
+    reviewDueOn: "2026-08-15"
+  - exclusionId: derived-or-recalculated-scores
+    excludedClass: derived_or_recalculated_score
+    reasonCode: SOURCE_REPORTED_VALUE_REQUIRED
+    rationale: The ledger records source-reported claims and does not recompute benchmark scores.
+    reconsiderationPolicy: Do not admit as an Official claim; presentation-only calculations remain outside the ledger.
+    ownerRole: ledger_review_owner
+    reviewDueOn: "2026-08-15"
+publicWording:
+  coverageLabel: Bounded configured coverage
+  scopeStatement: >-
+    This revision accounts for 42 configured benchmark IDs and 53 configured
+    source-route IDs in the pinned local registries.
+  requiredDisclaimer: >-
+    Configured, active, discovered, or present in this census does not mean a
+    source is certified, a claim is approved, a result is published, or the
+    internet and model ecosystem are complete.
+  forbiddenClaims:
+    - all benchmarks on the internet
+    - all models or evaluated systems
+    - all official result sources
+    - configured means certified
+    - active means approved or published
+    - discovery candidate means Official evidence

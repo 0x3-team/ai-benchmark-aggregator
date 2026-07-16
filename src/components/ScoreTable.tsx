@@ -1,9 +1,8 @@
 import { useMemo } from "react";
 import { Info, ArrowUp, ArrowDown, X } from "lucide-react";
-import type { Benchmark, Model } from "../types";
-import { getValue, getScoreEntry } from "../data/registry";
+import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
-import { bestModelId } from "../lib/aggregate";
+import { bestModelId, type RankRow } from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { fmtScore as fmt } from "../lib/format";
@@ -20,10 +19,15 @@ import {
   PopoverClose,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  ClaimEvidence,
+  ClaimEvidenceDetails,
+  ExternalSourceLink,
+} from "./ClaimEvidence";
 
 interface ScoreTableProps {
-  models: Model[];
-  benchmarks: Benchmark[];
+  models: readonly DatasetModel[];
+  benchmarks: readonly DatasetBenchmark[];
   sort: { benchmarkId: string | null; dir: "asc" | "desc" } | null;
   onSort: (benchmarkId: string) => void;
   onBenchmarkClick: (benchmarkId: string) => void;
@@ -31,7 +35,8 @@ interface ScoreTableProps {
   onClearSort: () => void;
   onToggleModelSelect: (modelId: string) => void;
   selectedModels: string[];
-  rankMap: Record<string, number>;
+  rankMap: Record<string, RankRow>;
+  rankCohortTotal: number;
 }
 
 export function ScoreTable({
@@ -45,7 +50,9 @@ export function ScoreTable({
   onToggleModelSelect,
   selectedModels,
   rankMap,
+  rankCohortTotal,
 }: ScoreTableProps) {
+  const { getValue, getScoreEntry } = useDataset();
   const statsByBench = useMemo(() => {
     const map: Record<string, ReturnType<typeof columnStats>> = {};
     for (const b of benchmarks) {
@@ -53,13 +60,13 @@ export function ScoreTable({
       map[b.id] = columnStats(values, b);
     }
     return map;
-  }, [models, benchmarks]);
+  }, [models, benchmarks, getValue]);
 
   const bestByBench = useMemo(() => {
     const map: Record<string, string | null> = {};
-    for (const b of benchmarks) map[b.id] = bestModelId(b.id, models);
+    for (const b of benchmarks) map[b.id] = bestModelId(b.id, models, benchmarks, getValue);
     return map;
-  }, [benchmarks, models]);
+  }, [benchmarks, models, getValue]);
 
   const modelName = (id: string | null) =>
     id ? models.find((m) => m.id === id)?.name ?? id : null;
@@ -101,6 +108,11 @@ export function ScoreTable({
 
       <div className="overflow-x-auto scroll-thin">
         <table className="w-full border-separate border-spacing-0 text-[12px]">
+          <caption className="sr-only">
+            Overall ranks use every benchmark in the selected dataset snapshot. A model must have a
+            score for all {rankCohortTotal} benchmarks to receive a rank; filters only change visible
+            rows.
+          </caption>
           <thead>
             <tr>
               <th
@@ -113,7 +125,7 @@ export function ScoreTable({
                   padding: "0",
                 }}
               >
-                #
+                <span title="Overall rank; full cohort coverage required">#</span>
               </th>
               <th
                 rowSpan={2}
@@ -163,6 +175,10 @@ export function ScoreTable({
                   const topVal = topModelId
                     ? getValue(topModelId, b.id)
                     : null;
+                  const topEntry = topModelId
+                    ? getScoreEntry(topModelId, b.id)
+                    : null;
+                  const topClaim = topEntry?.officialProvenance ? topEntry : null;
                   return (
                     <th
                       key={b.id}
@@ -225,32 +241,38 @@ export function ScoreTable({
                                 {b.methodology}
                               </p>
                               {topName && topVal != null && (
-                                <PopoverClose asChild>
-                                  <button
-                                    type="button"
-                                    onClick={() => onOpenModel(topModelId!)}
-                                    className="mt-2 flex w-full items-center justify-between rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-left transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
-                                  >
-                                    <span className="text-xs text-muted-foreground">
-                                      Top model
-                                    </span>
-                                    <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                      {topName}
-                                      <span className="font-mono text-emerald-300">
-                                        {fmt(topVal, b.scaleMax)}
+                                <div className="mt-2 flex flex-col gap-2">
+                                  <PopoverClose asChild>
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenModel(topModelId!)}
+                                      className="flex min-w-0 items-center justify-between rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-left transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-ring"
+                                    >
+                                      <span className="text-xs text-muted-foreground">
+                                        Top model
                                       </span>
-                                    </span>
-                                  </button>
-                                </PopoverClose>
+                                      <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                                        {topName}
+                                        <span className="font-mono text-emerald-300">
+                                          {fmt(topVal, b.scaleMax)}
+                                        </span>
+                                      </span>
+                                    </button>
+                                  </PopoverClose>
+                                  <ClaimEvidenceDetails
+                                    entry={topClaim}
+                                    modelName={topName}
+                                    benchmarkName={b.fullName}
+                                  />
+                                </div>
                               )}
-                              <a
+                              <ExternalSourceLink
                                 href={b.sourceUrl}
-                                target="_blank"
-                                rel="noreferrer"
                                 className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                               >
                                 source ↗
-                              </a>
+                                <span className="sr-only"> (opens in a new tab)</span>
+                              </ExternalSourceLink>
                             </PopoverContent>
                           </Popover>
 
@@ -288,9 +310,15 @@ export function ScoreTable({
           </thead>
           <tbody>
             {models.map((m) => {
-              const rank = rankMap[m.id] ?? 0;
+              const rank = rankMap[m.id];
               const selected = selectedModels.includes(m.id);
-              const isTop = rank === 1;
+              const isTop = rank?.rank === 1;
+              const rankLabel =
+                rank?.rank != null
+                  ? `Overall rank ${rank.rank}; coverage ${rank.covered} of ${rank.total} benchmarks.`
+                  : rank
+                    ? `Unranked: ${rank.covered} of ${rank.total} benchmarks have data.`
+                    : "Unranked: no presentation summary is available.";
               return (
                 <tr
                   key={m.id}
@@ -308,7 +336,8 @@ export function ScoreTable({
                       padding: "0",
                     }}
                   >
-                    {rank}
+                    <span aria-hidden="true">{rank?.rank ?? "—"}</span>
+                    <span className="sr-only">{rankLabel}</span>
                   </td>
                   <td
                     className="sticky z-20 border-b border-r border-white/10 text-left"
@@ -345,19 +374,16 @@ export function ScoreTable({
                             </span>
                           )}
                         </span>
+                        <span className="text-[10px] text-muted-foreground/70">
+                          {rank?.covered ?? 0}/{rank?.total ?? rankCohortTotal} coverage
+                        </span>
                       </span>
                     </label>
                   </td>
                   {benchmarks.map((b) => {
                     const v = getValue(m.id, b.id);
                     const entry = getScoreEntry(m.id, b.id);
-                    const prov =
-                      entry && (entry.captureStatus || entry.officialSourceId)
-                        ? entry
-                        : null;
-                    const tooltipText = prov
-                      ? `Source: ${prov.officialSourceId ?? "—"}, captured ${prov.date || "—"}, status ${prov.captureStatus ?? "—"}`
-                      : "";
+                    const claim = entry?.officialProvenance ? entry : null;
                     const stats = statsByBench[b.id];
                     const isBest =
                       v != null && stats.best != null && v === stats.best;
@@ -382,8 +408,8 @@ export function ScoreTable({
                         title={
                           v == null
                             ? "No data"
-                            : prov
-                              ? tooltipText
+                            : claim
+                              ? `${m.name} · ${b.name}: claim evidence available`
                               : `${m.name} · ${b.name}: ${v}`
                         }
                       >
@@ -400,12 +426,12 @@ export function ScoreTable({
                         >
                           {fmt(v, b.scaleMax)}
                         </span>
-                        {prov && (
-                          <span
-                            className="absolute right-1 top-1 z-20 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399] opacity-75 pointer-events-none"
-                            title={tooltipText}
-                          />
-                        )}
+                        <ClaimEvidence
+                          entry={claim}
+                          modelName={m.name}
+                          benchmarkName={b.fullName}
+                          className="absolute right-0.5 top-0.5 z-20"
+                        />
                       </td>
                     );
                   })}
@@ -429,10 +455,12 @@ export function ScoreTable({
                 const bestId = bestByBench[b.id];
                 const bestName = modelName(bestId);
                 const display = fmt(statsByBench[b.id].best, b.scaleMax);
+                const bestEntry = bestId ? getScoreEntry(bestId, b.id) : null;
+                const bestClaim = bestEntry?.officialProvenance ? bestEntry : null;
                 return (
                   <td
                     key={b.id}
-                    className="border-t-2 border-white/15 p-0 text-center font-mono text-[12px] font-bold text-emerald-300"
+                    className="relative border-t-2 border-white/15 p-0 text-center font-mono text-[12px] font-bold text-emerald-300"
                   >
                     {bestId ? (
                       <button
@@ -446,6 +474,14 @@ export function ScoreTable({
                     ) : (
                       <span className="block py-2">{display}</span>
                     )}
+                    {bestId && bestName ? (
+                      <ClaimEvidence
+                        entry={bestClaim}
+                        modelName={bestName}
+                        benchmarkName={b.fullName}
+                        className="absolute right-0.5 top-0.5 z-20"
+                      />
+                    ) : null}
                   </td>
                 );
               })}

@@ -1,8 +1,11 @@
+import { useEffect, useRef } from "react";
 import { BookOpen, BarChart3, GitCompareArrows } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { DataMode } from "../data/dataMode";
+import type { PublishedArtifactMetadata } from "../data/official";
+import { SourceManifestEvidence } from "./ClaimEvidence";
 
 interface HeaderProps {
   totalModels: number;
@@ -14,7 +17,10 @@ interface HeaderProps {
   dataModeLabel?: string;
   dataMode: DataMode;
   onDataModeChange: (m: DataMode) => void;
-  sourceUrls?: { name: string; url: string }[];
+  officialUnavailableReason?: string;
+  officialArtifact?: PublishedArtifactMetadata;
+  officialUnavailableAnnouncement?: string | null;
+  officialUnavailableAnnouncementId?: number;
 }
 
 export function Header({
@@ -27,8 +33,28 @@ export function Header({
   dataModeLabel = "Demo (synthetic)",
   dataMode,
   onDataModeChange,
-  sourceUrls = [],
+  officialUnavailableReason,
+  officialArtifact,
+  officialUnavailableAnnouncement,
+  officialUnavailableAnnouncementId,
 }: HeaderProps) {
+  const officialUnavailable = Boolean(officialUnavailableReason);
+  const modeButtons = useRef<Record<DataMode, HTMLButtonElement | null>>({
+    demo: null,
+    official: null,
+  });
+  const previousMode = useRef<DataMode>(dataMode);
+
+  // A mode switch clears data-dependent UI state in App. Return keyboard focus
+  // to the newly active source control after that atomic commit so users do
+  // not remain on a stale filter, comparison, or now-closed sheet trigger.
+  useEffect(() => {
+    if (previousMode.current !== dataMode) {
+      modeButtons.current[dataMode]?.focus();
+    }
+    previousMode.current = dataMode;
+  }, [dataMode]);
+
   return (
     <div className="flex flex-col gap-3 mb-4">
       <header className="glass flex flex-col gap-4 rounded-xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -56,22 +82,36 @@ export function Header({
             role="group"
             aria-label="Data source"
           >
-            {(["demo", "official"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => onDataModeChange(m)}
-                aria-pressed={dataMode === m}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
-                  dataMode === m
-                    ? "bg-primary text-primary-foreground shadow"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {m === "demo" ? "Demo" : "Official"}
-              </button>
-            ))}
+            {(["demo", "official"] as const).map((m) => {
+              const unavailable = m === "official" && officialUnavailable;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  ref={(element) => {
+                    modeButtons.current[m] = element;
+                  }}
+                  onClick={() => onDataModeChange(m)}
+                  aria-pressed={dataMode === m}
+                  aria-label={
+                    unavailable
+                      ? "Official claims unavailable; announce why"
+                      : undefined
+                  }
+                  aria-describedby={m === "official" ? "official-data-status" : undefined}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
+                    dataMode === m
+                      ? "bg-primary text-primary-foreground shadow"
+                      : unavailable
+                        ? "cursor-help text-muted-foreground opacity-55"
+                        : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {m === "demo" ? "Demo" : unavailable ? "Official unavailable" : "Official"}
+                </button>
+              );
+            })}
           </div>
 
           <Tabs value={view} onValueChange={(v) => onViewChange(v as "table" | "compare")}>
@@ -99,32 +139,80 @@ export function Header({
         </div>
       </header>
 
-      {dataMode === "official" && (
-        <div className="glass flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl px-5 py-3 text-xs">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
-            <span>
-              <strong>Official Data Mode:</strong> Values are source-backed claims from the benchmark ledger, not independently recalculated scores.
+      {officialUnavailableReason ? (
+        <section
+          id="official-data-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="glass rounded-xl px-5 py-3 text-xs text-muted-foreground"
+        >
+          <strong className="text-foreground">Official claims unavailable.</strong>{" "}
+          {officialUnavailableReason} The visible data remains <strong className="text-foreground">Demo (synthetic)</strong>.
+          {officialUnavailableAnnouncement ? (
+            <span key={officialUnavailableAnnouncementId} className="sr-only">
+              {officialUnavailableAnnouncement}
             </span>
-          </div>
-          {sourceUrls.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-muted-foreground/30 hidden sm:inline">|</span>
-              {sourceUrls.map((src) => (
-                <a
-                  key={src.url}
-                  href={src.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline font-medium hover:text-primary/80 transition-colors"
-                >
-                  {src.name} ↗
-                </a>
-              ))}
+          ) : null}
+        </section>
+      ) : dataMode === "official" && officialArtifact ? (
+        <section
+          id="official-data-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="glass flex flex-col gap-2 rounded-xl px-5 py-3 text-xs"
+        >
+          <p className="text-muted-foreground">
+            <strong className="text-foreground">Official claims.</strong> Values are source-reported ledger claims; the UI presents them and does not recalculate benchmark scores.
+          </p>
+          <dl className="grid gap-x-5 gap-y-1 text-[11px] text-muted-foreground sm:grid-cols-3">
+            <div>
+              <dt className="inline font-medium text-foreground">Artifact: </dt>
+              <dd className="inline font-mono">{officialArtifact.artifactId}</dd>
             </div>
-          )}
-        </div>
-      )}
+            <div>
+              <dt className="inline font-medium text-foreground">Approval: </dt>
+              <dd className="inline font-mono">{officialArtifact.releaseApproval.decisionId}</dd>
+            </div>
+            <div>
+              <dt className="inline font-medium text-foreground">Approved: </dt>
+              <dd className="inline">
+                <time dateTime={officialArtifact.releaseApproval.approvedAt}>
+                  {officialArtifact.releaseApproval.approvedAt}
+                </time>
+              </dd>
+            </div>
+            <div className="sm:col-span-3">
+              <dt className="inline font-medium text-foreground">Policy: </dt>
+              <dd className="inline font-mono">{officialArtifact.policyVersion}</dd>
+            </div>
+          </dl>
+          <div>
+            <SourceManifestEvidence
+              artifactId={officialArtifact.artifactId}
+              policyVersion={officialArtifact.policyVersion}
+              sourceManifest={officialArtifact.sourceManifest}
+            />
+          </div>
+        </section>
+      ) : dataMode === "official" ? (
+        <section
+          id="official-data-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="glass rounded-xl px-5 py-3 text-xs text-muted-foreground"
+        >
+          <strong className="text-foreground">Official claims selected.</strong>{" "}
+          Release metadata is unavailable, so this state cannot make a stronger trust assertion.
+        </section>
+      ) : null}
+      {!officialUnavailableReason && dataMode !== "official" ? (
+        <span id="official-data-status" className="sr-only">
+          Official claims are available. Select Official to view the governed release details.
+        </span>
+      ) : null}
     </div>
   );
 }

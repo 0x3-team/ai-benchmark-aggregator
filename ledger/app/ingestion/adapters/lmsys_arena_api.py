@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-from typing import Any
 
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
@@ -12,60 +10,24 @@ from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultCla
 
 class LMSYSArenaAPIAdapter(SourceAdapter):
     source_type = "lmsys_arena_api"
+    requires_central_fetch = False
 
     def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        import httpx
-        from app.config import get_settings
-
-        settings = get_settings()
-        headers = {"User-Agent": settings.http_user_agent}
-
-        # Check API key if requires_auth is True
-        api_key = None
-        if source.requires_auth:
-            env_var = source.parser_config.get("api_key_env", "LMSYS_API_KEY")
-            api_key = os.environ.get(env_var)
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-
-        # Try primary URL first
-        url = source.source_url
-        if url == "https://lmarena.ai/leaderboard" or url == "https://lmarena.ai/api/leaderboard":
-            url = "https://lmarena.ai/api/leaderboard"
-
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(url, headers=headers)
-                if resp.status_code == 200:
-                    return SourceFetchResult(
-                        raw_bytes=resp.content,
-                        content_type=resp.headers.get("content-type"),
-                        http_status=resp.status_code,
-                        final_url=str(resp.url),
-                    )
-        except Exception as exc:
-            print(f"Primary fetch for {source.id} failed: {exc}")
-
-        # Fallback to public endpoint
-        fallback_url = "https://api.wulong.dev/arena-ai-leaderboards/v1/leaderboard?name=text"
-        print(f"LMSYSArenaAPIAdapter: falling back to {fallback_url}")
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(fallback_url, headers={"User-Agent": settings.http_user_agent})
-                resp.raise_for_status()
-                return SourceFetchResult(
-                    raw_bytes=resp.content,
-                    content_type=resp.headers.get("content-type"),
-                    http_status=resp.status_code,
-                    final_url=str(resp.url),
-                    metadata={"fallback_used": True},
-                )
-        except Exception as exc:
-            raise RuntimeError(f"LMSYS Chatbot Arena fetch and fallback both failed: {exc}") from exc
+        # The former production route retried an LM Arena URL through an
+        # unrelated third-party endpoint. It cannot establish that an
+        # Official claim was directly reported by its declared source, so it
+        # remains retired until a future one-source certification ticket
+        # supplies typed direct evidence and fixture coverage.
+        raise RuntimeError(
+            "LMSYS Arena adapter is retired: a third-party fallback route cannot produce "
+            "official benchmark result claims."
+        )
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes
     ) -> list[ResultClaimInput]:
+        if source.parser_config.get("mode") == "retired":
+            return []
         try:
             data = json.loads(raw_bytes.decode("utf-8"))
         except Exception:
@@ -103,23 +65,22 @@ class LMSYSArenaAPIAdapter(SourceAdapter):
                         "rank_path": f"$.models[{i}].rank",
                     },
                     capture_method="lmsys_arena_api_parser",
-                    capture_confidence=0.95,
-                    capture_status="parser_verified",
+                    # Fixture parsing is retained only for offline parser
+                    # mechanics. It is a non-certifying candidate, never an
+                    # Official claim from this retired fallback route.
+                    capture_confidence=0.0,
+                    capture_status="unreviewed",
                     officialness_level=source.officialness_level,
                 )
             )
         return claims
 
     def validate_claim(self, claim: ResultClaimInput, raw_bytes: bytes) -> list[ClaimValidationInput]:
-        try:
-            text = raw_bytes.decode("utf-8")
-        except Exception:
-            text = ""
-        outcome = "pass" if claim.score_raw and claim.score_raw in text else "uncertain"
         return [
             ClaimValidationInput(
-                validation_type="json_path_match",
-                outcome=outcome,
+                validation_type="retired_fallback_route",
+                outcome="fail",
                 validator="LMSYSArenaAPIAdapter",
+                notes="retired fallback route is not official benchmark result evidence",
             )
         ]

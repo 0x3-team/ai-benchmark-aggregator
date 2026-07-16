@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "discovery-candidate-v1",
+  "availability": "candidate_only",
+  "candidateId": "candidate-bigcodebench-results-parquet-v1",
+  "candidateFingerprintSha256": "cc0ee1b0b51d3ba5104e4b46467cce61d42cf2b640d12f5e92d25ad51188a29e",
+  "candidateType": "source",
+  "state": "needs_governance",
+  "stateDecisionReference": "candidate-decision-bigcodebench-results-v1",
+  "approvedSourceRevisionReference": null,
+  "reasonCode": "TERMS_AND_COMPLETENESS_REVIEW_REQUIRED",
+  "targetRevisionId": "bigcodebench-official-repository-v1",
+  "authority": {
+    "classification": "quarantined_proposal_only",
+    "certifiesSources": false,
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "48df8ec6824cefd8ac4e31dca75190a21caee4ad34f365b01b1af641545742a9",
+    "officialUrlCount": 1,
+    "affectedBenchmarkCount": 1,
+    "evidenceReferenceCount": 1
+  },
+  "owner": {
+    "ownerId": "bigcode",
+    "displayName": "BigCode",
+    "officialRootUrls": ["https://github.com/bigcode-project/"]
+  },
+  "candidateIdentity": {
+    "identityType": "source",
+    "proposedSourceId": "bigcodebench-results-parquet",
+    "benchmarkId": "bigcodebench",
+    "resultLocator": "https://huggingface.co/datasets/bigcode/bigcodebench-results"
+  },
+  "officialUrls": ["https://huggingface.co/datasets/bigcode/bigcodebench-results"],
+  "affectedBenchmarkIds": ["bigcodebench"],
+  "artifactHint": {
+    "format": "parquet",
+    "structured": true,
+    "revisionKind": "content_digest",
+    "revisionLocator": "candidate-revision-digest-not-yet-certified",
+    "completenessHint": "unknown",
+    "parserHint": "generic-parquet-v1"
+  },
+  "termsHint": {
+    "status": "review_required",
+    "evidenceUrl": "https://huggingface.co/datasets/bigcode/bigcodebench-results",
+    "reasonCode": "TERMS_REVIEW_REQUIRED"
+  },
+  "evidenceReferences": [
+    {
+      "evidenceId": "observation-bigcodebench-results-v1",
+      "evidenceType": "discovery_observation",
+      "locator": "https://huggingface.co/datasets/bigcode/bigcodebench-results",
+      "contentSha256": null,
+      "observationRevision": "metadata-only-observation"
+    }
+  ]
+}

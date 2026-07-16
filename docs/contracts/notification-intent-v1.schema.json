@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/notification-intent-v1.schema.json",
+  "title": "Notification Intent v1",
+  "description": "Transactional, data-minimized intent for one incident transition and one versioned route/template. Local and externally blocked intents grant no delivery authority.",
+  "$comment": "Semantic validation MUST derive the dedupe key and ID from the exact incident transition, route, and template; allow only the redacted payload keys defined here; suppress recursive NOTIFY-family incidents; require every governance decision before an external route becomes eligible; require atomic outbox creation with the incident event; and verify the canonical self-digest. This record cannot acknowledge/resolve an incident or mutate evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyVersion", "availability", "mode", "intentId", "dedupeKeySha256", "incidentId", "incidentFingerprintSha256", "incidentFamily", "incidentCode", "incidentEventId", "incidentEventType", "notificationKind", "severity", "route", "template", "payload", "payloadSha256", "dispatchEligibility", "recursionDisposition", "outboxAtomicWithIncidentEvent", "authority", "manifest"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "notification-intent-v1" },
+    "availability": { "const": "operations_record_only" },
+    "mode": { "enum": ["synthetic_fixture", "shadow", "production"] },
+    "intentId": { "$ref": "#/$defs/stableId" },
+    "dedupeKeySha256": { "$ref": "#/$defs/sha256" },
+    "incidentId": { "$ref": "#/$defs/stableId" },
+    "incidentFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "incidentFamily": { "enum": ["DISCOVERY", "SOURCE_POLICY", "FETCH", "SNAPSHOT", "STORAGE", "SCHEMA", "EVIDENCE", "VALIDATION", "IDENTITY", "CONFLICT", "SCHEDULER", "DATABASE", "ARTIFACT", "PUBLICATION", "FRONTEND", "SECURITY", "NOTIFY"] },
+    "incidentCode": { "$ref": "#/$defs/reasonCode" },
+    "incidentEventId": { "$ref": "#/$defs/stableId" },
+    "incidentEventType": { "enum": ["OPENED", "ACKNOWLEDGED", "INVESTIGATION_STARTED", "MITIGATED", "RESOLVED", "CLOSED", "REOPENED", "OCCURRENCE_RECORDED"] },
+    "notificationKind": { "enum": ["urgent", "transition", "recovery", "digest", "canary"] },
+    "severity": { "enum": ["SEV0", "SEV1", "SEV2", "SEV3"] },
+    "route": { "$ref": "#/$defs/route" },
+    "template": { "$ref": "#/$defs/template" },
+    "payload": { "$ref": "#/$defs/payload" },
+    "payloadSha256": { "$ref": "#/$defs/sha256" },
+    "dispatchEligibility": { "enum": ["local_only", "blocked_authority", "eligible_external", "suppressed_recursive"] },
+    "recursionDisposition": { "enum": ["not_recursive", "suppressed_notify_family"] },
+    "outboxAtomicWithIncidentEvent": { "const": true },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" }
+  },
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "incidentState": { "enum": ["OPEN", "ACKNOWLEDGED", "INVESTIGATING", "MITIGATED", "RESOLVED", "CLOSED"] },
+    "route": {
+      "type": "object", "additionalProperties": false,
+      "required": ["routeId", "routeType", "external", "authorityStatus", "authorityDecisionReference", "recipientSetId", "failureDomain"],
+      "properties": {
+        "routeId": { "$ref": "#/$defs/stableId" },
+        "routeType": { "enum": ["local_json", "email", "slack", "discord", "github_issue", "pager", "independent_watchdog"] },
+        "external": { "type": "boolean" },
+        "authorityStatus": { "enum": ["local_fixture_only", "externally_blocked", "approved_external"] },
+        "authorityDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "recipientSetId": { "$ref": "#/$defs/stableId" },
+        "failureDomain": { "enum": ["local_fixture", "primary_outbox", "external_watchdog"] }
+      }
+    },
+    "template": {
+      "type": "object", "additionalProperties": false,
+      "required": ["templateId", "version"],
+      "properties": { "templateId": { "$ref": "#/$defs/stableId" }, "version": { "$ref": "#/$defs/stableId" } }
+    },
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["incidentCode", "severity", "environment", "incidentId", "currentState", "runbookId", "nextActionCode", "occurrenceCount", "recoveryState"],
+      "properties": {
+        "incidentCode": { "$ref": "#/$defs/reasonCode" },
+        "severity": { "enum": ["SEV0", "SEV1", "SEV2", "SEV3"] },
+        "environment": { "$ref": "#/$defs/stableId" },
+        "incidentId": { "$ref": "#/$defs/stableId" },
+        "currentState": { "$ref": "#/$defs/incidentState" },
+        "runbookId": { "$ref": "#/$defs/stableId" },
+        "nextActionCode": { "$ref": "#/$defs/reasonCode" },
+        "occurrenceCount": { "type": "integer", "minimum": 1 },
+        "recoveryState": { "enum": ["not_applicable", "recovered", "still_affected"] }
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["classification", "dataMinimizationDecisionReference", "recipientAuthorityDecisionReference", "retentionDecisionReference", "authenticationDecisionReference", "ownerDecisionReference", "canAcknowledgeIncident", "canResolveIncident", "mutatesEvidence"],
+      "properties": {
+        "classification": { "const": "notification_intent_only" },
+        "dataMinimizationDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "recipientAuthorityDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "retentionDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "authenticationDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "ownerDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "canAcknowledgeIncident": { "const": false },
+        "canResolveIncident": { "const": false },
+        "mutatesEvidence": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "contentSha256"],
+      "properties": { "algorithm": { "const": "sha256-canonical-incident-json-v1" }, "contentSha256": { "$ref": "#/$defs/sha256" } }
+    }
+  }
+}

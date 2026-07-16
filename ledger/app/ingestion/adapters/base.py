@@ -10,14 +10,37 @@ from app.schemas.boundary import (
     SourceFetchResult,
     SourceSnapshotInput,
 )
+from app.ingestion.safe_fetch import SafeFetchError
 
 
 class SourceAdapter(ABC):
     source_type: str
+    # Network-capable adapters inherit ``fetch`` below. Retired/test-only
+    # adapters must opt out explicitly and never be selected for production.
+    requires_central_fetch = True
+    accepted_content_types: frozenset[str] = frozenset(
+        {
+            "application/json",
+            "application/*+json",
+            "text/json",
+            "text/csv",
+            "application/csv",
+            "text/html",
+            "application/xhtml+xml",
+            "text/yaml",
+            "text/x-yaml",
+            "application/x-yaml",
+        }
+    )
 
-    @abstractmethod
     def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        """Fetch raw official source data. Must not extract claims yet."""
+        """Reject adapter-owned acquisition; the runner supplies captured bytes."""
+
+        _ = source
+        raise SafeFetchError(
+            "FETCH_PLAN_REQUIRED",
+            "network artifacts must be fetched by the ingestion runner before adapter parsing",
+        )
 
     def snapshot(self, source: OfficialSource, fetch_result: SourceFetchResult) -> SourceSnapshotInput:
         return SourceSnapshotInput(

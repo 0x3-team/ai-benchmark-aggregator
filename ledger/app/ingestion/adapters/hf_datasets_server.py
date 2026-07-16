@@ -1,63 +1,60 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
-from app.ingestion.extractors.normalize import try_parse_score
-from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultClaimInput, SourceFetchResult
+from app.ingestion.json_lexemes import (
+    JsonLexemeError,
+    canonical_config_json_path,
+    decode_json_bytes,
+    resolve_json_path,
+    source_score_lexeme,
+    source_text,
+)
+from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultClaimInput
 
 
 class HFDatasetsServerAdapter(SourceAdapter):
     source_type = "hf_datasets_server"
-
-    def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        import httpx
-        from app.config import get_settings
-
-        settings = get_settings()
-        headers = {"User-Agent": settings.http_user_agent}
-        if settings.hf_token:
-            headers["Authorization"] = f"Bearer {settings.hf_token}"
-        url = source.source_url
-        if "open-llm-leaderboard/blog" in url:
-            url = "https://datasets-server.huggingface.co/first-rows?dataset=open-llm-leaderboard/contents&config=default&split=train"
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(url, headers=headers)
-                resp.raise_for_status()
-                return SourceFetchResult(
-                    raw_bytes=resp.content,
-                    content_type=resp.headers.get("content-type"),
-                    http_status=resp.status_code,
-                    etag=resp.headers.get("etag"),
-                    last_modified_header=resp.headers.get("last-modified"),
-                    final_url=str(resp.url),
-                    headers={k: v for k, v in resp.headers.items() if k.lower() in {"etag", "last-modified", "content-type"}},
-                )
-        except Exception as exc:
-            # Gracefully raise a RuntimeError that gets logged in ingestion summary
-            raise RuntimeError(f"Fetch failed for {source.id}: {exc}") from exc
+    accepted_content_types = frozenset({"application/json", "application/*+json", "text/json"})
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes
     ) -> list[ResultClaimInput]:
         cfg = source.parser_config or {}
         try:
-            data = json.loads(raw_bytes.decode("utf-8"))
-        except Exception:
+            data = decode_json_bytes(raw_bytes)
+        except JsonLexemeError:
             return []
 
-        records_path = cfg.get("records_path", "rows")
-        row_field = cfg.get("row_field", "row")
-        model_field = cfg.get("model_field", "model")
-        score_field = cfg.get("score_field", "score")
+        records_path = canonical_config_json_path(cfg.get("records_path"))
+        row_field = cfg.get("row_field")
+        model_field = cfg.get("model_field")
+        score_field = cfg.get("score_field")
+        if (
+            records_path is None
+            or row_field is not None
+            and (not isinstance(row_field, str) or not row_field)
+            or not isinstance(model_field, str)
+            or not model_field
+            or not isinstance(score_field, str)
+            or not score_field
+        ):
+            return []
         metric_field = cfg.get("metric_field")
         split_field = cfg.get("split_field")
         rank_field = cfg.get("rank_field")
-
-        rows = data.get(records_path) or data.get("rows") or []
+        optional_fields = {
+            "metric_raw": metric_field,
+            "split_raw": split_field,
+            "rank_raw": rank_field,
+        }
+        if any(field is not None and (not isinstance(field, str) or not field) for field in optional_fields.values()):
+            return []
+        rows, rows_error = resolve_json_path(data, records_path)
+        if rows_error or not isinstance(rows, list):
+            return []
         claims: list[ResultClaimInput] = []
 
         for i, row in enumerate(rows):
@@ -67,10 +64,18 @@ class HFDatasetsServerAdapter(SourceAdapter):
             if not isinstance(row_data, dict):
                 continue
 
-            model_raw = str(row_data.get(model_field, ""))
-            score_raw = str(row_data.get(score_field, ""))
-            if not model_raw or not score_raw:
+            model_raw = source_text(row_data.get(model_field))
+            score_raw = source_score_lexeme(row_data.get(score_field))
+            if model_raw is None or score_raw is None:
                 continue
+            metric_raw = source_text(row_data.get(metric_field)) if isinstance(metric_field, str) else None
+            split_raw = source_text(row_data.get(split_field)) if isinstance(split_field, str) else None
+            rank_raw = source_score_lexeme(row_data.get(rank_field)) if isinstance(rank_field, str) else None
+            record_path = f"{records_path}[{i}]" + (f".{row_field}" if row_field else "")
+            fields = {"model_raw": model_field, "score_raw": score_field}
+            for field_name, source_field in optional_fields.items():
+                if isinstance(source_field, str):
+                    fields[field_name] = source_field
 
             claims.append(
                 ResultClaimInput(
@@ -80,14 +85,14 @@ class HFDatasetsServerAdapter(SourceAdapter):
                     model_raw=model_raw,
                     benchmark_raw=source.benchmark_id or source.source_name,
                     score_raw=score_raw,
-                    metric_raw=str(row_data.get(metric_field)) if metric_field and row_data.get(metric_field) is not None else score_field,
-                    split_raw=str(row_data.get(split_field)) if split_field and row_data.get(split_field) is not None else None,
-                    rank_raw=str(row_data.get(rank_field)) if rank_field and row_data.get(rank_field) is not None else None,
-                    score_numeric=try_parse_score(score_raw) if score_raw else None,
+                    metric_raw=metric_raw,
+                    split_raw=split_raw,
+                    rank_raw=rank_raw,
+                    score_numeric=None,
                     evidence_location={
-                        "type": "json_path",
-                        "path": f"$.{records_path}[{i}].{row_field}.{score_field}",
-                        "model_path": f"$.{records_path}[{i}].{row_field}.{model_field}",
+                        "type": "json_path_v1",
+                        "record_path": record_path,
+                        "fields": fields,
                     },
                     capture_method="hf_datasets_server_parser",
                     capture_confidence=0.95,
@@ -99,10 +104,26 @@ class HFDatasetsServerAdapter(SourceAdapter):
 
     def validate_claim(self, claim: ResultClaimInput, raw_bytes: bytes) -> list[ClaimValidationInput]:
         try:
-            text = raw_bytes.decode("utf-8")
-        except Exception:
-            text = ""
-        outcome = "pass" if claim.score_raw and claim.score_raw in text else "uncertain"
+            data = decode_json_bytes(raw_bytes)
+            locator = claim.evidence_location
+            if not isinstance(locator, dict) or locator.get("type") != "json_path_v1":
+                raise JsonLexemeError("claim has no JSON record locator")
+            record, error = resolve_json_path(data, locator.get("record_path"))
+            fields = locator.get("fields")
+            if error or not isinstance(record, dict) or not isinstance(fields, dict):
+                raise JsonLexemeError("claim record cannot resolve")
+            model_field = fields.get("model_raw")
+            score_field = fields.get("score_raw")
+            if not isinstance(model_field, str) or not isinstance(score_field, str):
+                raise JsonLexemeError("claim field mapping is invalid")
+            outcome = (
+                "pass"
+                if source_text(record.get(model_field)) == claim.model_raw
+                and source_score_lexeme(record.get(score_field)) == claim.score_raw
+                else "uncertain"
+            )
+        except JsonLexemeError:
+            outcome = "uncertain"
         return [
             ClaimValidationInput(
                 validation_type="json_path_match",

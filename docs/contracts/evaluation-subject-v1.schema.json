@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/evaluation-subject-v1.schema.json",
+  "title": "Evaluation Subject v1",
+  "description": "A typed top-level evaluated entity proposal or reviewed definition. It preserves source identity and composition without itself mapping a claim, reviewing validation, authorizing publication, or becoming a frontend input.",
+  "$comment": "Semantic validation rejects type/detail mismatches, fabricated base-model mappings, duplicate/self/cyclic component links, unresolved components presented as reviewed, mutable fields, count/fingerprint/digest mismatch, and authority escalation. The separate revision-chain validator rejects duplicate/missing/cross-subject/branched/cyclic subject supersession, subjectType changes, changes to exact raw source identity, and any add/remove/link/role/raw/ordinal substitution in observed component composition. observedCompositionFingerprintSha256 hashes subjectType plus componentLinkId, role, exact componentRaw, and ordinal with links sorted by ID; it deliberately excludes componentSubjectId, resolution/review state, mapping decisions, evidence, and provenance so reviewed resolution enrichment can occur without redefining the observed system. The selected-graph validator remains distinct. Resolved subjects expose their own stable top-level modelId; agent, ensemble, endpoint, and opaque submission subjects are never collapsed into one component model. sha256-canonical-json-v1 replaces only manifest.contentSha256 with null and preserves array order; subjectFingerprintSha256 sorts set-like component, provenance, and evidence inputs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "policyVersion", "availability", "subjectRevisionId", "subjectId",
+    "supersedesSubjectRevisionId", "lifecycleStatus", "decisionReference", "reasonCode",
+    "subjectType", "resolutionStatus", "subjectFingerprintSha256",
+    "observedCompositionFingerprintSha256", "authority", "manifest",
+    "displayIdentity", "rawSourceIdentity", "typeDetails", "components",
+    "provenanceReferences", "baseModelMapping", "claimBinding"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "evaluation-subject-v1" },
+    "availability": { "const": "identity_definition_only" },
+    "subjectRevisionId": { "$ref": "#/$defs/stableId" },
+    "subjectId": { "$ref": "#/$defs/stableId" },
+    "supersedesSubjectRevisionId": { "$ref": "#/$defs/nullableStableId" },
+    "lifecycleStatus": { "enum": ["draft", "reviewed", "superseded", "retired"] },
+    "decisionReference": { "$ref": "#/$defs/nullableStableId" },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "subjectType": {
+      "enum": ["base_model", "versioned_endpoint", "agent_model_system", "ensemble", "opaque_submission", "unknown_unresolved"]
+    },
+    "resolutionStatus": { "enum": ["resolved", "unresolved"] },
+    "subjectFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "observedCompositionFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "displayIdentity": { "$ref": "#/$defs/displayIdentity" },
+    "rawSourceIdentity": { "$ref": "#/$defs/rawSourceIdentity" },
+    "typeDetails": { "$ref": "#/$defs/typeDetails" },
+    "components": {
+      "type": "array", "uniqueItems": true,
+      "items": { "$ref": "#/$defs/component" }
+    },
+    "provenanceReferences": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/provenance" }
+    },
+    "baseModelMapping": { "$ref": "#/$defs/baseModelMapping" },
+    "claimBinding": { "$ref": "#/$defs/claimBinding" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "lifecycleStatus": { "const": "draft" } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "decisionReference": { "type": "null" },
+          "authority": {
+            "properties": { "reviewStatus": { "const": "draft_unreviewed" } },
+            "required": ["reviewStatus"]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "decisionReference": { "$ref": "#/$defs/stableId" },
+          "authority": {
+            "properties": { "reviewStatus": { "const": "identity_reviewed" } },
+            "required": ["reviewStatus"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/nonEmptyString" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nullableSha256": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }] },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "classification", "reviewStatus", "establishesClaimMapping", "rewritesClaims",
+        "promotesValidation", "authorizesPublication", "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "evaluation_subject_definition_only" },
+        "reviewStatus": { "enum": ["draft_unreviewed", "identity_reviewed"] },
+        "establishesClaimMapping": { "const": false },
+        "rewritesClaims": { "const": false },
+        "promotesValidation": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "componentLinkCount", "provenanceReferenceCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "componentLinkCount": { "type": "integer", "minimum": 0 },
+        "provenanceReferenceCount": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "displayIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["modelEntityId", "displayName", "entityType", "preservesGetValueModelIdentity", "frontendComparable"],
+      "properties": {
+        "modelEntityId": { "$ref": "#/$defs/nullableStableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "entityType": {
+          "enum": ["base_model", "versioned_endpoint", "agent_model_system", "ensemble", "opaque_submission", "unknown_unresolved"]
+        },
+        "preservesGetValueModelIdentity": { "const": true },
+        "frontendComparable": { "const": false }
+      }
+    },
+    "rawSourceIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "modelRaw", "providerRaw", "configurationRaw", "sourceObservationReference",
+        "sourceSnapshotReference", "evidenceReferenceIds", "preservedExactly", "normalizationApplied"
+      ],
+      "properties": {
+        "modelRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "providerRaw": { "$ref": "#/$defs/nullableString" },
+        "configurationRaw": { "$ref": "#/$defs/nullableString" },
+        "sourceObservationReference": { "$ref": "#/$defs/nullableStableId" },
+        "sourceSnapshotReference": { "$ref": "#/$defs/nullableStableId" },
+        "evidenceReferenceIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "preservedExactly": { "const": true },
+        "normalizationApplied": { "const": false }
+      }
+    },
+    "typeDetails": {
+      "oneOf": [
+        { "$ref": "#/$defs/baseModelDetails" },
+        { "$ref": "#/$defs/versionedEndpointDetails" },
+        { "$ref": "#/$defs/agentSystemDetails" },
+        { "$ref": "#/$defs/ensembleDetails" },
+        { "$ref": "#/$defs/opaqueSubmissionDetails" },
+        { "$ref": "#/$defs/unknownDetails" }
+      ]
+    },
+    "baseModelDetails": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detailType", "modelVersionRaw"],
+      "properties": {
+        "detailType": { "const": "base_model" },
+        "modelVersionRaw": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "versionedEndpointDetails": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detailType", "endpointRaw", "endpointVersionRaw"],
+      "properties": {
+        "detailType": { "const": "versioned_endpoint" },
+        "endpointRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "endpointVersionRaw": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "agentSystemDetails": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detailType", "agentRaw", "systemVersionRaw"],
+      "properties": {
+        "detailType": { "const": "agent_model_system" },
+        "agentRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "systemVersionRaw": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "ensembleDetails": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detailType", "routingRaw"],
+      "properties": {
+        "detailType": { "const": "ensemble" },
+        "routingRaw": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "opaqueSubmissionDetails": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detailType", "submissionRaw"],
+      "properties": {
+        "detailType": { "const": "opaque_submission" },
+        "submissionRaw": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "unknownDetails": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detailType", "uncertaintyNote"],
+      "properties": {
+        "detailType": { "const": "unknown_unresolved" },
+        "uncertaintyNote": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "component": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "componentLinkId", "role", "componentSubjectId", "componentRaw",
+        "resolutionStatus", "reviewStatus", "mappingDecisionReference",
+        "evidenceReferenceIds", "ordinal"
+      ],
+      "properties": {
+        "componentLinkId": { "$ref": "#/$defs/stableId" },
+        "role": { "enum": ["base_model", "endpoint", "agent", "harness", "tooling", "router", "member", "other"] },
+        "componentSubjectId": { "$ref": "#/$defs/nullableStableId" },
+        "componentRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "resolutionStatus": { "enum": ["resolved", "unresolved"] },
+        "reviewStatus": { "enum": ["proposed", "reviewed"] },
+        "mappingDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "evidenceReferenceIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "ordinal": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] }
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provenanceId", "provenanceType", "referenceId", "contentSha256", "mappingAuthority"],
+      "properties": {
+        "provenanceId": { "$ref": "#/$defs/stableId" },
+        "provenanceType": { "enum": ["discovery_candidate", "source_snapshot", "manual_official_lead", "first_party_metadata"] },
+        "referenceId": { "$ref": "#/$defs/stableId" },
+        "contentSha256": { "$ref": "#/$defs/nullableSha256" },
+        "mappingAuthority": { "const": "context_only_not_identity_proof" }
+      }
+    },
+    "baseModelMapping": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "componentLinkId", "decisionReference", "fabricated"],
+      "properties": {
+        "status": { "enum": ["not_applicable", "unresolved", "proposed", "reviewed"] },
+        "componentLinkId": { "$ref": "#/$defs/nullableStableId" },
+        "decisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "fabricated": { "const": false }
+      }
+    },
+    "claimBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "mayBindFutureClaims", "requiresIdentityDecision", "rewritesExistingClaims",
+        "preservesModelRaw", "promotesValidationOrPublication"
+      ],
+      "properties": {
+        "mayBindFutureClaims": { "const": false },
+        "requiresIdentityDecision": { "const": true },
+        "rewritesExistingClaims": { "const": false },
+        "preservesModelRaw": { "const": true },
+        "promotesValidationOrPublication": { "const": false }
+      }
+    }
+  }
+}

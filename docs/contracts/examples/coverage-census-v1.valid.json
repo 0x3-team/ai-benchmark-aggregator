@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "coverage-census-v1",
+  "availability": "report_only",
+  "readiness": "blocked",
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "112c4a9898b3ac8e4343191b668dc22a8bb416b145bc3f9f2f179a155e7cdbbc",
+    "denominators": {
+      "universeBenchmarkIdCount": 1,
+      "benchmarkRowCount": 1,
+      "benchmarkUniqueIdCount": 1,
+      "sourceRowCount": 1,
+      "sourceUniqueIdCount": 1,
+      "modelRowCount": 1,
+      "modelUniqueIdCount": 1,
+      "registryAliasRowCount": 0,
+      "legacyTableCount": 0,
+      "issueCount": 1
+    }
+  },
+  "universe": {
+    "universeRevisionId": "coverage-universe-example-v1",
+    "contentSha256": "6012d8f443e456795d4a0134bf04b4dbd293f109020eec21ddc1ff32624aa48c",
+    "approvalStatus": "draft_unapproved",
+    "effectiveOn": null,
+    "decisionReference": null,
+    "benchmarkIdCount": 1,
+    "configuredSourceRouteIdCount": 1
+  },
+  "inputs": [
+    {
+      "inputId": "benchmark_registry:benchmarks.example.yaml",
+      "inputType": "benchmark_registry",
+      "relativePath": "benchmarks.example.yaml",
+      "contentSha256": "0863cfd6ba762f6edfdd727ea6831fbe802d99d44a5765c0aea12f57bddb748b",
+      "rowCount": 1,
+      "inspectionStatus": "loaded",
+      "reasonCode": "SEMANTIC_INPUT_LOADED"
+    },
+    {
+      "inputId": "coverage_universe",
+      "inputType": "coverage_universe",
+      "relativePath": "coverage_universe.example.yaml",
+      "contentSha256": "6012d8f443e456795d4a0134bf04b4dbd293f109020eec21ddc1ff32624aa48c",
+      "rowCount": 2,
+      "inspectionStatus": "loaded",
+      "reasonCode": "SEMANTIC_INPUT_LOADED"
+    },
+    {
+      "inputId": "legacy_database",
+      "inputType": "legacy_database",
+      "relativePath": "not-configured",
+      "contentSha256": null,
+      "rowCount": 0,
+      "inspectionStatus": "not_configured",
+      "reasonCode": "LEGACY_DATABASE_NOT_CONFIGURED"
+    },
+    {
+      "inputId": "model_registry:models.example.yaml",
+      "inputType": "model_registry",
+      "relativePath": "models.example.yaml",
+      "contentSha256": "8eaf4eaf4d41567d2a426fd75b5b2e388d19a47ecde759be7c3cf8698d1b441e",
+      "rowCount": 1,
+      "inspectionStatus": "loaded",
+      "reasonCode": "SEMANTIC_INPUT_LOADED"
+    },
+    {
+      "inputId": "source_registry:official_sources.example.yaml",
+      "inputType": "source_registry",
+      "relativePath": "official_sources.example.yaml",
+      "contentSha256": "fc2eafa9452cd7065ddaacc2053549f813306527a888c0deedaf0f6a207b5bb9",
+      "rowCount": 1,
+      "inspectionStatus": "loaded",
+      "reasonCode": "SEMANTIC_INPUT_LOADED"
+    }
+  ],
+  "summary": {
+    "reasonCounts": {
+      "UNIVERSE_REVISION_UNAPPROVED": 1
+    },
+    "statusCounts": {
+      "known": 1,
+      "watched": 0,
+      "candidate": 0,
+      "contract_ready": 0,
+      "certified": 0,
+      "captured": 0,
+      "reviewed": 0,
+      "published": 0,
+      "deferred": 0,
+      "terms_blocked": 0,
+      "unsupported": 0
+    },
+    "configuredActiveSourceCount": 1,
+    "certificationAssessmentStatus": "not_assessed",
+    "certifiedSourceCount": null,
+    "publishedSourceCount": null,
+    "universeSourceRouteCount": 1,
+    "resultClaimQuarantineCount": 0
+  },
+  "benchmarks": [
+    {
+      "rowKey": "benchmark_registry:benchmarks.example.yaml:row:0",
+      "inputId": "benchmark_registry:benchmarks.example.yaml",
+      "rowIndex": 0,
+      "stableId": "example_benchmark",
+      "registryStatus": "active",
+      "coverageStatus": "configured",
+      "reportDisposition": "configured",
+      "reasonCode": "EXAMPLE_REGISTRY_MEMBER",
+      "aliases": [],
+      "benchmarkId": "example_benchmark"
+    }
+  ],
+  "sources": [
+    {
+      "rowKey": "source_registry:official_sources.example.yaml:row:0",
+      "inputId": "source_registry:official_sources.example.yaml",
+      "rowIndex": 0,
+      "stableId": "example_source_route",
+      "registryStatus": "active",
+      "coverageStatus": "configured",
+      "reportDisposition": "configured",
+      "reasonCode": "EXAMPLE_CONFIGURED_ROUTE",
+      "aliases": [],
+      "sourceRouteId": "example_source_route",
+      "benchmarkId": "example_benchmark"
+    }
+  ],
+  "models": [
+    {
+      "rowKey": "model_registry:models.example.yaml:row:0",
+      "inputId": "model_registry:models.example.yaml",
+      "rowIndex": 0,
+      "stableId": "example_model",
+      "registryStatus": "active",
+      "coverageStatus": null,
+      "reportDisposition": "catalogued",
+      "reasonCode": "REGISTRY_MODEL_CATALOGUED",
+      "aliases": [],
+      "modelId": "example_model"
+    }
+  ],
+  "legacyDatabase": {
+    "status": "absent",
+    "kind": "not_configured",
+    "path": "not-configured",
+    "contentSha256": null,
+    "schemaSha256": null,
+    "reasonCode": "LEGACY_DATABASE_NOT_CONFIGURED",
+    "integrityOk": null,
+    "foreignKeyViolationCount": 0,
+    "orphanedReferenceCount": 0,
+    "resultClaimQuarantineCount": 0,
+    "revision": null,
+    "tableCounts": {},
+    "sourceIds": [],
+    "registrySourceIdsMissingFromDatabase": [],
+    "databaseSourceIdsMissingFromRegistry": [],
+    "aliasCollisions": []
+  },
+  "issues": [
+    {
+      "issueKey": "2ef03644f40e8933cae660d78eaedfc4a140284eca6e8677691d09b5abbc0289",
+      "issueType": "universe_gap",
+      "entityType": "universe",
+      "stableId": null,
+      "matchKind": null,
+      "matchKey": null,
+      "entityIds": [],
+      "rowKeys": [],
+      "reasonCode": "UNIVERSE_REVISION_UNAPPROVED",
+      "blocking": true
+    }
+  ]
+}

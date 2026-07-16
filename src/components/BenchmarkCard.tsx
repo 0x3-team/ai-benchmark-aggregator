@@ -1,23 +1,28 @@
 import { ExternalLink } from "lucide-react";
-import type { Benchmark, Model } from "../types";
-import { getValue } from "../data/registry";
+import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats } from "../lib/color";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS } from "../types";
 import { fmtScore } from "../lib/format";
+import { ClaimEvidence, ExternalSourceLink } from "./ClaimEvidence";
 
 interface BenchmarkCardProps {
-  benchmark: Benchmark;
-  models: Model[];
+  benchmark: DatasetBenchmark;
+  models: readonly DatasetModel[];
 }
 
 export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
+  const { getValue, getScoreEntry } = useDataset();
   const values = models.map((m) => getValue(m.id, benchmark.id));
   const stats = columnStats(values, benchmark);
 
   const ranked = models
-    .map((m) => ({ m, v: getValue(m.id, benchmark.id) }))
+    .map((m) => ({
+      m,
+      v: getValue(m.id, benchmark.id),
+      entry: getScoreEntry(m.id, benchmark.id),
+    }))
     .filter((r) => r.v != null)
     .sort((a, b) =>
       benchmark.higherIsBetter ? b.v! - a.v! : a.v! - b.v!
@@ -97,6 +102,11 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
             <span className="font-mono text-sm font-bold text-emerald-300">
               {fmt(r.v)}
             </span>
+            <ClaimEvidence
+              entry={r.entry?.officialProvenance ? r.entry : null}
+              modelName={r.m.name}
+              benchmarkName={benchmark.fullName}
+            />
           </li>
         ))}
         {ranked.length === 0 && (
@@ -106,14 +116,13 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
         )}
       </ol>
 
-      <a
+      <ExternalSourceLink
         className="mt-5 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
         href={benchmark.sourceUrl}
-        target="_blank"
-        rel="noreferrer"
       >
         View source <ExternalLink className="h-3.5 w-3.5" />
-      </a>
+        <span className="sr-only"> (opens in a new tab)</span>
+      </ExternalSourceLink>
     </div>
   );
 }

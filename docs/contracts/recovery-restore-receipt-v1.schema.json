@@ -1,0 +1,990 @@
+{
+  "$comment": "The pure Python validator additionally recomputes the receipt/self digests, duration, exact table/object denominators, copy relationships, seven lineage families, and authority ceilings. Runtime orchestration must prove the supplied checkpoint is the exact immutable published manifest and must verify all target bytes.",
+  "$defs": {
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "authorizesCapture": {
+          "const": false
+        },
+        "authorizesCutover": {
+          "const": false
+        },
+        "authorizesPublication": {
+          "const": false
+        },
+        "certifiesSources": {
+          "const": false
+        },
+        "classification": {
+          "const": "recovery_evidence_only"
+        },
+        "frontendLoadable": {
+          "const": false
+        },
+        "provesProductionRpoRto": {
+          "const": false
+        },
+        "provesProviderIndependence": {
+          "const": false
+        }
+      },
+      "required": [
+        "classification",
+        "certifiesSources",
+        "authorizesCapture",
+        "authorizesPublication",
+        "frontendLoadable",
+        "authorizesCutover",
+        "provesProviderIndependence",
+        "provesProductionRpoRto"
+      ],
+      "type": "object"
+    },
+    "count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lineageFamily": {
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "enum": [
+            "claim_publication_decisions",
+            "claim_review_decisions",
+            "identity_decisions",
+            "notification_receipts",
+            "ops_incident_events",
+            "review_work_item_events",
+            "source_revision_decisions"
+          ]
+        },
+        "leafCount": {
+          "$ref": "#/$defs/count"
+        },
+        "rootCount": {
+          "$ref": "#/$defs/count"
+        },
+        "rowCount": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "family",
+        "rootCount",
+        "leafCount",
+        "rowCount"
+      ],
+      "type": "object"
+    },
+    "objectKey": {
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*\\\\)[^\\u0000-\\u001f]+$",
+      "type": "string"
+    },
+    "postgresqlIntegrity": {
+      "additionalProperties": false,
+      "properties": {
+        "foreignKeyViolationCount": {
+          "const": 0
+        },
+        "postgresqlConsistencyCheck": {
+          "const": "passed"
+        },
+        "semanticLineageAudit": {
+          "$ref": "#/$defs/semanticLineageAudit"
+        }
+      },
+      "required": [
+        "postgresqlConsistencyCheck",
+        "foreignKeyViolationCount",
+        "semanticLineageAudit"
+      ],
+      "type": "object"
+    },
+    "recoveryCopy": {
+      "additionalProperties": false,
+      "properties": {
+        "byteLength": {
+          "$ref": "#/$defs/count"
+        },
+        "contentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "failureDomainId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "key": {
+          "$ref": "#/$defs/objectKey"
+        },
+        "objectKind": {
+          "enum": [
+            "snapshot",
+            "artifact"
+          ]
+        },
+        "provider": {
+          "$ref": "#/$defs/stableId"
+        },
+        "uri": {
+          "$ref": "#/$defs/safeLocator"
+        },
+        "verificationReceiptId": {
+          "pattern": "^storage-verification-v1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "writePrecondition": {
+          "enum": [
+            "atomic_no_replace",
+            "if_none_match_wildcard"
+          ]
+        }
+      },
+      "required": [
+        "failureDomainId",
+        "provider",
+        "objectKind",
+        "uri",
+        "key",
+        "contentSha256",
+        "byteLength",
+        "writePrecondition",
+        "verificationReceiptId"
+      ],
+      "type": "object"
+    },
+    "relationalRestore": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifactType": {
+                "const": "sqlite_database"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "driverId": {
+                "const": "sqlite-python-stdlib"
+              },
+              "driverVersion": {
+                "const": "1.0.0"
+              },
+              "engineName": {
+                "const": "sqlite"
+              },
+              "engineVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              },
+              "format": {
+                "const": "sqlite3_backup_image"
+              },
+              "formatVersion": {
+                "const": "sqlite-file-format-3"
+              },
+              "inspectionEngineVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              },
+              "inspectionToolVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              },
+              "integrity": {
+                "$ref": "#/$defs/sqliteIntegrity"
+              },
+              "schemaDigestAlgorithm": {
+                "const": "sha256-canonical-sqlite-schema-v1"
+              },
+              "toolName": {
+                "const": "python-sqlite3-backup-api"
+              },
+              "toolVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifactType": {
+                "const": "postgresql_database"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "driverId": {
+                "const": "postgresql-pg-tools"
+              },
+              "driverVersion": {
+                "const": "1.0.0"
+              },
+              "engineName": {
+                "const": "postgresql"
+              },
+              "engineVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              },
+              "format": {
+                "const": "postgresql_custom_archive"
+              },
+              "formatVersion": {
+                "const": "pg_dump-custom-v1"
+              },
+              "inspectionEngineVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              },
+              "inspectionToolVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              },
+              "integrity": {
+                "$ref": "#/$defs/postgresqlIntegrity"
+              },
+              "schemaDigestAlgorithm": {
+                "const": "sha256-canonical-postgresql-schema-v1"
+              },
+              "toolName": {
+                "const": "pg_dump-pg_restore"
+              },
+              "toolVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "artifactType": {
+          "enum": [
+            "sqlite_database",
+            "postgresql_database"
+          ]
+        },
+        "byteLength": {
+          "$ref": "#/$defs/count"
+        },
+        "driverId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "driverVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "engineName": {
+          "enum": [
+            "sqlite",
+            "postgresql"
+          ]
+        },
+        "engineVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "format": {
+          "$ref": "#/$defs/stableId"
+        },
+        "formatVersion": {
+          "$ref": "#/$defs/stableId"
+        },
+        "inspectionEngineVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inspectionToolVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "integrity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sqliteIntegrity"
+            },
+            {
+              "$ref": "#/$defs/postgresqlIntegrity"
+            }
+          ]
+        },
+        "matchesCheckpoint": {
+          "const": true
+        },
+        "restoredContentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rowsetDigestAlgorithm": {
+          "const": "sha256-canonical-typed-rowset-v1"
+        },
+        "schemaDigestAlgorithm": {
+          "enum": [
+            "sha256-canonical-sqlite-schema-v1",
+            "sha256-canonical-postgresql-schema-v1"
+          ]
+        },
+        "schemaRevision": {
+          "$ref": "#/$defs/stableId"
+        },
+        "schemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceBackupContentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceDatabaseIdentitySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tableInventorySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/tableInventoryEntry"
+          },
+          "maxItems": 36,
+          "minItems": 36,
+          "type": "array"
+        },
+        "toolName": {
+          "$ref": "#/$defs/stableId"
+        },
+        "toolVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactType",
+        "driverId",
+        "driverVersion",
+        "engineName",
+        "engineVersion",
+        "inspectionEngineVersion",
+        "toolName",
+        "toolVersion",
+        "inspectionToolVersion",
+        "format",
+        "formatVersion",
+        "sourceDatabaseIdentitySha256",
+        "schemaRevision",
+        "schemaDigestAlgorithm",
+        "rowsetDigestAlgorithm",
+        "byteLength",
+        "schemaSha256",
+        "tableInventorySha256",
+        "tables",
+        "integrity",
+        "sourceBackupContentSha256",
+        "restoredContentSha256",
+        "matchesCheckpoint"
+      ],
+      "type": "object"
+    },
+    "restoreObject": {
+      "additionalProperties": false,
+      "properties": {
+        "byteLength": {
+          "$ref": "#/$defs/count"
+        },
+        "contentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "recoveryCopyUri": {
+          "$ref": "#/$defs/safeLocator"
+        },
+        "referenceId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "referenceType": {
+          "const": "source_snapshot_raw"
+        },
+        "restoredCopy": {
+          "$ref": "#/$defs/recoveryCopy"
+        },
+        "sourceLogicalUri": {
+          "$ref": "#/$defs/safeLocator"
+        }
+      },
+      "required": [
+        "referenceType",
+        "referenceId",
+        "sourceLogicalUri",
+        "contentSha256",
+        "byteLength",
+        "recoveryCopyUri",
+        "restoredCopy"
+      ],
+      "type": "object"
+    },
+    "safeLocator": {
+      "minLength": 1,
+      "pattern": "^[^?#\\u0000-\\u001f]+$",
+      "type": "string"
+    },
+    "semanticLineageAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "families": {
+          "items": {
+            "$ref": "#/$defs/lineageFamily"
+          },
+          "maxItems": 7,
+          "minItems": 7,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "familyCount": {
+          "const": 7
+        },
+        "rowCount": {
+          "$ref": "#/$defs/count"
+        },
+        "status": {
+          "const": "passed"
+        }
+      },
+      "required": [
+        "status",
+        "familyCount",
+        "rowCount",
+        "families"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "sqliteIntegrity": {
+      "additionalProperties": false,
+      "properties": {
+        "foreignKeyViolationCount": {
+          "const": 0
+        },
+        "semanticLineageAudit": {
+          "$ref": "#/$defs/semanticLineageAudit"
+        },
+        "sqliteIntegrityCheck": {
+          "const": "ok"
+        }
+      },
+      "required": [
+        "sqliteIntegrityCheck",
+        "foreignKeyViolationCount",
+        "semanticLineageAudit"
+      ],
+      "type": "object"
+    },
+    "stableId": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$",
+      "type": "string"
+    },
+    "tableInventoryEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "columnNames": {
+          "items": {
+            "$ref": "#/$defs/stableId"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "rowCount": {
+          "$ref": "#/$defs/count"
+        },
+        "rowsetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tableName": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "required": [
+        "tableName",
+        "columnNames",
+        "rowCount",
+        "rowsetSha256"
+      ],
+      "type": "object"
+    },
+    "utcTimestamp": {
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "https://ai-benchmark-platform.local/contracts/recovery-restore-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Deterministic evidence for one verified restore into a fresh relational target and a fresh independently addressed object target. It does not authorize runtime cutover or prove a production RPO/RTO/provider claim.",
+  "properties": {
+    "authority": {
+      "$ref": "#/$defs/authority"
+    },
+    "availability": {
+      "const": "recovery_evidence_only"
+    },
+    "checkpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpointId": {
+          "pattern": "^recovery-checkpoint_[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "contentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "triggerCycleContentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "triggerCycleId": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "required": [
+        "checkpointId",
+        "contentSha256",
+        "triggerCycleId",
+        "triggerCycleContentSha256"
+      ],
+      "type": "object"
+    },
+    "durationMs": {
+      "$ref": "#/$defs/count"
+    },
+    "failureDomains": {
+      "additionalProperties": false,
+      "properties": {
+        "declaredDistinct": {
+          "const": true
+        },
+        "independenceEvidence": {
+          "const": "external_evidence_required"
+        },
+        "recovery": {
+          "$ref": "#/$defs/stableId"
+        },
+        "restore": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "required": [
+        "recovery",
+        "restore",
+        "declaredDistinct",
+        "independenceEvidence"
+      ],
+      "type": "object"
+    },
+    "finishedAt": {
+      "$ref": "#/$defs/utcTimestamp"
+    },
+    "manifest": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "sha256-canonical-recovery-json-v1"
+        },
+        "contentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "objectReferenceCount": {
+          "$ref": "#/$defs/count"
+        },
+        "tableCount": {
+          "const": 36
+        }
+      },
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "tableCount",
+        "objectReferenceCount"
+      ],
+      "type": "object"
+    },
+    "mode": {
+      "enum": [
+        "synthetic_fixture",
+        "shadow",
+        "production"
+      ]
+    },
+    "objectRestore": {
+      "additionalProperties": false,
+      "properties": {
+        "allVerified": {
+          "const": true
+        },
+        "objectReferenceCount": {
+          "$ref": "#/$defs/count"
+        },
+        "objectSetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "objects": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "byteLength": {
+                "$ref": "#/$defs/count"
+              },
+              "contentSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "recoveryCopyUri": {
+                "$ref": "#/$defs/safeLocator"
+              },
+              "referenceId": {
+                "$ref": "#/$defs/stableId"
+              },
+              "referenceType": {
+                "const": "source_snapshot_raw"
+              },
+              "restoredCopy": {
+                "$ref": "#/$defs/recoveryCopy"
+              },
+              "sourceLogicalUri": {
+                "$ref": "#/$defs/safeLocator"
+              }
+            },
+            "required": [
+              "referenceType",
+              "referenceId",
+              "sourceLogicalUri",
+              "contentSha256",
+              "byteLength",
+              "recoveryCopyUri",
+              "restoredCopy"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "uniqueObjectCount": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "objectReferenceCount",
+        "uniqueObjectCount",
+        "objectSetSha256",
+        "objects",
+        "allVerified"
+      ],
+      "type": "object"
+    },
+    "policyVersion": {
+      "const": "recovery-restore-receipt-v1"
+    },
+    "receiptId": {
+      "pattern": "^recovery-restore_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "recoveryAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "maximumCompletedCyclesLostTarget": {
+          "const": 1
+        },
+        "providerIndependenceStatus": {
+          "const": "external_evidence_required"
+        },
+        "rpoStatus": {
+          "const": "target_not_proven"
+        },
+        "rtoStatus": {
+          "const": "target_not_proven"
+        },
+        "runtimeLocatorCutoverStatus": {
+          "const": "not_authorized"
+        }
+      },
+      "required": [
+        "maximumCompletedCyclesLostTarget",
+        "rpoStatus",
+        "rtoStatus",
+        "providerIndependenceStatus",
+        "runtimeLocatorCutoverStatus"
+      ],
+      "type": "object"
+    },
+    "relationalRestore": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifactType": {
+                "const": "sqlite_database"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "driverId": {
+                "const": "sqlite-python-stdlib"
+              },
+              "driverVersion": {
+                "const": "1.0.0"
+              },
+              "engineName": {
+                "const": "sqlite"
+              },
+              "engineVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              },
+              "format": {
+                "const": "sqlite3_backup_image"
+              },
+              "formatVersion": {
+                "const": "sqlite-file-format-3"
+              },
+              "inspectionEngineVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              },
+              "inspectionToolVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              },
+              "integrity": {
+                "$ref": "#/$defs/sqliteIntegrity"
+              },
+              "schemaDigestAlgorithm": {
+                "const": "sha256-canonical-sqlite-schema-v1"
+              },
+              "toolName": {
+                "const": "python-sqlite3-backup-api"
+              },
+              "toolVersion": {
+                "pattern": "^3\\.\\d+\\.\\d+$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifactType": {
+                "const": "postgresql_database"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "driverId": {
+                "const": "postgresql-pg-tools"
+              },
+              "driverVersion": {
+                "const": "1.0.0"
+              },
+              "engineName": {
+                "const": "postgresql"
+              },
+              "engineVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              },
+              "format": {
+                "const": "postgresql_custom_archive"
+              },
+              "formatVersion": {
+                "const": "pg_dump-custom-v1"
+              },
+              "inspectionEngineVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              },
+              "inspectionToolVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              },
+              "integrity": {
+                "$ref": "#/$defs/postgresqlIntegrity"
+              },
+              "schemaDigestAlgorithm": {
+                "const": "sha256-canonical-postgresql-schema-v1"
+              },
+              "toolName": {
+                "const": "pg_dump-pg_restore"
+              },
+              "toolVersion": {
+                "pattern": "^16\\.\\d+(?:\\.\\d+)?$"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "artifactType": {
+          "enum": [
+            "sqlite_database",
+            "postgresql_database"
+          ]
+        },
+        "byteLength": {
+          "$ref": "#/$defs/count"
+        },
+        "driverId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "driverVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "engineName": {
+          "enum": [
+            "sqlite",
+            "postgresql"
+          ]
+        },
+        "engineVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "format": {
+          "$ref": "#/$defs/stableId"
+        },
+        "formatVersion": {
+          "$ref": "#/$defs/stableId"
+        },
+        "inspectionEngineVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inspectionToolVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "integrity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sqliteIntegrity"
+            },
+            {
+              "$ref": "#/$defs/postgresqlIntegrity"
+            }
+          ]
+        },
+        "matchesCheckpoint": {
+          "const": true
+        },
+        "restoredContentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rowsetDigestAlgorithm": {
+          "const": "sha256-canonical-typed-rowset-v1"
+        },
+        "schemaDigestAlgorithm": {
+          "enum": [
+            "sha256-canonical-sqlite-schema-v1",
+            "sha256-canonical-postgresql-schema-v1"
+          ]
+        },
+        "schemaRevision": {
+          "$ref": "#/$defs/stableId"
+        },
+        "schemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceBackupContentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceDatabaseIdentitySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tableInventorySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tables": {
+          "items": {
+            "$ref": "#/$defs/tableInventoryEntry"
+          },
+          "maxItems": 36,
+          "minItems": 36,
+          "type": "array"
+        },
+        "toolName": {
+          "$ref": "#/$defs/stableId"
+        },
+        "toolVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactType",
+        "driverId",
+        "driverVersion",
+        "engineName",
+        "engineVersion",
+        "inspectionEngineVersion",
+        "toolName",
+        "toolVersion",
+        "inspectionToolVersion",
+        "format",
+        "formatVersion",
+        "sourceDatabaseIdentitySha256",
+        "schemaRevision",
+        "schemaDigestAlgorithm",
+        "rowsetDigestAlgorithm",
+        "byteLength",
+        "schemaSha256",
+        "tableInventorySha256",
+        "tables",
+        "integrity",
+        "sourceBackupContentSha256",
+        "restoredContentSha256",
+        "matchesCheckpoint"
+      ],
+      "type": "object"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "startedAt": {
+      "$ref": "#/$defs/utcTimestamp"
+    },
+    "target": {
+      "additionalProperties": false,
+      "properties": {
+        "cutoverAuthorized": {
+          "const": false
+        },
+        "freshRelationalTarget": {
+          "const": true
+        },
+        "recoveryMapOnly": {
+          "const": true
+        },
+        "targetId": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "required": [
+        "targetId",
+        "freshRelationalTarget",
+        "recoveryMapOnly",
+        "cutoverAuthorized"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "mode",
+    "receiptId",
+    "startedAt",
+    "finishedAt",
+    "durationMs",
+    "checkpoint",
+    "target",
+    "failureDomains",
+    "relationalRestore",
+    "objectRestore",
+    "recoveryAssessment",
+    "authority",
+    "manifest"
+  ],
+  "title": "Recovery Restore Receipt v1",
+  "type": "object"
+}

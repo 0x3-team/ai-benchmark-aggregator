@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "benchmark-definition-revision-v1",
+  "availability": "definition_only",
+  "benchmarkDefinitionRevisionId": "example-benchmark-definition-v1",
+  "benchmarkFamilyId": "example-benchmark-family",
+  "benchmarkEditionId": "example-benchmark-edition-v1",
+  "supersedesDefinitionRevisionId": null,
+  "lifecycleStatus": "draft",
+  "effectivePeriod": {
+    "status": "not_effective",
+    "effectiveFrom": null,
+    "effectiveThrough": null
+  },
+  "decisionReference": null,
+  "reasonCode": "LOCAL_DRAFT_EXAMPLE_ONLY",
+  "authority": {
+    "classification": "benchmark_definition_only",
+    "approvalStatus": "draft_unapproved",
+    "certifiesSources": false,
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "6cd74c881c6472e47968a023b11a5a4a13239b2fa0e55c2f137c8297f9c2703d",
+    "dimensionFingerprintSha256": "02cf30830d27229b4cd5c8208a81d8b7dbe872248d8f82a2282a55ce3033d3c6",
+    "metricCount": 1,
+    "splitCount": 1,
+    "settingCount": 1,
+    "evaluationVersionCount": 1,
+    "unitCount": 1,
+    "comparabilityGroupCount": 1,
+    "comparisonCellCount": 1,
+    "relationshipCount": 1
+  },
+  "owner": {
+    "ownerId": "example-owner",
+    "displayName": "Example benchmark owner",
+    "officialRootUrls": ["https://benchmarks.invalid/"]
+  },
+  "identity": {
+    "canonicalBenchmarkId": "example-benchmark-edition-v1",
+    "familyDisplayName": "Example Benchmark",
+    "editionDisplayName": "Example Benchmark 2026",
+    "editionVersionRaw": "2026",
+    "description": "Local contract fixture for one immutable benchmark edition."
+  },
+  "changeControl": {
+    "changeType": "initial",
+    "identityDisposition": "new_edition_identity",
+    "priorBenchmarkEditionId": null,
+    "compatibilityImpact": "initial_identity",
+    "reasonCode": "INITIAL_LOCAL_DEFINITION"
+  },
+  "displayContract": {
+    "identityDimensions": ["modelId", "benchmarkId", "metric", "split", "setting", "evaluationVersion"],
+    "benchmarkId": "example-benchmark-edition-v1",
+    "scoreUnitIsSeparateProvenance": true,
+    "requiresExactCellIdentity": true
+  },
+  "dimensions": {
+    "metrics": [
+      {
+        "metricId": "accuracy",
+        "displayName": "Accuracy",
+        "direction": "higher_is_better",
+        "unitId": "percent"
+      }
+    ],
+    "splits": [
+      { "splitId": "test", "displayName": "Test" }
+    ],
+    "settings": [
+      {
+        "settingId": "standard",
+        "displayName": "Standard",
+        "description": "Owner-defined standard evaluation setting."
+      }
+    ],
+    "evaluationVersions": [
+      {
+        "evaluationVersionId": "evaluator-v1",
+        "evaluatorName": "Example Evaluator",
+        "evaluatorVersionRaw": "1.0",
+        "harnessVersionRaw": "harness-1.0"
+      }
+    ],
+    "units": [
+      {
+        "unitId": "percent",
+        "displayName": "Percent",
+        "symbol": "%",
+        "scaleDescription": "Exact source-reported percentage without recalculation."
+      }
+    ],
+    "comparabilityGroups": [
+      {
+        "comparabilityGroupId": "example-standard-v1",
+        "statement": "Compare only exact metric, split, setting, evaluator, and unit identity.",
+        "exactDimensionsRequired": true
+      }
+    ],
+    "comparisonCells": [
+      {
+        "comparisonCellId": "accuracy-test-standard-v1",
+        "metricId": "accuracy",
+        "splitId": "test",
+        "settingId": "standard",
+        "evaluationVersionId": "evaluator-v1",
+        "unitId": "percent",
+        "comparabilityGroupId": "example-standard-v1"
+      }
+    ]
+  },
+  "relationships": [
+    {
+      "relationshipId": "example-subset-link",
+      "relationshipType": "subset_of",
+      "relatedBenchmarkEditionId": "example-suite-edition-v1",
+      "comparabilityEffect": "distinct_identity_no_aggregate_substitution",
+      "reasonCode": "SUBSET_REMAINS_DISTINCT_IDENTITY"
+    }
+  ],
+  "sourceContractCompatibility": {
+    "requiredPolicyVersion": "source-contract-v2",
+    "requiresExactDefinitionRevisionId": true,
+    "requiresExactMetricSplitSettingEvaluationVersionUnit": true,
+    "allowedComparisonCellIds": ["accuracy-test-standard-v1"],
+    "allowsUnlistedDimensions": false
+  },
+  "claimRetention": {
+    "bindsClaimsToExactDefinitionRevision": true,
+    "retainsPriorClaimBindings": true,
+    "rewritesExistingClaims": false,
+    "requiresAppendOnlyCorrection": true,
+    "allowsIdentityFallback": false
+  }
+}

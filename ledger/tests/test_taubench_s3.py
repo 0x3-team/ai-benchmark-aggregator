@@ -36,17 +36,17 @@ def test_taubench_s3_extract_single_model():
     assert c.score_raw == "81.2500"
     assert c.score_numeric == 81.25
     assert c.metric_raw == "mean_pass_rate"
-    assert c.capture_method == "taubench_s3_parser"
-    assert c.capture_confidence == 0.9
-    assert c.capture_status == "parser_verified"
+    assert c.capture_method == "taubench_derived_analytics"
+    assert c.capture_confidence == 0.0
+    assert c.capture_status == "unreviewed"
     assert c.benchmark_id == "tau_bench"
-    assert c.evidence_location == {"type": "s3_submission", "model": "test-model-1"}
+    assert c.evidence_location == {"type": "derived_analytics", "model": "test-model-1"}
 
-    # Validation should pass
+    # Aggregation stays non-certifying even for supplied fixture bytes.
     validations = adapter.validate_claim(c, raw)
     assert len(validations) == 1
-    assert validations[0].validation_type == "taubench_agg"
-    assert validations[0].outcome == "pass"
+    assert validations[0].validation_type == "derived_aggregate"
+    assert validations[0].outcome == "fail"
     assert validations[0].validator == "TauBenchS3Adapter"
 
 

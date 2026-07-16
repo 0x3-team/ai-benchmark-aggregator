@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/coverage-universe-v1.schema.json",
+  "title": "Coverage Universe v1",
+  "description": "An immutable, bounded coverage definition. Membership means configured for coverage accounting only; it does not certify a source, authorize capture or publication, or create frontend data.",
+  "$comment": "Semantic validators MUST reject duplicate stable IDs, mismatched manifest counts, any non-bidirectional cohort membership, source routes whose benchmarkId is absent from benchmarks, a configured benchmark with no governed configured-or-omitted source-route record, non-contiguous or duplicate source-class priorities, invalid or zero refresh durations, and any omitted member without a reasonCode. The registry input semantic digests pin the exact watch-root records used for the revision. Time-relative freshness is deliberately not assessed by this immutable definition: a future scheduled-cycle receipt must bind an explicit deterministic slot/as-of value and apply refreshPolicy.stalenessThreshold before operational activation. Neither this contract nor the baseline census may infer freshness from the process wall clock. For sha256-canonical-json-v1, parse the document, replace manifest.contentSha256 with null, reject non-finite numbers, serialize JSON with recursively sorted object keys, preserved array order, ASCII escapes and separators ',' and ':', then hash the UTF-8 bytes with SHA-256. No generated-at or last-checked timestamp is part of this contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "universeRevisionId",
+    "supersedesUniverseRevisionId",
+    "effectiveOn",
+    "decisionReference",
+    "authority",
+    "manifest",
+    "scope",
+    "cohorts",
+    "benchmarks",
+    "configuredSourceRoutes",
+    "sourceClasses",
+    "refreshPolicy",
+    "exclusions",
+    "publicWording"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "coverage-universe-v1" },
+    "availability": { "const": "coverage_definition_only" },
+    "universeRevisionId": { "$ref": "#/$defs/stableId" },
+    "supersedesUniverseRevisionId": { "$ref": "#/$defs/nullableStableId" },
+    "effectiveOn": {
+      "description": "Immutable effective date for an approved revision, or null while this revision remains an unapproved draft. Changing it creates a new revision and digest.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "decisionReference": {
+      "description": "Owner/governance decision for this bounded coverage definition only; never a source-certification or publication decision.",
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/stableId" }
+      ]
+    },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "scope": { "$ref": "#/$defs/scope" },
+    "cohorts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/cohort" }
+    },
+    "benchmarks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/benchmark" }
+    },
+    "configuredSourceRoutes": {
+      "description": "Governed official-root/source-route records for coverage accounting. Every configured benchmark must have at least one route record; a route may itself be omitted only with an explicit reason.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/sourceRoute" }
+    },
+    "sourceClasses": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/sourceClass" }
+    },
+    "refreshPolicy": { "$ref": "#/$defs/refreshPolicy" },
+    "exclusions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/exclusion" }
+    },
+    "publicWording": { "$ref": "#/$defs/publicWording" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "authority": {
+            "properties": { "approvalStatus": { "const": "owner_approved" } },
+            "required": ["approvalStatus"]
+          }
+        },
+        "required": ["authority"]
+      },
+      "then": {
+        "properties": {
+          "effectiveOn": { "type": "string", "format": "date" },
+          "decisionReference": { "$ref": "#/$defs/stableId" }
+        }
+      },
+      "else": {
+        "properties": {
+          "effectiveOn": { "type": "null" },
+          "decisionReference": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/stableId" }
+      ]
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?$"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "approvalStatus",
+        "certifiesSources",
+        "authorizesCapture",
+        "authorizesPublication",
+        "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "coverage_definition_only" },
+        "approvalStatus": { "enum": ["draft_unapproved", "owner_approved"] },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "benchmarkCount",
+        "configuredSourceRouteCount",
+        "sourceClassCount",
+        "exclusionCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "benchmarkCount": { "type": "integer", "minimum": 0 },
+        "configuredSourceRouteCount": { "type": "integer", "minimum": 0 },
+        "sourceClassCount": { "type": "integer", "minimum": 1 },
+        "exclusionCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "boundedStatement", "internetComplete", "registryInputs"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "boundedStatement": { "$ref": "#/$defs/nonEmptyString" },
+        "internetComplete": { "const": false },
+        "registryInputs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "inputPath",
+              "recordType",
+              "selectionRule",
+              "expectedUniqueCount",
+              "semanticSha256"
+            ],
+            "properties": {
+              "inputPath": { "$ref": "#/$defs/nonEmptyString" },
+              "recordType": { "enum": ["benchmark", "configured_source_route"] },
+              "selectionRule": { "const": "all_unique_stable_ids" },
+              "expectedUniqueCount": { "type": "integer", "minimum": 0 },
+              "semanticSha256": {
+                "description": "SHA-256 of parsed registry rows after recursively sorting mapping keys, sorting each aliases array by canonical JSON value, and sorting rows by exact stable ID with canonical JSON as the duplicate-ID tie-breaker. The resulting row array is compact ASCII-escaped JSON. Comments, whitespace, mapping order, and source row order are excluded.",
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        }
+      }
+    },
+    "cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cohortId", "name", "purpose", "memberBenchmarkIds"],
+      "properties": {
+        "cohortId": { "$ref": "#/$defs/stableId" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "purpose": { "$ref": "#/$defs/nonEmptyString" },
+        "memberBenchmarkIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["benchmarkId", "coverageStatus", "reasonCode", "cohortIds"],
+      "properties": {
+        "benchmarkId": { "$ref": "#/$defs/stableId" },
+        "coverageStatus": { "enum": ["configured", "omitted"] },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "cohortIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        }
+      }
+    },
+    "sourceRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceRouteId",
+        "benchmarkId",
+        "registryStatus",
+        "coverageStatus",
+        "reasonCode"
+      ],
+      "properties": {
+        "sourceRouteId": { "$ref": "#/$defs/stableId" },
+        "benchmarkId": { "$ref": "#/$defs/stableId" },
+        "registryStatus": { "$ref": "#/$defs/nonEmptyString" },
+        "coverageStatus": { "enum": ["configured", "omitted"] },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "sourceClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceClassId",
+        "priority",
+        "methodFamily",
+        "candidateUse",
+        "discoveryOnly",
+        "captureRequiresSeparateCertification",
+        "publicationRequiresSeparateDecision"
+      ],
+      "properties": {
+        "sourceClassId": { "$ref": "#/$defs/stableId" },
+        "priority": { "type": "integer", "minimum": 1 },
+        "methodFamily": { "$ref": "#/$defs/nonEmptyString" },
+        "candidateUse": { "$ref": "#/$defs/nonEmptyString" },
+        "discoveryOnly": { "type": "boolean" },
+        "captureRequiresSeparateCertification": { "const": true },
+        "publicationRequiresSeparateDecision": { "const": true }
+      }
+    },
+    "refreshPolicy": {
+      "description": "Static cadence and threshold policy only. It does not prove current freshness; a separately persisted scheduled-cycle receipt must assess these values against its deterministic slot/as-of binding.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discoveryPlanningCadence",
+        "registryReconciliationCadence",
+        "coverageOwnerReviewCadence",
+        "stalenessThreshold",
+        "termsReviewPolicy",
+        "sourceRecheckAuthority"
+      ],
+      "properties": {
+        "discoveryPlanningCadence": { "$ref": "#/$defs/duration" },
+        "registryReconciliationCadence": { "$ref": "#/$defs/duration" },
+        "coverageOwnerReviewCadence": { "$ref": "#/$defs/duration" },
+        "stalenessThreshold": {
+          "description": "Threshold consumed by a future deterministic freshness assessor; the universe definition and baseline census contain no wall-clock assessment.",
+          "$ref": "#/$defs/duration"
+        },
+        "termsReviewPolicy": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceRecheckAuthority": { "const": "separate_certified_source_contract_only" }
+      }
+    },
+    "exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exclusionId",
+        "excludedClass",
+        "reasonCode",
+        "rationale",
+        "reconsiderationPolicy",
+        "ownerRole",
+        "reviewDueOn"
+      ],
+      "properties": {
+        "exclusionId": { "$ref": "#/$defs/stableId" },
+        "excludedClass": { "$ref": "#/$defs/stableId" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" },
+        "reconsiderationPolicy": { "$ref": "#/$defs/nonEmptyString" },
+        "ownerRole": { "$ref": "#/$defs/stableId" },
+        "reviewDueOn": {
+          "description": "Governance review target stored in the immutable revision. Whether it is overdue is assessed by a separate time-bound receipt, not this pure validator.",
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "publicWording": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverageLabel", "scopeStatement", "requiredDisclaimer", "forbiddenClaims"],
+      "properties": {
+        "coverageLabel": { "$ref": "#/$defs/nonEmptyString" },
+        "scopeStatement": { "$ref": "#/$defs/nonEmptyString" },
+        "requiredDisclaimer": { "$ref": "#/$defs/nonEmptyString" },
+        "forbiddenClaims": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      }
+    }
+  }
+}

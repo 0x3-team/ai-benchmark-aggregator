@@ -8,7 +8,7 @@ from sqlalchemy import select
 FIXTURE = Path(__file__).parent / "fixtures" / "fake_source.json"
 
 
-def test_claims_have_required_evidence_fields(seeded_db):
+def test_claims_have_required_evidence_fields(seeded_db, allow_quarantined_fixture_ingestion):
     with get_session() as session:
         run_ingestion(session, source_id="fake_local_fixture", fixture_path=FIXTURE)
         claims = repo.list_claims(session, limit=100)

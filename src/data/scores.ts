@@ -133,20 +133,16 @@ function generateScores(): Score[] {
   return out;
 }
 
-// Lazily initialize scores. scores.ts and models.ts/benchmarks.ts form a
-// cycle (each imports the other at module top). A top-level `generateScores()`
-// call would run during module init while `scores` is still in the TDZ on one
-// side of the cycle, throwing "Cannot access 'scores' before initialization"
-// and blanking the app. A lazy getter breaks the cycle safely.
+// Lazily initialize deterministic Demo scores after the static model and
+// benchmark catalogs have loaded. This avoids allocating the full synthetic
+// matrix merely by importing the module and leaves the React DatasetProvider
+// as the UI's sole active-data boundary.
 let _scores: Score[] | null = null;
 export function getScores(): Score[] {
   if (_scores === null) _scores = generateScores();
   return _scores;
 }
 
-// getScores() is called lazily by registry/App at React render time,
-// never at module load — so the demo generation can't fire during the
-// registry<=>scores init cycle. Do NOT re-export getValue/getScoreEntry from
-// here: that forced scores.ts to initialize during registry.ts init (circular
-// re-export) and blanked the app. Callers import those from ./registry directly.
-
+// Do not add score accessors here. UI consumers must obtain numeric values
+// through DatasetProvider's `getValue(modelId, benchmarkId)` and provenance
+// through its value-free `getScoreEntry`, never from a raw score array.

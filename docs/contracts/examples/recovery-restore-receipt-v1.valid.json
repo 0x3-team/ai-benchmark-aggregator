@@ -1,0 +1,828 @@
+{
+  "authority": {
+    "authorizesCapture": false,
+    "authorizesCutover": false,
+    "authorizesPublication": false,
+    "certifiesSources": false,
+    "classification": "recovery_evidence_only",
+    "frontendLoadable": false,
+    "provesProductionRpoRto": false,
+    "provesProviderIndependence": false
+  },
+  "availability": "recovery_evidence_only",
+  "checkpoint": {
+    "checkpointId": "recovery-checkpoint_286808fbed2019c75996d4c7b087266fc23e2082d9b467faea9afacb79c23a99",
+    "contentSha256": "2166582c90525898d7ecba04098b144d8aa5d6b525551bcf1618de4406e122a3",
+    "triggerCycleContentSha256": "c145d663b0f15a16c4c3318eb58fe8feadd7cc08412f118e2c7723165d7cc68c",
+    "triggerCycleId": "cycle_176d901d3a0b52d862d4d3f03ce0218d36a5ccf385580d376c8a884cc271ad38"
+  },
+  "durationMs": 4000,
+  "failureDomains": {
+    "declaredDistinct": true,
+    "independenceEvidence": "external_evidence_required",
+    "recovery": "fixture-recovery-domain",
+    "restore": "fixture-restore-domain"
+  },
+  "finishedAt": "2026-07-15T15:00:04Z",
+  "manifest": {
+    "algorithm": "sha256-canonical-recovery-json-v1",
+    "contentSha256": "d48fdbb8781b35fb8c18824b56609f80fe8123701c3986b223f1aff19be1be26",
+    "objectReferenceCount": 0,
+    "tableCount": 36
+  },
+  "mode": "synthetic_fixture",
+  "objectRestore": {
+    "allVerified": true,
+    "objectReferenceCount": 0,
+    "objectSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "objects": [],
+    "uniqueObjectCount": 0
+  },
+  "policyVersion": "recovery-restore-receipt-v1",
+  "receiptId": "recovery-restore_d45543461e60f9fe2b267f3ba851761c746306149ae296a7ea55b1a90bb5764f",
+  "recoveryAssessment": {
+    "maximumCompletedCyclesLostTarget": 1,
+    "providerIndependenceStatus": "external_evidence_required",
+    "rpoStatus": "target_not_proven",
+    "rtoStatus": "target_not_proven",
+    "runtimeLocatorCutoverStatus": "not_authorized"
+  },
+  "relationalRestore": {
+    "artifactType": "sqlite_database",
+    "byteLength": 917504,
+    "driverId": "sqlite-python-stdlib",
+    "driverVersion": "1.0.0",
+    "engineName": "sqlite",
+    "engineVersion": "3.53.1",
+    "format": "sqlite3_backup_image",
+    "formatVersion": "sqlite-file-format-3",
+    "inspectionEngineVersion": "3.53.1",
+    "inspectionToolVersion": "3.11.15",
+    "integrity": {
+      "foreignKeyViolationCount": 0,
+      "semanticLineageAudit": {
+        "families": [
+          {
+            "family": "claim_publication_decisions",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          },
+          {
+            "family": "claim_review_decisions",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          },
+          {
+            "family": "identity_decisions",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          },
+          {
+            "family": "notification_receipts",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          },
+          {
+            "family": "ops_incident_events",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          },
+          {
+            "family": "review_work_item_events",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          },
+          {
+            "family": "source_revision_decisions",
+            "leafCount": 0,
+            "rootCount": 0,
+            "rowCount": 0
+          }
+        ],
+        "familyCount": 7,
+        "rowCount": 0,
+        "status": "passed"
+      },
+      "sqliteIntegrityCheck": "ok"
+    },
+    "matchesCheckpoint": true,
+    "restoredContentSha256": "ee65d26857d4e7b00184665d2d7246570ab7285657b0f6b0a70861600ee9b702",
+    "rowsetDigestAlgorithm": "sha256-canonical-typed-rowset-v1",
+    "schemaDigestAlgorithm": "sha256-canonical-sqlite-schema-v1",
+    "schemaRevision": "0010_operational_persistence",
+    "schemaSha256": "8d845810a4fb4d4aa7f3cb1c388140da2137f24d3f27afc83afe9e43b358cac6",
+    "sourceBackupContentSha256": "ee65d26857d4e7b00184665d2d7246570ab7285657b0f6b0a70861600ee9b702",
+    "sourceDatabaseIdentitySha256": "cfb55723a59cda939be0db804d0d40fd6dff56025edebc7b27414b48902fdf07",
+    "tableInventorySha256": "4788c9995abebabd11288a452e34f4d37e6d5ecd3a5fbd2f86ce09a9f252e912",
+    "tables": [
+      {
+        "columnNames": [
+          "version_num"
+        ],
+        "rowCount": 1,
+        "rowsetSha256": "8db981be943acd6c28efc193f04244755049de01a65fc4855732429f74d0c3f2",
+        "tableName": "alembic_version"
+      },
+      {
+        "columnNames": [
+          "alias_source",
+          "alias_text",
+          "confidence",
+          "created_at",
+          "entity_id",
+          "entity_type",
+          "id",
+          "is_official_alias",
+          "source_url"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "aliases"
+      },
+      {
+        "columnNames": [
+          "benchmark_definition_revision_id",
+          "benchmark_edition_id",
+          "benchmark_family_id",
+          "content_sha256",
+          "decision_reference",
+          "dimension_fingerprint_sha256",
+          "lifecycle_status",
+          "payload_json",
+          "supersedes_definition_revision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "benchmark_definition_revisions"
+      },
+      {
+        "columnNames": [
+          "benchmark_family",
+          "canonical_name",
+          "created_at",
+          "description",
+          "display_name",
+          "has_official_leaderboard",
+          "has_official_result_api",
+          "has_official_result_files",
+          "has_private_test_set",
+          "id",
+          "known_metrics",
+          "known_settings",
+          "known_splits",
+          "official_dataset_url",
+          "official_docs_url",
+          "official_home_url",
+          "official_leaderboard_url",
+          "official_repo_url",
+          "owner_name",
+          "owner_type",
+          "primary_metric",
+          "status",
+          "superseded_by_benchmark_id",
+          "updated_at"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "benchmarks"
+      },
+      {
+        "columnNames": [
+          "actor",
+          "basis_json",
+          "claim_review_decision_id",
+          "decided_at",
+          "id",
+          "outcome",
+          "policy_version",
+          "reason_code",
+          "result_claim_id",
+          "supersedes_decision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "claim_publication_decisions"
+      },
+      {
+        "columnNames": [
+          "claim_id",
+          "created_at",
+          "id",
+          "notes",
+          "related_claim_id",
+          "relationship_type"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "claim_relationships"
+      },
+      {
+        "columnNames": [
+          "actor",
+          "basis_json",
+          "benchmark_id",
+          "decided_at",
+          "evaluation_version",
+          "id",
+          "metric",
+          "model_entity_id",
+          "outcome",
+          "reason_code",
+          "result_claim_id",
+          "setting",
+          "split",
+          "supersedes_decision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "claim_review_decisions"
+      },
+      {
+        "columnNames": [
+          "id",
+          "notes",
+          "outcome",
+          "result_claim_id",
+          "validated_at",
+          "validation_type",
+          "validator"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "claim_validations"
+      },
+      {
+        "columnNames": [
+          "approved_source_revision_id",
+          "candidate_fingerprint_sha256",
+          "candidate_id",
+          "candidate_type",
+          "content_sha256",
+          "payload_json",
+          "state",
+          "state_decision_reference",
+          "target_revision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "discovery_candidates"
+      },
+      {
+        "columnNames": [
+          "content_sha256",
+          "decision_reference",
+          "lifecycle_status",
+          "model_entity_id",
+          "observed_composition_fingerprint_sha256",
+          "payload_json",
+          "raw_identity_sha256",
+          "resolution_status",
+          "subject_fingerprint_sha256",
+          "subject_id",
+          "subject_revision_id",
+          "subject_type",
+          "supersedes_subject_revision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "evaluation_subject_revisions"
+      },
+      {
+        "columnNames": [
+          "attempt_id",
+          "batch_receipt_sha256",
+          "claim_candidates_emitted",
+          "claims_admitted",
+          "job_id",
+          "payload_json",
+          "records_excluded",
+          "records_quarantined",
+          "records_rejected",
+          "rows_parsed",
+          "schema_fingerprint_sha256",
+          "snapshot_id",
+          "source_check_receipt_id",
+          "source_records_observed",
+          "source_revision_decision_id",
+          "source_revision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "extraction_batches"
+      },
+      {
+        "columnNames": [
+          "candidate_reference",
+          "content_sha256",
+          "decided_at",
+          "decision_id",
+          "decision_sequence",
+          "decision_status",
+          "expected_prior_decision_id",
+          "identity_item_fingerprint_sha256",
+          "observation_reference",
+          "payload_json",
+          "selected_subject_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "identity_decisions"
+      },
+      {
+        "columnNames": [
+          "claims_extracted",
+          "claims_inserted",
+          "claims_needing_review",
+          "claims_unchanged",
+          "error_message",
+          "finished_at",
+          "id",
+          "metadata",
+          "official_source_id",
+          "run_type",
+          "snapshots_created",
+          "snapshots_reused",
+          "sources_checked",
+          "started_at",
+          "status"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "ingestion_runs"
+      },
+      {
+        "columnNames": [
+          "access_type",
+          "api_model_id",
+          "api_version",
+          "artifact_hash",
+          "base_model_entity_id",
+          "canonical_name",
+          "context_window",
+          "created_at",
+          "deprecation_date",
+          "developer",
+          "display_name",
+          "endpoint_fingerprint",
+          "entity_type",
+          "id",
+          "license",
+          "modalities",
+          "model_family",
+          "official_card_url",
+          "official_docs_url",
+          "official_hf_repo",
+          "official_model_url",
+          "official_repo_url",
+          "provider",
+          "release_date",
+          "status",
+          "tokenizer_revision",
+          "updated_at",
+          "weights_revision"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "model_entities"
+      },
+      {
+        "columnNames": [
+          "content_sha256",
+          "dedupe_key_sha256",
+          "dispatch_eligibility",
+          "incident_event_id",
+          "incident_id",
+          "intent_id",
+          "notification_kind",
+          "outbox_batch_id",
+          "payload_json",
+          "route_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "notification_intents"
+      },
+      {
+        "columnNames": [
+          "incident_event_id",
+          "intent_count",
+          "outbox_batch_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "notification_outbox_batches"
+      },
+      {
+        "columnNames": [
+          "incident_event_id",
+          "intent_id",
+          "intent_ordinal",
+          "outbox_batch_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "notification_outbox_items"
+      },
+      {
+        "columnNames": [
+          "adapter_id",
+          "adapter_version",
+          "content_sha256",
+          "finished_at",
+          "incident_id",
+          "intent_id",
+          "outcome",
+          "payload_json",
+          "prior_receipt_id",
+          "receipt_dedupe_key_sha256",
+          "receipt_id",
+          "route_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "notification_receipts"
+      },
+      {
+        "columnNames": [
+          "created_at",
+          "definition_hash",
+          "definition_json",
+          "id",
+          "machine_readable",
+          "notes",
+          "official_source_id",
+          "officialness_level",
+          "origin",
+          "parser_config",
+          "parser_name",
+          "parser_version",
+          "requires_auth",
+          "revision_ordinal",
+          "source_name",
+          "source_type",
+          "source_url",
+          "status",
+          "supersedes_revision_id",
+          "supports_history",
+          "update_cadence"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "official_source_revisions"
+      },
+      {
+        "columnNames": [
+          "benchmark_id",
+          "created_at",
+          "current_revision_id",
+          "id",
+          "machine_readable",
+          "notes",
+          "officialness_level",
+          "parser_config",
+          "parser_name",
+          "parser_version",
+          "registry_managed",
+          "requires_auth",
+          "source_name",
+          "source_type",
+          "source_url",
+          "status",
+          "supports_history",
+          "update_cadence",
+          "updated_at"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "official_sources"
+      },
+      {
+        "columnNames": [
+          "contract_content_sha256",
+          "contract_payload_json",
+          "event_id",
+          "event_ordinal",
+          "event_payload_json",
+          "event_type",
+          "expected_prior_event_id",
+          "from_state",
+          "incident_id",
+          "occurred_at",
+          "outbox_batch_id",
+          "outbox_intent_count",
+          "to_state"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "ops_incident_events"
+      },
+      {
+        "columnNames": [
+          "cause_code",
+          "environment",
+          "family",
+          "first_contract_sha256",
+          "incident_code",
+          "incident_fingerprint_sha256",
+          "incident_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "ops_incidents"
+      },
+      {
+        "columnNames": [
+          "benchmark_id",
+          "benchmark_raw",
+          "capture_confidence",
+          "capture_method",
+          "capture_status",
+          "claim_fingerprint",
+          "created_at",
+          "date_raw",
+          "evaluation_version_raw",
+          "evidence_location",
+          "evidence_text",
+          "id",
+          "metric_raw",
+          "model_entity_id",
+          "model_raw",
+          "official_source_id",
+          "officialness_level",
+          "rank_raw",
+          "scientific_status",
+          "score_numeric",
+          "score_raw",
+          "score_unit",
+          "setting_raw",
+          "source_revision_decision_id",
+          "source_snapshot_id",
+          "split_raw"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "result_claims"
+      },
+      {
+        "columnNames": [
+          "contract_content_sha256",
+          "contract_payload_json",
+          "event_id",
+          "event_ordinal",
+          "event_payload_json",
+          "event_type",
+          "expected_prior_event_id",
+          "from_state",
+          "occurred_at",
+          "to_state",
+          "work_item_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "review_work_item_events"
+      },
+      {
+        "columnNames": [
+          "environment",
+          "first_contract_sha256",
+          "publication_blocking",
+          "reason_code",
+          "work_class",
+          "work_item_fingerprint_sha256",
+          "work_item_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "review_work_items"
+      },
+      {
+        "columnNames": [
+          "cycle_id",
+          "intent_sha256",
+          "job_count"
+        ],
+        "rowCount": 1,
+        "rowsetSha256": "1d988f1a23ab73ea634470d089da8fc8953072d92583b116d5115feb60bd7ac8",
+        "tableName": "scheduled_cycle_intent_completions"
+      },
+      {
+        "columnNames": [
+          "cycle_id",
+          "environment",
+          "intent_sha256",
+          "job_count",
+          "lane",
+          "mode",
+          "payload_json",
+          "schedule_policy_revision_id",
+          "scheduled_for"
+        ],
+        "rowCount": 1,
+        "rowsetSha256": "bd5ac7fd6501e61cb28c4346f8a7d38fe2c1c726079919d281e91899ae19ac33",
+        "tableName": "scheduled_cycle_intents"
+      },
+      {
+        "columnNames": [
+          "content_sha256",
+          "cycle_id",
+          "environment",
+          "lane",
+          "mode",
+          "payload_json",
+          "schedule_policy_revision_id",
+          "scheduled_for"
+        ],
+        "rowCount": 1,
+        "rowsetSha256": "fc89d617befba82a685240af01c236daaf1de9f3298ecd975ff9e0ea21182ebc",
+        "tableName": "scheduled_cycles"
+      },
+      {
+        "columnNames": [
+          "attempt_id",
+          "attempt_number",
+          "commit_disposition",
+          "content_sha256",
+          "cycle_id",
+          "ended_at",
+          "fencing_token",
+          "job_id",
+          "lease_acquired_at",
+          "lease_expires_at",
+          "lease_id",
+          "lease_last_heartbeat_at",
+          "outcome",
+          "payload_json",
+          "prior_fencing_token",
+          "source_check_receipt_id",
+          "source_check_receipt_sha256",
+          "source_revision_id",
+          "stage_reached",
+          "started_at",
+          "worker_identity_sha256"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "scheduled_job_attempts"
+      },
+      {
+        "columnNames": [
+          "cycle_id",
+          "disposition_reason_code",
+          "due_disposition",
+          "environment",
+          "idempotency_key_sha256",
+          "intent_sha256",
+          "job_id",
+          "lane",
+          "payload_json",
+          "schedule_policy_revision_id",
+          "scheduled_for",
+          "source_revision_id",
+          "target_revision_id",
+          "target_type"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "scheduled_job_intents"
+      },
+      {
+        "columnNames": [
+          "acquired_at",
+          "expires_at",
+          "fencing_token",
+          "initial_heartbeat_at",
+          "job_id",
+          "lease_id",
+          "prior_lease_id",
+          "worker_identity_sha256"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "scheduled_job_lease_events"
+      },
+      {
+        "columnNames": [
+          "acquired_at",
+          "current_lease_id",
+          "expires_at",
+          "fencing_token",
+          "job_id",
+          "last_heartbeat_at",
+          "state",
+          "worker_identity_sha256"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "scheduled_job_leases"
+      },
+      {
+        "columnNames": [
+          "attempt_id",
+          "batch_receipt_sha256",
+          "certification_check_outcome",
+          "checked_source_revision_decision_id",
+          "checked_source_revision_decision_sha256",
+          "content_sha256",
+          "contract_definition_sha256",
+          "contract_digest_sha256",
+          "contract_id",
+          "contract_revision_id",
+          "fencing_token",
+          "finished_at",
+          "job_id",
+          "official_source_id",
+          "payload_json",
+          "previous_snapshot_content_sha256",
+          "previous_snapshot_id",
+          "previous_snapshot_verification_receipt_sha256",
+          "receipt_id",
+          "schedule_policy_revision_id",
+          "scheduled_for",
+          "snapshot_content_sha256",
+          "snapshot_id",
+          "snapshot_storage_receipt_sha256",
+          "source_revision_decision_id",
+          "source_revision_decision_sha256",
+          "source_revision_id",
+          "started_at",
+          "terminal_disposition"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "source_check_receipts"
+      },
+      {
+        "columnNames": [
+          "certification_decision_id",
+          "certification_decision_sha256",
+          "contract_definition_sha256",
+          "contract_digest_sha256",
+          "contract_id",
+          "contract_revision_id",
+          "lifecycle_status",
+          "official_source_id",
+          "payload_json",
+          "schedule_policy_revision_id",
+          "source_revision_id",
+          "supersedes_contract_revision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "source_contract_envelopes"
+      },
+      {
+        "columnNames": [
+          "actor",
+          "basis_json",
+          "decided_at",
+          "id",
+          "outcome",
+          "policy_version",
+          "reason_code",
+          "source_revision_id",
+          "supersedes_decision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "source_revision_decisions"
+      },
+      {
+        "columnNames": [
+          "captured_at",
+          "content_hash",
+          "content_type",
+          "created_at",
+          "etag",
+          "fetch_metadata",
+          "http_status",
+          "id",
+          "last_modified_header",
+          "official_source_id",
+          "parser_version",
+          "raw_content_uri",
+          "rendered_screenshot_uri",
+          "source_revision_id"
+        ],
+        "rowCount": 0,
+        "rowsetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "tableName": "source_snapshots"
+      }
+    ],
+    "toolName": "python-sqlite3-backup-api",
+    "toolVersion": "3.11.15"
+  },
+  "schemaVersion": "1.0.0",
+  "startedAt": "2026-07-15T15:00:00Z",
+  "target": {
+    "cutoverAuthorized": false,
+    "freshRelationalTarget": true,
+    "recoveryMapOnly": true,
+    "targetId": "fixture-new-target"
+  }
+}

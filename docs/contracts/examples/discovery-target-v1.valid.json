@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "discovery-target-v1",
+  "availability": "candidate_only",
+  "targetRevisionId": "example-official-root-v1",
+  "supersedesTargetRevisionId": null,
+  "targetId": "example-official-root",
+  "configurationStatus": "draft",
+  "decisionReference": null,
+  "reasonCode": "EXAMPLE_UNAPPROVED_DRAFT",
+  "authority": {
+    "classification": "candidate_reconnaissance_only",
+    "approvalStatus": "draft_unapproved",
+    "permitsCandidateReconnaissance": false,
+    "certifiesSources": false,
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "cce83b234a83afc8c518e1b97f2ebf829e3593db53265d5864dc905a2267a576",
+    "affectedBenchmarkCount": 1,
+    "allowedHostCount": 1,
+    "allowedFinalPatternCount": 1
+  },
+  "owner": {
+    "ownerId": "example-owner",
+    "displayName": "Example benchmark owner",
+    "officialRootUrl": "https://benchmarks.example.org/"
+  },
+  "officialOrigin": "https://benchmarks.example.org/example/",
+  "connector": {
+    "connectorId": "manual-official-root",
+    "version": "1.0.0",
+    "observationClass": "manual_official_root"
+  },
+  "urlPolicy": {
+    "requestMethod": "GET",
+    "allowedHosts": ["benchmarks.example.org"],
+    "allowedFinalUrlPatterns": ["https://benchmarks.example.org/example/"],
+    "discoveryOnlyPatterns": true,
+    "allowCredentials": false,
+    "allowFragments": false
+  },
+  "duePolicy": {
+    "cadence": "PT12H",
+    "maxJitterSeconds": 900,
+    "catchUpMissedSlots": true,
+    "maxCatchUpSlots": 2
+  },
+  "termsReview": {
+    "status": "review_required",
+    "evidenceUrl": "https://benchmarks.example.org/example/terms/",
+    "reviewCadence": "P30D",
+    "reasonCode": "EXAMPLE_TERMS_REVIEW_REQUIRED"
+  },
+  "correctionRoute": {
+    "routeType": "manual_governance",
+    "locator": null,
+    "reasonCode": "EXAMPLE_GOVERNANCE_ROUTE_REQUIRED"
+  },
+  "budgets": {
+    "maxRequestsPerRun": 20,
+    "maxBytesPerResponse": 1048576,
+    "maxRedirects": 3,
+    "timeoutSeconds": 30,
+    "maxConcurrency": 1
+  },
+  "affectedBenchmarkIds": ["example_benchmark"]
+}

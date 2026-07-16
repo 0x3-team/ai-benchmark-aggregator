@@ -15,12 +15,24 @@ from app.schemas.boundary import (
 
 
 class FakeSourceAdapter(SourceAdapter):
+    """Synthetic data helper for explicitly isolated test fixtures only.
+
+    It is never a production source adapter.  The registry route is retired,
+    production policy quarantines the ``fake`` source type, and the adapter
+    itself requires a test-only mode before it will manufacture fixture bytes.
+    """
+
     source_type = "fake"
+    requires_central_fetch = False
 
     def __init__(self, fixture_path: Path | None = None) -> None:
         self.fixture_path = fixture_path
 
     def fetch(self, source: OfficialSource) -> SourceFetchResult:
+        if source.parser_config.get("mode") != "test_fixture_only":
+            raise RuntimeError(
+                "Fake adapter is test-fixture only and cannot fetch an Official benchmark source."
+            )
         if self.fixture_path and self.fixture_path.exists():
             raw = self.fixture_path.read_bytes()
         else:
@@ -43,6 +55,8 @@ class FakeSourceAdapter(SourceAdapter):
         snapshot: SourceSnapshot,
         raw_bytes: bytes,
     ) -> list[ResultClaimInput]:
+        if source.parser_config.get("mode") != "test_fixture_only":
+            return []
         data = json.loads(raw_bytes.decode("utf-8"))
         rows = data.get("leaderboard") or data.get("results") or []
         claims: list[ResultClaimInput] = []

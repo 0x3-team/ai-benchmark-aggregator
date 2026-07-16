@@ -1,0 +1,247 @@
+{
+  "schemaVersion": "2.0.0",
+  "policyVersion": "source-contract-v2",
+  "availability": "contract_only",
+  "contractId": "example-source-contract",
+  "contractRevisionId": "example-source-contract-r1",
+  "supersedesContractRevisionId": null,
+  "lifecycleStatus": "draft_unapproved",
+  "reasonCode": "EXAMPLE_DRAFT_NOT_APPROVED",
+  "logicalSource": {
+    "sourceId": "example-logical-source",
+    "sourceRevisionId": "example-source-revision-r1",
+    "proposalId": "example-source-proposal-r1",
+    "benchmarkRevisionId": "example-benchmark-revision-r1",
+    "ownerName": "Synthetic Example Owner",
+    "officialnessLevel": "O1",
+    "methodPriority": 2,
+    "artifactMode": "immutable_revision"
+  },
+  "authority": {
+    "classification": "source_contract_definition_only",
+    "approvalStatus": "draft_unapproved",
+    "selfApprovalAllowed": false,
+    "certifiesSource": false,
+    "authorizesCapture": false,
+    "captureEligible": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "certification": {
+    "decisionId": null,
+    "decisionDigestSha256": null,
+    "decisionOutcome": "not_assessed",
+    "decidedSourceRevisionId": null,
+    "decidedContractDefinitionSha256": null,
+    "effectiveOn": null,
+    "expiresOn": null
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "e7f4834955b89a1cfc88d40b5c4d87684185b2ecb68a4f2dc753c9c3fe4db9e6",
+    "definitionSha256": "aee8fc2d60a18bc88c1e8685eb41fcf15ae0dab969c5f27b9f15551c6d5bc1e5",
+    "approvedSourceUrlCount": 1,
+    "approvedFinalUrlCount": 1,
+    "acceptedMimeTypeCount": 1,
+    "locatorTypeCount": 1,
+    "displayDimensionCount": 5,
+    "recordExclusionCount": 0,
+    "parserFixtureCount": 1
+  },
+  "termsReuse": {
+    "status": "unknown",
+    "decisionReference": null,
+    "evidenceDate": null,
+    "effectiveOn": null,
+    "reviewDueOn": null,
+    "expiresOn": null,
+    "reuseScope": null,
+    "correctionRoute": "https://governance.example.com/corrections"
+  },
+  "transport": {
+    "requestMethod": "GET",
+    "approvedSourceUrls": [
+      "https://results.example.com/releases/example-v1/results.json"
+    ],
+    "approvedFinalUrls": [
+      "https://results.example.com/releases/example-v1/results.json"
+    ],
+    "allowedHosts": [
+      "results.example.com"
+    ],
+    "allowedPorts": [443],
+    "queryPolicy": {
+      "mode": "none",
+      "allowedParameterNames": []
+    },
+    "requestHeaderNames": [
+      "Accept",
+      "User-Agent"
+    ],
+    "credential": {
+      "credentialClass": "none",
+      "credentialReference": null
+    },
+    "redirectPolicy": {
+      "mode": "deny",
+      "maxRedirects": 0
+    },
+    "peerPolicy": {
+      "requireTls": true,
+      "minimumTlsVersion": "TLS1.3",
+      "verifyConnectedPeer": true,
+      "rejectPrivateAddresses": true,
+      "verifyDnsEveryHop": true
+    },
+    "conditionalRequests": {
+      "mode": "etag_or_last_modified",
+      "requirePreviousSnapshotFor304": true
+    },
+    "revisionDiscovery": {
+      "mode": "immutable_url",
+      "revisionField": "release_path",
+      "requireStableRevision": true
+    },
+    "acceptedMimeTypes": [
+      "application/json"
+    ],
+    "maxBytes": 1048576,
+    "timeoutSeconds": 30
+  },
+  "implementationBinding": {
+    "status": "contract_only_not_wired",
+    "currentAdmissionPolicy": "source-admission-v2",
+    "currentSafeFetchPolicy": "safe-fetch-v1",
+    "connectedPeerProof": "required_not_implemented",
+    "parquetLocatorSupport": "contract_only"
+  },
+  "extraction": {
+    "parser": {
+      "name": "example-json-parser",
+      "version": "1.0.0",
+      "fixtureDigests": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    "structuredFormat": "json",
+    "locatorTypes": [
+      "json_path_v1"
+    ],
+    "evidenceContracts": [
+      {
+        "locatorType": "json_path_v1",
+        "recordLocatorTemplate": "$.results[{row_index}]",
+        "fields": {
+          "model_raw": "model",
+          "score_raw": "score",
+          "benchmark_raw": "benchmark",
+          "evaluation_version_raw": "evaluation_version",
+          "metric_raw": "metric",
+          "setting_raw": "setting",
+          "split_raw": "split"
+        }
+      }
+    ],
+    "allowedDisplayDimensions": [
+      "benchmark_raw",
+      "evaluation_version_raw",
+      "metric_raw",
+      "setting_raw",
+      "split_raw"
+    ],
+    "dimensions": {
+      "benchmark_raw": {
+        "mode": "evidence_field",
+        "value": null,
+        "allowedValues": [
+          "Example Benchmark"
+        ]
+      },
+      "evaluation_version_raw": {
+        "mode": "evidence_field",
+        "value": null,
+        "allowedValues": [
+          "v1"
+        ]
+      },
+      "metric_raw": {
+        "mode": "evidence_field",
+        "value": null,
+        "allowedValues": [
+          "score"
+        ]
+      },
+      "setting_raw": {
+        "mode": "evidence_field",
+        "value": null,
+        "allowedValues": [
+          "official"
+        ]
+      },
+      "split_raw": {
+        "mode": "evidence_field",
+        "value": null,
+        "allowedValues": [
+          "test"
+        ]
+      }
+    },
+    "numericPolicy": {
+      "lexeme": "decimal",
+      "scoreUnit": "points",
+      "minimumLexeme": "0",
+      "maximumLexeme": "100",
+      "permitDerivedScores": false,
+      "coerceRawValues": false
+    },
+    "recordExclusions": []
+  },
+  "completeness": {
+    "scope": "complete_artifact",
+    "expectedMinRecords": 1,
+    "expectedMaxRecords": 10000,
+    "maxShards": 1,
+    "maxClaimCandidatesPerRecord": 1,
+    "requireEveryRecordAccounted": true,
+    "requireNonzero": true,
+    "rejectDuplicateLocators": true,
+    "allowedExclusionIds": [],
+    "accountingEquation": "observed=parsed+excluded+rejected+quarantined",
+    "quarantineOnUnexplainedLoss": true
+  },
+  "drift": {
+    "schemaFingerprintPolicy": "exact",
+    "approvedSchemaSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "baselineMinRecords": 1,
+    "baselineMaxRecords": 10000,
+    "maxRecordCountChangeRatio": "0.25",
+    "pauseOnSchemaDrift": true,
+    "pauseOnLocatorDrift": true,
+    "pauseOnDimensionDrift": true,
+    "pauseOnTermsChange": true,
+    "incidentOwnerRole": "source-owner",
+    "runbookId": "source-contract-drift-runbook"
+  },
+  "schedule": {
+    "schedulePolicyRevisionId": "example-schedule-policy-r1",
+    "cadence": "PT12H",
+    "completionGrace": "PT2H",
+    "maxAttempts": 3,
+    "retryableClasses": [
+      "connection_reset",
+      "http_429",
+      "http_5xx",
+      "timeout"
+    ],
+    "rateLimitPerMinute": 2,
+    "maxConcurrency": 1,
+    "enabled": false
+  },
+  "storage": {
+    "snapshotBeforeExtraction": true,
+    "immutableObjectRequired": true,
+    "conditionalNoOverwrite": true,
+    "readBackSha256Required": true,
+    "preserveSnapshotOnExtractionFailure": true
+  }
+}

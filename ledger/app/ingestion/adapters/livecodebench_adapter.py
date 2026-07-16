@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
-
-import httpx
 
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
@@ -13,29 +10,23 @@ from app.schemas.boundary import ClaimValidationInput, OfficialSource, ResultCla
 
 class LiveCodeBenchAdapter(SourceAdapter):
     source_type = "livecodebench_adapter"
+    requires_central_fetch = False
 
     def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        from app.config import get_settings
-        settings = get_settings()
-        url = source.source_url
-        if "leaderboard.html" in url:
-            url = url.replace("leaderboard.html", "performances_generation.json")
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(url, headers={"User-Agent": settings.http_user_agent})
-                resp.raise_for_status()
-                return SourceFetchResult(
-                    raw_bytes=resp.content,
-                    content_type="application/json",
-                    http_status=resp.status_code,
-                    final_url=str(resp.url),
-                )
-        except Exception as exc:
-            raise RuntimeError(f"Fetch failed for {source.id}: {exc}") from exc
+        # The old path fetched generated performance records and then chose a
+        # date window and calculated an average. That is derived analytics,
+        # not one verbatim source-reported result record, so it cannot produce
+        # Official claims until a future source-specific certification ticket.
+        raise RuntimeError(
+            "LiveCodeBench adapter is retired: date-window aggregates cannot produce "
+            "Official benchmark result claims."
+        )
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes
     ) -> list[ResultClaimInput]:
+        if source.parser_config.get("mode") == "retired":
+            return []
         try:
             data = json.loads(raw_bytes.decode("utf-8"))
         except Exception:
@@ -98,28 +89,27 @@ class LiveCodeBenchAdapter(SourceAdapter):
                     metric_raw="Pass@1",
                     score_numeric=try_parse_score(score_raw) if score_raw else None,
                     evidence_location={
-                        "type": "aggregated_json",
+                        "type": "derived_analytics",
                         "model_repr": model_repr,
                         "performances_count": len(filtered),
                     },
-                    capture_method="livecodebench_adapter_parser",
-                    capture_confidence=0.95,
-                    capture_status="parser_verified",
+                    capture_method="livecodebench_derived_analytics",
+                    # Offline fixture parsing can exercise aggregation
+                    # mechanics, but the calculated value is never a
+                    # source-reported Official claim.
+                    capture_confidence=0.0,
+                    capture_status="unreviewed",
                     officialness_level=source.officialness_level,
                 )
             )
         return claims
 
     def validate_claim(self, claim: ResultClaimInput, raw_bytes: bytes) -> list[ClaimValidationInput]:
-        try:
-            text = raw_bytes.decode("utf-8")
-        except Exception:
-            text = ""
-        outcome = "pass" if claim.model_raw and claim.model_raw in text else "uncertain"
         return [
             ClaimValidationInput(
-                validation_type="json_path_match",
-                outcome=outcome,
+                validation_type="derived_aggregate",
+                outcome="fail",
                 validator="LiveCodeBenchAdapter",
+                notes="retired date-window aggregate is not source-reported benchmark evidence",
             )
         ]

@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import re
 
-import httpx
 from bs4 import BeautifulSoup
 
-from app.config import get_settings
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters.base import SourceAdapter
 from app.ingestion.extractors.normalize import try_parse_score
-from app.schemas.boundary import OfficialSource, ResultClaimInput, SourceFetchResult
+from app.schemas.boundary import OfficialSource, ResultClaimInput
 
 # Zero-width and invisible characters to strip from headers.
 _ZERO_WIDTH_RE = re.compile("[\u200b-\u200f\u2060\ufeff\u00ad]")
@@ -35,6 +33,7 @@ def _normalize_header_key(text: str) -> str:
 
 class GenericHTMLTableAdapter(SourceAdapter):
     source_type = "html_table"
+    accepted_content_types = frozenset({"text/html", "application/xhtml+xml"})
 
     # Optional column config keys that map to claim fields.
     _OPTIONAL_COLUMNS = {
@@ -43,27 +42,6 @@ class GenericHTMLTableAdapter(SourceAdapter):
         "rank_column": "rank_raw",
         "date_column": "date_raw",
     }
-
-    def fetch(self, source: OfficialSource) -> SourceFetchResult:
-        settings = get_settings()
-        try:
-            with httpx.Client(timeout=settings.http_timeout_seconds, follow_redirects=True) as client:
-                resp = client.get(source.source_url, headers={"User-Agent": settings.http_user_agent})
-        except httpx.HTTPError as exc:
-            raise RuntimeError(
-                f"Network error fetching HTML leaderboard for source={source.id}: {exc}"
-            ) from exc
-        if resp.status_code >= 400:
-            raise RuntimeError(
-                f"HTTP {resp.status_code} fetching HTML leaderboard for source={source.id} "
-                f"({source.source_url})"
-            )
-        return SourceFetchResult(
-            raw_bytes=resp.content,
-            content_type=resp.headers.get("content-type", "text/html"),
-            http_status=resp.status_code,
-            final_url=str(resp.url),
-        )
 
     def extract_claims(
         self, source: OfficialSource, snapshot: SourceSnapshot, raw_bytes: bytes

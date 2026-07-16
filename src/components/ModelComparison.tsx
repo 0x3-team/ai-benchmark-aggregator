@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import type { Benchmark, Model } from "../types";
+import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { radarAverages, categoryLeader } from "../lib/aggregate";
-import { RadarChart, type RadarSeries } from "./RadarChart";
+import { RadarChart, RADAR_CATEGORIES, type RadarSeries } from "./RadarChart";
 import { ScoreHeatmap } from "./ScoreHeatmap";
 import { BenchmarkBars } from "./BenchmarkBars";
 import {
@@ -13,23 +13,29 @@ import {
 } from "@/components/ui/card";
 import { modelColor } from "@/lib/palette";
 import { cn } from "@/lib/utils";
+import {
+  formatContextWindow,
+  formatOpenWeights,
+  formatPricePair,
+} from "@/lib/metadata";
 
 interface ModelComparisonProps {
-  models: Model[];
-  benchmarks: Benchmark[];
+  models: readonly DatasetModel[];
+  benchmarks: readonly DatasetBenchmark[];
   onOpenModel: (modelId: string) => void;
 }
 
 export function ModelComparison({ models, benchmarks, onOpenModel }: ModelComparisonProps) {
+  const { getValue } = useDataset();
   const allSeries: RadarSeries[] = useMemo(
     () =>
       models.map((m, i) => ({
         modelId: m.id,
         name: m.name,
         color: modelColor(i),
-        points: radarAverages(m.id),
+        points: radarAverages(m.id, benchmarks, getValue),
       })),
-    [models]
+    [models, benchmarks, getValue]
   );
 
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -38,12 +44,16 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
   const visibleSeries = allSeries.filter((s) => !hidden.has(s.modelId));
 
   const leaders = useMemo(
-    () => categoryLeader(models, benchmarks),
-    [models, benchmarks]
+    () => categoryLeader(models, benchmarks, getValue),
+    [models, benchmarks, getValue]
   );
   const leadsByModel = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const l of leaders) map[l.modelId] = (map[l.modelId] ?? 0) + 1;
+    for (const leader of leaders) {
+      if (leader.modelId) {
+        map[leader.modelId] = (map[leader.modelId] ?? 0) + 1;
+      }
+    }
     return map;
   }, [leaders]);
 
@@ -87,6 +97,9 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
             {allSeries.map((s) => {
               const off = hidden.has(s.modelId);
               const active = activeId === s.modelId;
+              const incomplete = s.points.some(
+                (point) => RADAR_CATEGORIES.includes(point.category) && point.value === null
+              );
               return (
                 <li key={s.modelId}>
                   <button
@@ -109,7 +122,10 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
                         boxShadow: off ? "none" : `0 0 8px ${s.color}`,
                       }}
                     />
-                    {s.name}
+                    <span>{s.name}</span>
+                    {incomplete ? (
+                      <span className="text-[10px] text-muted-foreground">Incomplete profile</span>
+                    ) : null}
                   </button>
                 </li>
               );
@@ -138,9 +154,10 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
                 <div className="flex flex-col gap-1">
                   {visibleSeries.map((s) => {
                     const p = s.points.find((pp) => pp.category === cat);
-                    const v = p?.value ?? 0;
-                    const pct = Math.round(v * 100);
+                    const v = p?.value ?? null;
                     const dim = activeId != null && activeId !== s.modelId;
+                    const unavailable = v === null;
+                    const pct = unavailable ? null : Math.round(v * 100);
                     return (
                       <div
                         key={s.modelId}
@@ -148,17 +165,22 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
                           "relative h-3.5 rounded-sm bg-white/5 transition-opacity",
                           dim && "opacity-30"
                         )}
-                        title={`${s.name}: ${pct}%`}
+                        title={unavailable ? `${s.name}: no category data` : `${s.name}: ${pct}%`}
+                        aria-label={unavailable ? `${s.name}: no category data` : `${s.name}: ${pct}%`}
                       >
-                        <div
-                          className="h-full rounded-sm transition-[width] duration-300"
-                          style={{
-                            width: `${Math.max(v * 100, 2)}%`,
-                            background: s.color,
-                          }}
-                        />
+                        {unavailable ? (
+                          <div className="h-full rounded-sm border border-dashed border-white/20" />
+                        ) : (
+                          <div
+                            className="h-full rounded-sm transition-[width] duration-300"
+                            style={{
+                              width: `${Math.max(v * 100, 2)}%`,
+                              background: s.color,
+                            }}
+                          />
+                        )}
                         <span className="absolute right-1 top-1/2 -translate-y-1/2 font-mono text-[10px] text-foreground/80">
-                          {pct}%
+                          {unavailable ? "—" : `${pct}%`}
                         </span>
                       </div>
                     );
@@ -223,31 +245,30 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
               <tbody>
                 {(
                   [
-                    { label: "Vendor", get: (m: Model) => m.vendor },
+                    { label: "Vendor", get: (m: DatasetModel) => m.vendor },
                     {
                       label: "Params",
-                      get: (m: Model) => (m.paramsB == null ? "—" : `${m.paramsB}B`),
+                      get: (m: DatasetModel) =>
+                        m.paramsB == null ? "Not supplied" : `${m.paramsB}B`,
                     },
                     {
                       label: "Context",
-                      get: (m: Model) => `${m.contextWindowK}k`,
+                      get: (m: DatasetModel) => formatContextWindow(m.contextWindowK),
                     },
                     {
                       label: "Open weights",
-                      get: (m: Model) => (m.openWeights ? "yes" : "no"),
+                      get: (m: DatasetModel) => formatOpenWeights(m.openWeights),
                     },
                     {
                       label: "Price (in/out)",
-                      get: (m: Model) =>
-                        m.priceInPer1M == null
-                          ? "—"
-                          : `$${m.priceInPer1M}/${m.priceOutPer1M}`,
+                      get: (m: DatasetModel) =>
+                        formatPricePair(m.priceInPer1M, m.priceOutPer1M),
                     },
                     {
                       label: "Modalities",
-                      get: (m: Model) => m.modalities.join(", "),
+                      get: (m: DatasetModel) => m.modalities.join(", "),
                     },
-                  ] as { label: string; get: (m: Model) => string }[]
+                  ] as { label: string; get: (m: DatasetModel) => string }[]
                 ).map((row, ri) => (
                   <tr
                     key={row.label}

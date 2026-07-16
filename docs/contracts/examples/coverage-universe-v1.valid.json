@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "coverage-universe-v1",
+  "availability": "coverage_definition_only",
+  "universeRevisionId": "coverage-universe-example-v1",
+  "supersedesUniverseRevisionId": null,
+  "effectiveOn": null,
+  "decisionReference": null,
+  "authority": {
+    "classification": "coverage_definition_only",
+    "approvalStatus": "draft_unapproved",
+    "certifiesSources": false,
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "frontendLoadable": false
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "6012d8f443e456795d4a0134bf04b4dbd293f109020eec21ddc1ff32624aa48c",
+    "benchmarkCount": 1,
+    "configuredSourceRouteCount": 1,
+    "sourceClassCount": 2,
+    "exclusionCount": 1
+  },
+  "scope": {
+    "name": "Example bounded coverage",
+    "boundedStatement": "One configured benchmark and one configured route for contract validation only.",
+    "internetComplete": false,
+    "registryInputs": [
+      {
+        "inputPath": "ledger/app/registry/benchmarks.example.yaml",
+        "recordType": "benchmark",
+        "selectionRule": "all_unique_stable_ids",
+        "expectedUniqueCount": 1,
+        "semanticSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "inputPath": "ledger/app/registry/official_sources.example.yaml",
+        "recordType": "configured_source_route",
+        "selectionRule": "all_unique_stable_ids",
+        "expectedUniqueCount": 1,
+        "semanticSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ]
+  },
+  "cohorts": [
+    {
+      "cohortId": "example-cohort",
+      "name": "Example cohort",
+      "purpose": "Exercise bounded membership.",
+      "memberBenchmarkIds": ["example_benchmark"]
+    }
+  ],
+  "benchmarks": [
+    {
+      "benchmarkId": "example_benchmark",
+      "coverageStatus": "configured",
+      "reasonCode": "EXAMPLE_REGISTRY_MEMBER",
+      "cohortIds": ["example-cohort"]
+    }
+  ],
+  "configuredSourceRoutes": [
+    {
+      "sourceRouteId": "example_source_route",
+      "benchmarkId": "example_benchmark",
+      "registryStatus": "active",
+      "coverageStatus": "configured",
+      "reasonCode": "EXAMPLE_CONFIGURED_ROUTE"
+    }
+  ],
+  "sourceClasses": [
+    {
+      "sourceClassId": "official-result-api",
+      "priority": 1,
+      "methodFamily": "Approved official result API",
+      "candidateUse": "Discover a structured official result endpoint.",
+      "discoveryOnly": false,
+      "captureRequiresSeparateCertification": true,
+      "publicationRequiresSeparateDecision": true
+    },
+    {
+      "sourceClassId": "browser-rendered-reconnaissance",
+      "priority": 2,
+      "methodFamily": "Bounded browser-rendered reconnaissance",
+      "candidateUse": "Discover official leads only.",
+      "discoveryOnly": true,
+      "captureRequiresSeparateCertification": true,
+      "publicationRequiresSeparateDecision": true
+    }
+  ],
+  "refreshPolicy": {
+    "discoveryPlanningCadence": "PT12H",
+    "registryReconciliationCadence": "P1D",
+    "coverageOwnerReviewCadence": "P30D",
+    "stalenessThreshold": "P30D",
+    "termsReviewPolicy": "Review each target before reconnaissance.",
+    "sourceRecheckAuthority": "separate_certified_source_contract_only"
+  },
+  "exclusions": [
+    {
+      "exclusionId": "example-arbitrary-web",
+      "excludedClass": "arbitrary_internet",
+      "reasonCode": "OUTSIDE_BOUNDED_UNIVERSE",
+      "rationale": "Arbitrary web pages are not part of the example denominator.",
+      "reconsiderationPolicy": "Create a new reviewed universe revision.",
+      "ownerRole": "product_data_governance_owner",
+      "reviewDueOn": "2026-08-15"
+    }
+  ],
+  "publicWording": {
+    "coverageLabel": "Example bounded configured coverage",
+    "scopeStatement": "This example accounts for one configured benchmark and one configured route.",
+    "requiredDisclaimer": "Configured does not mean certified, approved, captured, reviewed, or published.",
+    "forbiddenClaims": [
+      "internet-complete coverage",
+      "configured means certified",
+      "candidate means published"
+    ]
+  }
+}

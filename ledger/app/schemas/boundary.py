@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictStr
 
 
 class OfficialSource(BaseModel):
@@ -50,17 +50,19 @@ class SourceSnapshotInput(BaseModel):
 
 class ResultClaimInput(BaseModel):
     source_snapshot_id: UUID | None = None
+    source_revision_decision_id: UUID | None = None
     official_source_id: str
     benchmark_id: str | None = None
     model_entity_id: str | None = None
-    model_raw: str
-    benchmark_raw: str
-    score_raw: str
-    metric_raw: str | None = None
-    split_raw: str | None = None
-    setting_raw: str | None = None
-    rank_raw: str | None = None
-    date_raw: str | None = None
+    model_raw: StrictStr
+    benchmark_raw: StrictStr
+    score_raw: StrictStr
+    metric_raw: StrictStr | None = None
+    split_raw: StrictStr | None = None
+    setting_raw: StrictStr | None = None
+    evaluation_version_raw: StrictStr | None = None
+    rank_raw: StrictStr | None = None
+    date_raw: StrictStr | None = None
     score_numeric: float | None = None
     score_unit: str | None = None
     evidence_text: str | None = None

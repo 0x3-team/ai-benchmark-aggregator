@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/identity-decision-v1.schema.json",
+  "title": "Identity Decision v1",
+  "description": "One append-only, itemized decision for one raw evaluated-system observation. An effective decision may update the derived effective identity read projection for that referenced captured observation, but never rewrites its claim or raw fields and never promotes capture, validation, publication, release, or frontend state.",
+  "$comment": "Semantic validation rejects stale/missing/branched prior-decision chains, non-canonical or non-increasing decision times, effective-to-draft regression, candidate/item fingerprint changes inside a chain, collisions resolved by order, missing alias provenance/scope, mismatched read-projection effects, mutable fields, bad digests/fingerprints, and authority escalation. Draft decisions are non-binding. Effective resolved decisions set the selected subject in the derived read projection; other effective outcomes clear it. Exact, case-insensitive, then normalized matching remains priority ordered; a collision at the first matching priority must remain unresolved or rejected. decidedAt changes the self-digest but is excluded from identityItemFingerprintSha256. sha256-canonical-json-v1 replaces only manifest.contentSha256 with null and preserves array order; identityItemFingerprintSha256 sorts the raw observation's set-like evidence IDs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "policyVersion", "availability", "decisionId", "candidateReference",
+    "observationReference", "identityItemFingerprintSha256", "expectedPriorDecisionId",
+    "decisionSequence", "decisionStatus", "decidedAt", "governanceDecisionReference", "outcome",
+    "selectedSubjectId", "supersedingCandidateReference", "reasonCode", "actor",
+    "authority", "manifest", "rawObservation", "aliasProposal", "collisionFacts", "effects"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "identity-decision-v1" },
+    "availability": { "const": "identity_decision_only" },
+    "decisionId": { "$ref": "#/$defs/stableId" },
+    "candidateReference": { "$ref": "#/$defs/stableId" },
+    "observationReference": { "$ref": "#/$defs/stableId" },
+    "identityItemFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "expectedPriorDecisionId": { "$ref": "#/$defs/nullableStableId" },
+    "decisionSequence": { "type": "integer", "minimum": 1 },
+    "decisionStatus": { "enum": ["draft", "effective"] },
+    "decidedAt": { "$ref": "#/$defs/nullableUtcSecond" },
+    "governanceDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+    "outcome": { "enum": ["resolved", "unresolved", "rejected", "superseded"] },
+    "selectedSubjectId": { "$ref": "#/$defs/nullableStableId" },
+    "supersedingCandidateReference": { "$ref": "#/$defs/nullableStableId" },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "actor": { "$ref": "#/$defs/actor" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "rawObservation": { "$ref": "#/$defs/rawObservation" },
+    "aliasProposal": { "$ref": "#/$defs/aliasProposal" },
+    "collisionFacts": { "$ref": "#/$defs/collisionFacts" },
+    "effects": { "$ref": "#/$defs/effects" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "decisionStatus": { "const": "draft" } }, "required": ["decisionStatus"] },
+      "then": {
+        "properties": {
+          "governanceDecisionReference": { "type": "null" },
+          "decidedAt": { "type": "null" },
+          "authority": {
+            "properties": {
+              "approvalStatus": { "const": "draft_unapproved" },
+              "actorAuthorityVerified": { "const": false },
+              "permitsIdentityReadProjection": { "const": false }
+            },
+            "required": ["approvalStatus", "actorAuthorityVerified", "permitsIdentityReadProjection"]
+          },
+          "effects": {
+            "properties": { "identityReadProjectionEffect": { "const": "none" } },
+            "required": ["identityReadProjectionEffect"]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "governanceDecisionReference": { "$ref": "#/$defs/stableId" },
+          "decidedAt": { "$ref": "#/$defs/utcSecond" },
+          "authority": {
+            "properties": {
+              "approvalStatus": { "const": "identity_reviewed" },
+              "actorAuthorityVerified": { "const": true },
+              "permitsIdentityReadProjection": { "const": true }
+            },
+            "required": ["approvalStatus", "actorAuthorityVerified", "permitsIdentityReadProjection"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decisionStatus": { "const": "effective" },
+          "outcome": { "const": "resolved" }
+        },
+        "required": ["decisionStatus", "outcome"]
+      },
+      "then": {
+        "properties": {
+          "effects": {
+            "properties": { "identityReadProjectionEffect": { "const": "set_selected_subject" } },
+            "required": ["identityReadProjectionEffect"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decisionStatus": { "const": "effective" },
+          "outcome": { "enum": ["unresolved", "rejected", "superseded"] }
+        },
+        "required": ["decisionStatus", "outcome"]
+      },
+      "then": {
+        "properties": {
+          "effects": {
+            "properties": { "identityReadProjectionEffect": { "const": "clear_selected_subject" } },
+            "required": ["identityReadProjectionEffect"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/nonEmptyString" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "utcSecond": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "nullableUtcSecond": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/utcSecond" }] },
+    "actor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actorId", "actorType", "role", "authorityReference"],
+      "properties": {
+        "actorId": { "$ref": "#/$defs/stableId" },
+        "actorType": { "enum": ["human", "service"] },
+        "role": { "$ref": "#/$defs/stableId" },
+        "authorityReference": { "$ref": "#/$defs/nullableStableId" }
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "classification", "approvalStatus", "actorAuthorityVerified",
+        "permitsIdentityReadProjection", "rewritesClaims", "promotesCapture",
+        "promotesValidation", "authorizesPublication", "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "itemized_identity_decision_only" },
+        "approvalStatus": { "enum": ["draft_unapproved", "identity_reviewed"] },
+        "actorAuthorityVerified": { "type": "boolean" },
+        "permitsIdentityReadProjection": { "type": "boolean" },
+        "rewritesClaims": { "const": false },
+        "promotesCapture": { "const": false },
+        "promotesValidation": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "itemCount", "sourceEvidenceReferenceCount", "aliasProvenanceReferenceCount", "collisionSubjectCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "itemCount": { "const": 1 },
+        "sourceEvidenceReferenceCount": { "type": "integer", "minimum": 1 },
+        "aliasProvenanceReferenceCount": { "type": "integer", "minimum": 1 },
+        "collisionSubjectCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rawObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["modelRaw", "providerRaw", "configurationRaw", "rawLabelSha256", "sourceEvidenceReferenceIds", "preservedExactly"],
+      "properties": {
+        "modelRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "providerRaw": { "$ref": "#/$defs/nullableString" },
+        "configurationRaw": { "$ref": "#/$defs/nullableString" },
+        "rawLabelSha256": { "$ref": "#/$defs/sha256" },
+        "sourceEvidenceReferenceIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "preservedExactly": { "const": true }
+      }
+    },
+    "aliasProposal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["aliasRaw", "matchMethod", "normalizedAlias", "provenanceReferenceIds", "scope", "proposedAction"],
+      "properties": {
+        "aliasRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "matchMethod": { "enum": ["exact", "case_insensitive", "normalized", "manual"] },
+        "normalizedAlias": { "$ref": "#/$defs/nullableString" },
+        "provenanceReferenceIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "scope": { "$ref": "#/$defs/aliasScope" },
+        "proposedAction": { "enum": ["add_scoped_alias", "no_alias", "reject_alias"] }
+      }
+    },
+    "aliasScope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scopeType", "ownerId", "benchmarkEditionIds", "sourceRevisionIds"],
+      "properties": {
+        "scopeType": { "enum": ["global", "owner", "benchmark", "source_revision"] },
+        "ownerId": { "$ref": "#/$defs/nullableStableId" },
+        "benchmarkEditionIds": {
+          "type": "array", "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "sourceRevisionIds": {
+          "type": "array", "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        }
+      }
+    },
+    "collisionFacts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "matchingPriority", "conflictingSubjectIds", "reasonCode"],
+      "properties": {
+        "status": { "enum": ["none", "exact_collision", "case_insensitive_collision", "normalized_collision"] },
+        "matchingPriority": { "enum": ["none", "exact", "case_insensitive", "normalized"] },
+        "conflictingSubjectIds": {
+          "type": "array", "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "reasonCode": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reasonCode" }] }
+      }
+    },
+    "effects": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "itemized", "identityReadProjectionEffect", "rewritesExistingClaims", "mutatesRawFields",
+        "promotesCaptureStatus", "promotesValidationStatus", "authorizesPublication"
+      ],
+      "properties": {
+        "itemized": { "const": true },
+        "identityReadProjectionEffect": {
+          "enum": ["none", "set_selected_subject", "clear_selected_subject"]
+        },
+        "rewritesExistingClaims": { "const": false },
+        "mutatesRawFields": { "const": false },
+        "promotesCaptureStatus": { "const": false },
+        "promotesValidationStatus": { "const": false },
+        "authorizesPublication": { "const": false }
+      }
+    }
+  }
+}

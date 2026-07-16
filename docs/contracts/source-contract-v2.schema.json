@@ -1,0 +1,768 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark.example.invalid/contracts/source-contract-v2.schema.json",
+  "title": "AI Benchmark Platform source contract v2",
+  "description": "Immutable, non-self-authorizing definition of one logical source revision. manifest.definitionSha256 binds certification-neutral governed source semantics; certification.decidedContractDefinitionSha256 is the external decision's exact subject; manifest.contentSha256 binds the final envelope including that decision, without a hash cycle. Cross-field authority, chronology, exact URL, manifest-count, and digest invariants are additionally enforced by ledger.app.schemas.source_contracts.validate_source_contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "contractId",
+    "contractRevisionId",
+    "supersedesContractRevisionId",
+    "lifecycleStatus",
+    "reasonCode",
+    "logicalSource",
+    "authority",
+    "certification",
+    "manifest",
+    "termsReuse",
+    "transport",
+    "implementationBinding",
+    "extraction",
+    "completeness",
+    "drift",
+    "schedule",
+    "storage"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "2.0.0" },
+    "policyVersion": { "const": "source-contract-v2" },
+    "availability": { "const": "contract_only" },
+    "contractId": { "$ref": "#/$defs/stableId" },
+    "contractRevisionId": { "$ref": "#/$defs/stableId" },
+    "supersedesContractRevisionId": { "$ref": "#/$defs/nullableStableId" },
+    "lifecycleStatus": {
+      "enum": [
+        "draft_unapproved",
+        "certification_pending",
+        "approved",
+        "paused",
+        "revoked",
+        "retired"
+      ]
+    },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "logicalSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "sourceRevisionId",
+        "proposalId",
+        "benchmarkRevisionId",
+        "ownerName",
+        "officialnessLevel",
+        "methodPriority",
+        "artifactMode"
+      ],
+      "properties": {
+        "sourceId": { "$ref": "#/$defs/stableId" },
+        "sourceRevisionId": { "$ref": "#/$defs/stableId" },
+        "proposalId": { "$ref": "#/$defs/stableId" },
+        "benchmarkRevisionId": { "$ref": "#/$defs/stableId" },
+        "ownerName": { "$ref": "#/$defs/exactText" },
+        "officialnessLevel": { "enum": ["O0", "O1", "O2", "O3", "O4", "O5"] },
+        "methodPriority": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "artifactMode": { "enum": ["immutable_revision", "approved_mutable_endpoint"] }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "approvalStatus",
+        "selfApprovalAllowed",
+        "certifiesSource",
+        "authorizesCapture",
+        "captureEligible",
+        "authorizesPublication",
+        "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "source_contract_definition_only" },
+        "approvalStatus": {
+          "enum": [
+            "draft_unapproved",
+            "external_review_pending",
+            "external_certification_bound"
+          ]
+        },
+        "selfApprovalAllowed": { "const": false },
+        "certifiesSource": { "const": false },
+        "authorizesCapture": { "const": false },
+        "captureEligible": { "type": "boolean" },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decisionId",
+        "decisionDigestSha256",
+        "decisionOutcome",
+        "decidedSourceRevisionId",
+        "decidedContractDefinitionSha256",
+        "effectiveOn",
+        "expiresOn"
+      ],
+      "properties": {
+        "decisionId": { "$ref": "#/$defs/nullableStableId" },
+        "decisionDigestSha256": { "$ref": "#/$defs/nullableSha256" },
+        "decisionOutcome": { "enum": ["not_assessed", "certified", "quarantined", "revoked"] },
+        "decidedSourceRevisionId": { "$ref": "#/$defs/nullableStableId" },
+        "decidedContractDefinitionSha256": { "$ref": "#/$defs/nullableSha256" },
+        "effectiveOn": { "$ref": "#/$defs/nullableDate" },
+        "expiresOn": { "$ref": "#/$defs/nullableDate" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "decisionOutcome": { "const": "not_assessed" } }, "required": ["decisionOutcome"] },
+          "then": {
+            "properties": {
+              "decisionId": { "type": "null" },
+              "decisionDigestSha256": { "type": "null" },
+              "decidedSourceRevisionId": { "type": "null" },
+              "decidedContractDefinitionSha256": { "type": "null" },
+              "effectiveOn": { "type": "null" },
+              "expiresOn": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "decisionId": { "$ref": "#/$defs/stableId" },
+              "decisionDigestSha256": { "$ref": "#/$defs/sha256" },
+              "decidedSourceRevisionId": { "$ref": "#/$defs/stableId" },
+              "decidedContractDefinitionSha256": { "$ref": "#/$defs/sha256" },
+              "effectiveOn": { "$ref": "#/$defs/date" },
+              "expiresOn": { "$ref": "#/$defs/date" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "enum": ["blocked_terms", "blocked_permission"] } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "decisionReference": { "$ref": "#/$defs/stableId" },
+              "evidenceDate": { "$ref": "#/$defs/date" },
+              "effectiveOn": { "type": "null" },
+              "reviewDueOn": { "$ref": "#/$defs/date" },
+              "expiresOn": { "type": "null" },
+              "reuseScope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "unknown" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "decisionReference": { "type": "null" },
+              "evidenceDate": { "type": "null" },
+              "effectiveOn": { "type": "null" },
+              "reviewDueOn": { "type": "null" },
+              "expiresOn": { "type": "null" },
+              "reuseScope": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "definitionSha256",
+        "approvedSourceUrlCount",
+        "approvedFinalUrlCount",
+        "acceptedMimeTypeCount",
+        "locatorTypeCount",
+        "displayDimensionCount",
+        "recordExclusionCount",
+        "parserFixtureCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "definitionSha256": { "$ref": "#/$defs/sha256" },
+        "approvedSourceUrlCount": { "$ref": "#/$defs/count" },
+        "approvedFinalUrlCount": { "$ref": "#/$defs/count" },
+        "acceptedMimeTypeCount": { "$ref": "#/$defs/count" },
+        "locatorTypeCount": { "$ref": "#/$defs/count" },
+        "displayDimensionCount": { "$ref": "#/$defs/count" },
+        "recordExclusionCount": { "$ref": "#/$defs/count" },
+        "parserFixtureCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "termsReuse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "decisionReference",
+        "evidenceDate",
+        "effectiveOn",
+        "reviewDueOn",
+        "expiresOn",
+        "reuseScope",
+        "correctionRoute"
+      ],
+      "properties": {
+        "status": { "enum": ["unknown", "blocked_terms", "blocked_permission", "reviewed_permitted"] },
+        "decisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "evidenceDate": { "$ref": "#/$defs/nullableDate" },
+        "effectiveOn": { "$ref": "#/$defs/nullableDate" },
+        "reviewDueOn": { "$ref": "#/$defs/nullableDate" },
+        "expiresOn": { "$ref": "#/$defs/nullableDate" },
+        "reuseScope": { "$ref": "#/$defs/nullableExactText" },
+        "correctionRoute": { "$ref": "#/$defs/httpsUrl" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "reviewed_permitted" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "decisionReference": { "$ref": "#/$defs/stableId" },
+              "evidenceDate": { "$ref": "#/$defs/date" },
+              "effectiveOn": { "$ref": "#/$defs/date" },
+              "reviewDueOn": { "$ref": "#/$defs/date" },
+              "expiresOn": { "$ref": "#/$defs/date" },
+              "reuseScope": { "$ref": "#/$defs/exactText" }
+            }
+          }
+        }
+      ]
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestMethod",
+        "approvedSourceUrls",
+        "approvedFinalUrls",
+        "allowedHosts",
+        "allowedPorts",
+        "queryPolicy",
+        "requestHeaderNames",
+        "credential",
+        "redirectPolicy",
+        "peerPolicy",
+        "conditionalRequests",
+        "revisionDiscovery",
+        "acceptedMimeTypes",
+        "maxBytes",
+        "timeoutSeconds"
+      ],
+      "properties": {
+        "requestMethod": { "const": "GET" },
+        "approvedSourceUrls": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/httpsUrl" }
+        },
+        "approvedFinalUrls": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/httpsUrl" }
+        },
+        "allowedHosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/publicHost" }
+        },
+        "allowedPorts": {
+          "const": [443]
+        },
+        "queryPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "allowedParameterNames"],
+          "properties": {
+            "mode": { "enum": ["none", "exact_allowlist"] },
+            "allowedParameterNames": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/exactText" }
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "mode": { "const": "none" } }, "required": ["mode"] },
+              "then": { "properties": { "allowedParameterNames": { "maxItems": 0 } } }
+            }
+          ]
+        },
+        "requestHeaderNames": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]+$" }
+        },
+        "credential": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["credentialClass", "credentialReference"],
+          "properties": {
+            "credentialClass": { "enum": ["none", "bearer_token_env", "api_key_env", "oauth_client_env"] },
+            "credentialReference": { "$ref": "#/$defs/nullableStableId" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "credentialClass": { "const": "none" } }, "required": ["credentialClass"] },
+              "then": { "properties": { "credentialReference": { "type": "null" } } },
+              "else": { "properties": { "credentialReference": { "$ref": "#/$defs/stableId" } } }
+            }
+          ]
+        },
+        "redirectPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "maxRedirects"],
+          "properties": {
+            "mode": { "enum": ["deny", "allow_exact_final"] },
+            "maxRedirects": { "type": "integer", "minimum": 0, "maximum": 5 }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "mode": { "const": "deny" } }, "required": ["mode"] },
+              "then": { "properties": { "maxRedirects": { "const": 0 } } },
+              "else": { "properties": { "maxRedirects": { "minimum": 1 } } }
+            }
+          ]
+        },
+        "peerPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requireTls", "minimumTlsVersion", "verifyConnectedPeer", "rejectPrivateAddresses", "verifyDnsEveryHop"],
+          "properties": {
+            "requireTls": { "const": true },
+            "minimumTlsVersion": { "enum": ["TLS1.2", "TLS1.3"] },
+            "verifyConnectedPeer": { "const": true },
+            "rejectPrivateAddresses": { "const": true },
+            "verifyDnsEveryHop": { "const": true }
+          }
+        },
+        "conditionalRequests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "requirePreviousSnapshotFor304"],
+          "properties": {
+            "mode": { "enum": ["none", "etag", "last_modified", "etag_or_last_modified"] },
+            "requirePreviousSnapshotFor304": { "const": true }
+          }
+        },
+        "revisionDiscovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "revisionField", "requireStableRevision"],
+          "properties": {
+            "mode": { "enum": ["immutable_url", "etag_and_content_hash", "manifest_revision"] },
+            "revisionField": { "$ref": "#/$defs/exactText" },
+            "requireStableRevision": { "const": true }
+          }
+        },
+        "acceptedMimeTypes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/mimeType" }
+        },
+        "maxBytes": { "type": "integer", "minimum": 1, "maximum": 67108864 },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 60 }
+      }
+    },
+    "implementationBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "currentAdmissionPolicy", "currentSafeFetchPolicy", "connectedPeerProof", "parquetLocatorSupport"],
+      "properties": {
+        "status": { "enum": ["contract_only_not_wired", "fixture_verified_not_live", "wired_peer_verified"] },
+        "currentAdmissionPolicy": { "const": "source-admission-v2" },
+        "currentSafeFetchPolicy": { "const": "safe-fetch-v1" },
+        "connectedPeerProof": { "enum": ["required_not_implemented", "implemented_verified"] },
+        "parquetLocatorSupport": { "enum": ["contract_only", "implemented_verified"] }
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parser", "structuredFormat", "locatorTypes", "evidenceContracts", "allowedDisplayDimensions", "dimensions", "numericPolicy", "recordExclusions"],
+      "properties": {
+        "parser": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version", "fixtureDigests"],
+          "properties": {
+            "name": { "$ref": "#/$defs/stableId" },
+            "version": { "$ref": "#/$defs/exactText" },
+            "fixtureDigests": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        },
+        "structuredFormat": { "enum": ["api", "csv", "html", "json", "parquet"] },
+        "locatorTypes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/locatorType" }
+        },
+        "evidenceContracts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidenceContract" }
+        },
+        "allowedDisplayDimensions": {
+          "const": [
+            "benchmark_raw",
+            "evaluation_version_raw",
+            "metric_raw",
+            "setting_raw",
+            "split_raw"
+          ]
+        },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["benchmark_raw", "evaluation_version_raw", "metric_raw", "setting_raw", "split_raw"],
+          "properties": {
+            "benchmark_raw": { "$ref": "#/$defs/dimensionBinding" },
+            "evaluation_version_raw": { "$ref": "#/$defs/dimensionBinding" },
+            "metric_raw": { "$ref": "#/$defs/dimensionBinding" },
+            "setting_raw": { "$ref": "#/$defs/dimensionBinding" },
+            "split_raw": { "$ref": "#/$defs/dimensionBinding" }
+          }
+        },
+        "numericPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lexeme", "scoreUnit", "minimumLexeme", "maximumLexeme", "permitDerivedScores", "coerceRawValues"],
+          "properties": {
+            "lexeme": { "enum": ["decimal", "decimal_percent"] },
+            "scoreUnit": { "enum": ["fraction", "percent", "points"] },
+            "minimumLexeme": { "$ref": "#/$defs/decimalLexeme" },
+            "maximumLexeme": { "$ref": "#/$defs/decimalLexeme" },
+            "permitDerivedScores": { "const": false },
+            "coerceRawValues": { "const": false }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "lexeme": { "const": "decimal_percent" } }, "required": ["lexeme"] },
+              "then": { "properties": { "scoreUnit": { "const": "percent" } } }
+            }
+          ]
+        },
+        "recordExclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recordExclusion" }
+        }
+      }
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "expectedMinRecords", "expectedMaxRecords", "maxShards", "maxClaimCandidatesPerRecord", "requireEveryRecordAccounted", "requireNonzero", "rejectDuplicateLocators", "allowedExclusionIds", "accountingEquation", "quarantineOnUnexplainedLoss"],
+      "properties": {
+        "scope": { "enum": ["complete_artifact", "complete_endpoint_result", "complete_manifest"] },
+        "expectedMinRecords": { "type": "integer", "minimum": 1 },
+        "expectedMaxRecords": { "type": "integer", "minimum": 1 },
+        "maxShards": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "maxClaimCandidatesPerRecord": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "requireEveryRecordAccounted": { "const": true },
+        "requireNonzero": { "const": true },
+        "rejectDuplicateLocators": { "const": true },
+        "allowedExclusionIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "accountingEquation": { "const": "observed=parsed+excluded+rejected+quarantined" },
+        "quarantineOnUnexplainedLoss": { "const": true }
+      }
+    },
+    "drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaFingerprintPolicy", "approvedSchemaSha256", "baselineMinRecords", "baselineMaxRecords", "maxRecordCountChangeRatio", "pauseOnSchemaDrift", "pauseOnLocatorDrift", "pauseOnDimensionDrift", "pauseOnTermsChange", "incidentOwnerRole", "runbookId"],
+      "properties": {
+        "schemaFingerprintPolicy": { "enum": ["exact", "approved_additive"] },
+        "approvedSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "baselineMinRecords": { "type": "integer", "minimum": 1 },
+        "baselineMaxRecords": { "type": "integer", "minimum": 1 },
+        "maxRecordCountChangeRatio": { "$ref": "#/$defs/nonnegativeDecimalLexeme" },
+        "pauseOnSchemaDrift": { "const": true },
+        "pauseOnLocatorDrift": { "const": true },
+        "pauseOnDimensionDrift": { "const": true },
+        "pauseOnTermsChange": { "const": true },
+        "incidentOwnerRole": { "$ref": "#/$defs/stableId" },
+        "runbookId": { "$ref": "#/$defs/stableId" }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schedulePolicyRevisionId", "cadence", "completionGrace", "maxAttempts", "retryableClasses", "rateLimitPerMinute", "maxConcurrency", "enabled"],
+      "properties": {
+        "schedulePolicyRevisionId": { "$ref": "#/$defs/stableId" },
+        "cadence": { "$ref": "#/$defs/duration" },
+        "completionGrace": { "$ref": "#/$defs/duration" },
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "retryableClasses": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["connection_reset", "database_serialization", "http_429", "http_5xx", "object_store_unavailable", "timeout"]
+          }
+        },
+        "rateLimitPerMinute": { "type": "integer", "minimum": 1, "maximum": 600 },
+        "maxConcurrency": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotBeforeExtraction", "immutableObjectRequired", "conditionalNoOverwrite", "readBackSha256Required", "preserveSnapshotOnExtractionFailure"],
+      "properties": {
+        "snapshotBeforeExtraction": { "const": true },
+        "immutableObjectRequired": { "const": true },
+        "conditionalNoOverwrite": { "const": true },
+        "readBackSha256Required": { "const": true },
+        "preserveSnapshotOnExtractionFailure": { "const": true }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "lifecycleStatus": { "const": "draft_unapproved" } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "authority": {
+            "properties": {
+              "approvalStatus": { "const": "draft_unapproved" },
+              "captureEligible": { "const": false }
+            }
+          },
+          "certification": { "properties": { "decisionOutcome": { "const": "not_assessed" } } },
+          "schedule": { "properties": { "enabled": { "const": false } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "lifecycleStatus": { "const": "certification_pending" } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "authority": {
+            "properties": {
+              "approvalStatus": { "const": "external_review_pending" },
+              "captureEligible": { "const": false }
+            }
+          },
+          "certification": { "properties": { "decisionOutcome": { "const": "not_assessed" } } },
+          "schedule": { "properties": { "enabled": { "const": false } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "lifecycleStatus": { "const": "approved" } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "authority": {
+            "properties": {
+              "approvalStatus": { "const": "external_certification_bound" },
+              "captureEligible": { "const": true }
+            }
+          },
+          "certification": { "properties": { "decisionOutcome": { "const": "certified" } } },
+          "termsReuse": { "properties": { "status": { "const": "reviewed_permitted" } } },
+          "implementationBinding": {
+            "properties": {
+              "status": { "const": "wired_peer_verified" },
+              "connectedPeerProof": { "const": "implemented_verified" }
+            }
+          },
+          "schedule": { "properties": { "enabled": { "const": true } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "lifecycleStatus": { "enum": ["paused", "revoked", "retired"] } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "authority": { "properties": { "captureEligible": { "const": false } } },
+          "schedule": { "properties": { "enabled": { "const": false } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "logicalSource": { "properties": { "artifactMode": { "const": "immutable_revision" } }, "required": ["artifactMode"] } }, "required": ["logicalSource"] },
+      "then": { "properties": { "transport": { "properties": { "revisionDiscovery": { "properties": { "mode": { "const": "immutable_url" } } } } } } },
+      "else": { "properties": { "transport": { "properties": { "revisionDiscovery": { "properties": { "mode": { "enum": ["etag_and_content_hash", "manifest_revision"] } } } } } } }
+    }
+  ],
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [{ "$ref": "#/$defs/stableId" }, { "type": "null" }]
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "nullableDate": {
+      "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }]
+    },
+    "exactText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+    },
+    "nullableExactText": {
+      "oneOf": [{ "$ref": "#/$defs/exactText" }, { "type": "null" }]
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://[^/?#]+/[^#]*$"
+    },
+    "publicHost": {
+      "type": "string",
+      "pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?$"
+    },
+    "decimalLexeme": {
+      "type": "string",
+      "pattern": "^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$"
+    },
+    "nonnegativeDecimalLexeme": {
+      "type": "string",
+      "pattern": "^(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$"
+    },
+    "mimeType": {
+      "enum": [
+        "application/*+json",
+        "application/json",
+        "application/ld+json",
+        "application/octet-stream",
+        "application/parquet",
+        "application/vnd.apache.parquet",
+        "text/csv",
+        "text/html",
+        "text/tab-separated-values"
+      ]
+    },
+    "locatorType": {
+      "enum": [
+        "csv_cell_v1",
+        "json_path_v1",
+        "json_script_path_v1",
+        "parquet_cell_v1"
+      ]
+    },
+    "evidenceContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locatorType", "recordLocatorTemplate", "fields"],
+      "properties": {
+        "locatorType": { "$ref": "#/$defs/locatorType" },
+        "recordLocatorTemplate": { "$ref": "#/$defs/exactText" },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model_raw", "score_raw"],
+          "properties": {
+            "model_raw": { "$ref": "#/$defs/exactText" },
+            "score_raw": { "$ref": "#/$defs/exactText" },
+            "rank_raw": { "$ref": "#/$defs/exactText" },
+            "benchmark_raw": { "$ref": "#/$defs/exactText" },
+            "evaluation_version_raw": { "$ref": "#/$defs/exactText" },
+            "metric_raw": { "$ref": "#/$defs/exactText" },
+            "setting_raw": { "$ref": "#/$defs/exactText" },
+            "split_raw": { "$ref": "#/$defs/exactText" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "locatorType": { "enum": ["json_path_v1", "json_script_path_v1"] } }, "required": ["locatorType"] },
+          "then": { "properties": { "recordLocatorTemplate": { "pattern": "^\\$.*\\{row_index\\}.*$" } } }
+        },
+        {
+          "if": { "properties": { "locatorType": { "const": "csv_cell_v1" } }, "required": ["locatorType"] },
+          "then": { "properties": { "recordLocatorTemplate": { "const": "row:{row_index}" } } }
+        },
+        {
+          "if": { "properties": { "locatorType": { "const": "parquet_cell_v1" } }, "required": ["locatorType"] },
+          "then": { "properties": { "recordLocatorTemplate": { "const": "row-group:{row_group}:row:{row_index}" } } }
+        }
+      ]
+    },
+    "dimensionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "value", "allowedValues"],
+      "properties": {
+        "mode": { "enum": ["revision_constant", "evidence_field"] },
+        "value": { "$ref": "#/$defs/nullableExactText" },
+        "allowedValues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/exactText" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "evidence_field" } }, "required": ["mode"] },
+          "then": { "properties": { "value": { "type": "null" } } },
+          "else": { "properties": { "value": { "$ref": "#/$defs/exactText" }, "allowedValues": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "recordExclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exclusionId", "reasonCode", "predicate", "decisionReference"],
+      "properties": {
+        "exclusionId": { "$ref": "#/$defs/stableId" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "predicate": { "$ref": "#/$defs/exactText" },
+        "decisionReference": { "$ref": "#/$defs/stableId" }
+      }
+    }
+  }
+}

@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/benchmark-definition-revision-v1.schema.json",
+  "title": "Benchmark Definition Revision v1",
+  "description": "An immutable benchmark family/edition definition revision. It defines comparison identity only and grants no source certification, capture, claim review, publication, release, or frontend authority.",
+  "$comment": "Semantic validation rejects duplicate dimension/relationship IDs and cells, dangling references, incompatible changes that reuse an edition identity, non-linear supersession, invalid or lifecycle-incompatible effective periods, mutable fields, bad fingerprints/digests, and any claim-rewrite or authority escalation. The exact six display dimensions remain modelId, benchmarkId, metric, split, setting, evaluationVersion; scoreUnit is separate provenance/comparability metadata. Existing claims stay bound to their captured definition revision. effectivePeriod is supplied data and never inferred from a clock; it changes the self-digest but is deliberately excluded from dimensionFingerprintSha256 because it is lifecycle state, not score-cell identity. sha256-canonical-json-v1 replaces only manifest.contentSha256 with null and preserves array order; dimensionFingerprintSha256 separately sorts set-like dimension, relationship, and allowed-cell inputs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "policyVersion", "availability",
+    "benchmarkDefinitionRevisionId", "benchmarkFamilyId", "benchmarkEditionId",
+    "supersedesDefinitionRevisionId", "lifecycleStatus", "effectivePeriod", "decisionReference",
+    "reasonCode", "authority", "manifest", "owner", "identity", "changeControl",
+    "displayContract", "dimensions", "relationships", "sourceContractCompatibility",
+    "claimRetention"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "benchmark-definition-revision-v1" },
+    "availability": { "const": "definition_only" },
+    "benchmarkDefinitionRevisionId": { "$ref": "#/$defs/stableId" },
+    "benchmarkFamilyId": { "$ref": "#/$defs/stableId" },
+    "benchmarkEditionId": { "$ref": "#/$defs/stableId" },
+    "supersedesDefinitionRevisionId": { "$ref": "#/$defs/nullableStableId" },
+    "lifecycleStatus": { "enum": ["draft", "approved", "superseded", "retired"] },
+    "effectivePeriod": { "$ref": "#/$defs/effectivePeriod" },
+    "decisionReference": { "$ref": "#/$defs/nullableStableId" },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "owner": { "$ref": "#/$defs/owner" },
+    "identity": { "$ref": "#/$defs/identity" },
+    "changeControl": { "$ref": "#/$defs/changeControl" },
+    "displayContract": { "$ref": "#/$defs/displayContract" },
+    "dimensions": { "$ref": "#/$defs/dimensions" },
+    "relationships": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/relationship" }
+    },
+    "sourceContractCompatibility": { "$ref": "#/$defs/sourceContractCompatibility" },
+    "claimRetention": { "$ref": "#/$defs/claimRetention" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "lifecycleStatus": { "const": "draft" } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "decisionReference": { "type": "null" },
+          "effectivePeriod": {
+            "properties": {
+              "status": { "const": "not_effective" },
+              "effectiveFrom": { "type": "null" },
+              "effectiveThrough": { "type": "null" }
+            },
+            "required": ["status", "effectiveFrom", "effectiveThrough"]
+          },
+          "authority": {
+            "properties": { "approvalStatus": { "const": "draft_unapproved" } },
+            "required": ["approvalStatus"]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "decisionReference": { "$ref": "#/$defs/stableId" },
+          "authority": {
+            "properties": { "approvalStatus": { "const": "definition_approved" } },
+            "required": ["approvalStatus"]
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "lifecycleStatus": { "const": "approved" } }, "required": ["lifecycleStatus"] },
+      "then": {
+        "properties": {
+          "effectivePeriod": {
+            "properties": {
+              "status": { "const": "effective" },
+              "effectiveFrom": { "$ref": "#/$defs/dateOnly" },
+              "effectiveThrough": { "type": "null" }
+            },
+            "required": ["status", "effectiveFrom", "effectiveThrough"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "lifecycleStatus": { "enum": ["superseded", "retired"] } },
+        "required": ["lifecycleStatus"]
+      },
+      "then": {
+        "properties": {
+          "effectivePeriod": {
+            "properties": {
+              "status": { "const": "ended" },
+              "effectiveFrom": { "$ref": "#/$defs/dateOnly" },
+              "effectiveThrough": { "$ref": "#/$defs/dateOnly" }
+            },
+            "required": ["status", "effectiveFrom", "effectiveThrough"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/nonEmptyString" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "dateOnly": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "httpsUri": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "effectivePeriod": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "effectiveFrom", "effectiveThrough"],
+      "properties": {
+        "status": { "enum": ["not_effective", "effective", "ended"] },
+        "effectiveFrom": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/dateOnly" }] },
+        "effectiveThrough": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/dateOnly" }] }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification", "approvalStatus", "certifiesSources", "authorizesCapture",
+        "authorizesPublication", "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "benchmark_definition_only" },
+        "approvalStatus": { "enum": ["draft_unapproved", "definition_approved"] },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm", "contentSha256", "dimensionFingerprintSha256", "metricCount",
+        "splitCount", "settingCount", "evaluationVersionCount", "unitCount",
+        "comparabilityGroupCount", "comparisonCellCount", "relationshipCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "dimensionFingerprintSha256": { "$ref": "#/$defs/sha256" },
+        "metricCount": { "type": "integer", "minimum": 1 },
+        "splitCount": { "type": "integer", "minimum": 1 },
+        "settingCount": { "type": "integer", "minimum": 1 },
+        "evaluationVersionCount": { "type": "integer", "minimum": 1 },
+        "unitCount": { "type": "integer", "minimum": 1 },
+        "comparabilityGroupCount": { "type": "integer", "minimum": 1 },
+        "comparisonCellCount": { "type": "integer", "minimum": 1 },
+        "relationshipCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownerId", "displayName", "officialRootUrls"],
+      "properties": {
+        "ownerId": { "$ref": "#/$defs/stableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "officialRootUrls": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/httpsUri" }
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonicalBenchmarkId", "familyDisplayName", "editionDisplayName",
+        "editionVersionRaw", "description"
+      ],
+      "properties": {
+        "canonicalBenchmarkId": { "$ref": "#/$defs/stableId" },
+        "familyDisplayName": { "$ref": "#/$defs/nonEmptyString" },
+        "editionDisplayName": { "$ref": "#/$defs/nonEmptyString" },
+        "editionVersionRaw": { "$ref": "#/$defs/nullableString" },
+        "description": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "changeControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changeType", "identityDisposition", "priorBenchmarkEditionId", "compatibilityImpact", "reasonCode"],
+      "properties": {
+        "changeType": {
+          "enum": [
+            "initial", "display_rename", "definition_correction", "new_edition",
+            "metric_change", "split_change", "setting_change",
+            "evaluation_version_change", "unit_change", "suite_relationship_change"
+          ]
+        },
+        "identityDisposition": { "enum": ["preserve_edition_identity", "new_edition_identity"] },
+        "priorBenchmarkEditionId": { "$ref": "#/$defs/nullableStableId" },
+        "compatibilityImpact": {
+          "enum": ["initial_identity", "display_only", "definition_metadata_only", "incompatible_new_identity"]
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "displayContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityDimensions", "benchmarkId", "scoreUnitIsSeparateProvenance", "requiresExactCellIdentity"],
+      "properties": {
+        "identityDimensions": {
+          "const": ["modelId", "benchmarkId", "metric", "split", "setting", "evaluationVersion"]
+        },
+        "benchmarkId": { "$ref": "#/$defs/stableId" },
+        "scoreUnitIsSeparateProvenance": { "const": true },
+        "requiresExactCellIdentity": { "const": true }
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metrics", "splits", "settings", "evaluationVersions", "units", "comparabilityGroups", "comparisonCells"],
+      "properties": {
+        "metrics": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/metric" } },
+        "splits": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/split" } },
+        "settings": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/setting" } },
+        "evaluationVersions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/evaluationVersion" } },
+        "units": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/unit" } },
+        "comparabilityGroups": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/comparabilityGroup" } },
+        "comparisonCells": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/comparisonCell" } }
+      }
+    },
+    "metric": {
+      "type": "object", "additionalProperties": false,
+      "required": ["metricId", "displayName", "direction", "unitId"],
+      "properties": {
+        "metricId": { "$ref": "#/$defs/stableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "direction": { "enum": ["higher_is_better", "lower_is_better", "neither"] },
+        "unitId": { "$ref": "#/$defs/stableId" }
+      }
+    },
+    "split": {
+      "type": "object", "additionalProperties": false,
+      "required": ["splitId", "displayName"],
+      "properties": { "splitId": { "$ref": "#/$defs/stableId" }, "displayName": { "$ref": "#/$defs/nonEmptyString" } }
+    },
+    "setting": {
+      "type": "object", "additionalProperties": false,
+      "required": ["settingId", "displayName", "description"],
+      "properties": {
+        "settingId": { "$ref": "#/$defs/stableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "evaluationVersion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evaluationVersionId", "evaluatorName", "evaluatorVersionRaw", "harnessVersionRaw"],
+      "properties": {
+        "evaluationVersionId": { "$ref": "#/$defs/stableId" },
+        "evaluatorName": { "$ref": "#/$defs/nonEmptyString" },
+        "evaluatorVersionRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "harnessVersionRaw": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "unit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unitId", "displayName", "symbol", "scaleDescription"],
+      "properties": {
+        "unitId": { "$ref": "#/$defs/stableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "symbol": { "$ref": "#/$defs/nonEmptyString" },
+        "scaleDescription": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "comparabilityGroup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["comparabilityGroupId", "statement", "exactDimensionsRequired"],
+      "properties": {
+        "comparabilityGroupId": { "$ref": "#/$defs/stableId" },
+        "statement": { "$ref": "#/$defs/nonEmptyString" },
+        "exactDimensionsRequired": { "const": true }
+      }
+    },
+    "comparisonCell": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "comparisonCellId", "metricId", "splitId", "settingId",
+        "evaluationVersionId", "unitId", "comparabilityGroupId"
+      ],
+      "properties": {
+        "comparisonCellId": { "$ref": "#/$defs/stableId" },
+        "metricId": { "$ref": "#/$defs/stableId" },
+        "splitId": { "$ref": "#/$defs/stableId" },
+        "settingId": { "$ref": "#/$defs/stableId" },
+        "evaluationVersionId": { "$ref": "#/$defs/stableId" },
+        "unitId": { "$ref": "#/$defs/stableId" },
+        "comparabilityGroupId": { "$ref": "#/$defs/stableId" }
+      }
+    },
+    "relationship": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relationshipId", "relationshipType", "relatedBenchmarkEditionId", "comparabilityEffect", "reasonCode"],
+      "properties": {
+        "relationshipId": { "$ref": "#/$defs/stableId" },
+        "relationshipType": { "enum": ["suite_contains", "subset_of", "task_of", "related_successor"] },
+        "relatedBenchmarkEditionId": { "$ref": "#/$defs/stableId" },
+        "comparabilityEffect": { "const": "distinct_identity_no_aggregate_substitution" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "sourceContractCompatibility": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "requiredPolicyVersion", "requiresExactDefinitionRevisionId",
+        "requiresExactMetricSplitSettingEvaluationVersionUnit", "allowedComparisonCellIds",
+        "allowsUnlistedDimensions"
+      ],
+      "properties": {
+        "requiredPolicyVersion": { "const": "source-contract-v2" },
+        "requiresExactDefinitionRevisionId": { "const": true },
+        "requiresExactMetricSplitSettingEvaluationVersionUnit": { "const": true },
+        "allowedComparisonCellIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableId" }
+        },
+        "allowsUnlistedDimensions": { "const": false }
+      }
+    },
+    "claimRetention": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "bindsClaimsToExactDefinitionRevision", "retainsPriorClaimBindings",
+        "rewritesExistingClaims", "requiresAppendOnlyCorrection", "allowsIdentityFallback"
+      ],
+      "properties": {
+        "bindsClaimsToExactDefinitionRevision": { "const": true },
+        "retainsPriorClaimBindings": { "const": true },
+        "rewritesExistingClaims": { "const": false },
+        "requiresAppendOnlyCorrection": { "const": true },
+        "allowsIdentityFallback": { "const": false }
+      }
+    }
+  }
+}

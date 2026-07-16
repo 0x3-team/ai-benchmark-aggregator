@@ -1,0 +1,56 @@
+{
+  "authority": {
+    "authenticationDecisionReference": null,
+    "canAcknowledgeIncident": false,
+    "canResolveIncident": false,
+    "classification": "notification_intent_only",
+    "dataMinimizationDecisionReference": null,
+    "mutatesEvidence": false,
+    "ownerDecisionReference": null,
+    "recipientAuthorityDecisionReference": null,
+    "retentionDecisionReference": null
+  },
+  "availability": "operations_record_only",
+  "dedupeKeySha256": "c3f6b0a221fc82611996d48b9ee2a70976e21226e29bb4acc1841274c51566a2",
+  "dispatchEligibility": "local_only",
+  "incidentCode": "WATCHDOG_MISSING_RECEIPT",
+  "incidentEventId": "incident-event-3eb78d6583d9781f83be553dbad4679b468643bc503d52f9bd266a5afba1857e",
+  "incidentEventType": "INVESTIGATION_STARTED",
+  "incidentFamily": "SCHEDULER",
+  "incidentFingerprintSha256": "38d38405583082d651ca61ba873970bf57f6a5c2eb663bd558e8018a09300e61",
+  "incidentId": "incident-38d38405583082d651ca61ba873970bf57f6a5c2eb663bd558e8018a09300e61",
+  "intentId": "notification-intent-c3f6b0a221fc82611996d48b9ee2a70976e21226e29bb4acc1841274c51566a2",
+  "manifest": {
+    "algorithm": "sha256-canonical-incident-json-v1",
+    "contentSha256": "c15ddab47fc04075bb46820ae370e2f733a57b16f5029ffe0bf53f34c1199d1d"
+  },
+  "mode": "synthetic_fixture",
+  "notificationKind": "transition",
+  "outboxAtomicWithIncidentEvent": true,
+  "payload": {
+    "currentState": "INVESTIGATING",
+    "environment": "fixture-shadow",
+    "incidentCode": "WATCHDOG_MISSING_RECEIPT",
+    "incidentId": "incident-38d38405583082d651ca61ba873970bf57f6a5c2eb663bd558e8018a09300e61",
+    "nextActionCode": "CHECK_INDEPENDENT_WATCHDOG",
+    "occurrenceCount": 1,
+    "recoveryState": "not_applicable",
+    "runbookId": "runbook-watchdog-receipt-v1",
+    "severity": "SEV2"
+  },
+  "payloadSha256": "8b7f7da26d8a27bac157a8300592ccf0ece4a3724683945538fe7aa819c215b8",
+  "policyVersion": "notification-intent-v1",
+  "recursionDisposition": "not_recursive",
+  "route": {
+    "authorityDecisionReference": null,
+    "authorityStatus": "local_fixture_only",
+    "external": false,
+    "failureDomain": "local_fixture",
+    "recipientSetId": "local-operators-fixture",
+    "routeId": "local-json-fixture-v1",
+    "routeType": "local_json"
+  },
+  "schemaVersion": "1.0.0",
+  "severity": "SEV2",
+  "template": { "templateId": "incident-transition-redacted", "version": "v1" }
+}

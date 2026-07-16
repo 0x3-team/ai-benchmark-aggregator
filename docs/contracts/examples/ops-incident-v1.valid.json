@@ -1,0 +1,115 @@
+{
+  "affectedRefs": [
+    { "referenceId": "scheduled-cycle-example", "referenceType": "cycle" }
+  ],
+  "assigneeId": null,
+  "authority": {
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "certifiesSources": false,
+    "classification": "operations_record_only",
+    "frontendLoadable": false,
+    "mutatesEvidence": false,
+    "timeoutMayApprove": false
+  },
+  "availability": "operations_record_only",
+  "causeCode": "RECEIPT_ABSENT",
+  "containmentRefs": [],
+  "currentState": "INVESTIGATING",
+  "environment": "fixture-shadow",
+  "events": [
+    {
+      "acknowledgementEvidenceRef": null,
+      "actorRole": "operations-owner",
+      "eventId": "incident-event-1f28fc5ae3a0101d7957cff73b5efa77ed3beab822c63864c9b07fd422881a2c",
+      "eventOrdinal": 1,
+      "eventType": "OPENED",
+      "expectedPriorEventId": null,
+      "fromState": null,
+      "occurredAt": "2026-07-15T00:00:00Z",
+      "reasonCode": "ALERT_ACCEPTED",
+      "resolutionEvidenceRef": null,
+      "safeContext": { "contextCode": "SYNTHETIC_FIXTURE_ONLY", "sourceControlledDataIncluded": false },
+      "toState": "OPEN"
+    },
+    {
+      "acknowledgementEvidenceRef": {
+        "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidenceId": "ack-evidence-fixture-v1"
+      },
+      "actorRole": "operations-owner",
+      "eventId": "incident-event-a78f7e8d5deb2dcc3d4701d184d98bce71d05b10ef08035bde183b16cbee6917",
+      "eventOrdinal": 2,
+      "eventType": "ACKNOWLEDGED",
+      "expectedPriorEventId": "incident-event-1f28fc5ae3a0101d7957cff73b5efa77ed3beab822c63864c9b07fd422881a2c",
+      "fromState": "OPEN",
+      "occurredAt": "2026-07-15T00:05:00Z",
+      "reasonCode": "OWNER_ACKNOWLEDGED",
+      "resolutionEvidenceRef": null,
+      "safeContext": { "contextCode": "SYNTHETIC_FIXTURE_ONLY", "sourceControlledDataIncluded": false },
+      "toState": "ACKNOWLEDGED"
+    },
+    {
+      "acknowledgementEvidenceRef": null,
+      "actorRole": "operations-owner",
+      "eventId": "incident-event-3eb78d6583d9781f83be553dbad4679b468643bc503d52f9bd266a5afba1857e",
+      "eventOrdinal": 3,
+      "eventType": "INVESTIGATION_STARTED",
+      "expectedPriorEventId": "incident-event-a78f7e8d5deb2dcc3d4701d184d98bce71d05b10ef08035bde183b16cbee6917",
+      "fromState": "ACKNOWLEDGED",
+      "occurredAt": "2026-07-15T00:10:00Z",
+      "reasonCode": "TRIAGE_STARTED",
+      "resolutionEvidenceRef": null,
+      "safeContext": { "contextCode": "SYNTHETIC_FIXTURE_ONLY", "sourceControlledDataIncluded": false },
+      "toState": "INVESTIGATING"
+    }
+  ],
+  "family": "SCHEDULER",
+  "firstOccurredAt": "2026-07-15T00:00:00Z",
+  "incidentCode": "WATCHDOG_MISSING_RECEIPT",
+  "incidentFingerprintSha256": "38d38405583082d651ca61ba873970bf57f6a5c2eb663bd558e8018a09300e61",
+  "incidentId": "incident-38d38405583082d651ca61ba873970bf57f6a5c2eb663bd558e8018a09300e61",
+  "lastOccurredAt": "2026-07-15T00:00:00Z",
+  "manifest": {
+    "affectedReferenceCount": 1,
+    "algorithm": "sha256-canonical-incident-json-v1",
+    "containmentReferenceCount": 0,
+    "contentSha256": "d54f644d3f2cfcc46601936c4305eca5d36dc041512af358aa39458798f18084",
+    "eventCount": 3,
+    "resolutionEvidenceReferenceCount": 0,
+    "tagCount": 2
+  },
+  "mode": "synthetic_fixture",
+  "nextActionCode": "CHECK_INDEPENDENT_WATCHDOG",
+  "nextReviewAt": "2026-07-15T04:00:00Z",
+  "occurrenceCount": 1,
+  "ownerRole": "operations-owner",
+  "policyVersion": "ops-incident-v1",
+  "resolutionEvidenceRefs": [],
+  "runbookId": "runbook-watchdog-receipt-v1",
+  "schemaVersion": "1.0.0",
+  "severity": "SEV2",
+  "severityBasis": "taxonomy_default",
+  "severityDecisionReference": null,
+  "sla": {
+    "acknowledgeDueAt": null,
+    "acknowledgeWithinSeconds": null,
+    "acknowledgedAt": "2026-07-15T00:05:00Z",
+    "acknowledgedOnTime": null,
+    "businessCalendarId": null,
+    "calculationStatus": "blocked_business_calendar",
+    "clockType": "business_calendar",
+    "mitigateDueAt": null,
+    "mitigateWithinSeconds": null,
+    "mitigatedAt": null,
+    "mitigatedOnTime": null,
+    "policyDecisionReference": null,
+    "policyRevisionId": "sla-policy-draft-v1",
+    "policyStatus": "provisional_unapproved",
+    "timeZone": null
+  },
+  "tags": [
+    { "tagKey": "area", "tagValue": "scheduler" },
+    { "tagKey": "sev", "tagValue": "SEV2" }
+  ]
+}

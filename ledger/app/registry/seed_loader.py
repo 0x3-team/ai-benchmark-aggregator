@@ -5,15 +5,149 @@ from typing import Any
 
 import yaml
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from app.db import repositories as repo
-from app.db import models
 
 
-def _load_yaml(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+def _load_yaml(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as stream:
+        return yaml.safe_load(stream) or {}
+
+
+def _validated_source_entries(source_document: Any) -> tuple[list[dict[str, Any]], set[str]]:
+    if not isinstance(source_document, dict):
+        raise ValueError("Registry source document must be a mapping with a sources list.")
+    if "sources" not in source_document or source_document["sources"] is None:
+        raise ValueError("Registry source document must include a non-null sources list.")
+    source_entries = source_document["sources"]
+    if not isinstance(source_entries, list):
+        raise ValueError("Registry source document sources must be a list.")
+
+    source_ids: set[str] = set()
+    duplicate_source_ids: set[str] = set()
+    validated_entries: list[dict[str, Any]] = []
+    for source in source_entries:
+        if not isinstance(source, dict) or not source.get("id"):
+            raise ValueError("Each registry source must be a mapping with a stable id.")
+        source_id = str(source["id"])
+        if source_id in source_ids:
+            duplicate_source_ids.add(source_id)
+        source_ids.add(source_id)
+        validated_entries.append(source)
+    if duplicate_source_ids:
+        raise ValueError(
+            "Registry source IDs must be unique; duplicate IDs would rewrite source history: "
+            + ", ".join(sorted(duplicate_source_ids))
+        )
+    return validated_entries, source_ids
+
+
+def _registry_files(path: Path, pattern: str) -> list[Path]:
+    files = sorted(path.parent.glob(pattern)) if path.parent.exists() else []
+    return files or [path]
+
+
+def _seed_registry_changes(
+    session: Session,
+    *,
+    benchmarks_path: Path,
+    models_path: Path,
+    source_entries: list[dict[str, Any]],
+    source_ids: set[str],
+    retire_missing: bool,
+) -> dict[str, int]:
+    counts = {
+        "benchmarks": 0,
+        "models": 0,
+        "aliases": 0,
+        "sources": 0,
+        "source_revisions": 0,
+        "sources_retired": 0,
+    }
+
+    seen_benchmark_ids: set[str] = set()
+    for benchmark_file in _registry_files(benchmarks_path, "benchmarks*.yaml"):
+        benchmark_document = _load_yaml(benchmark_file)
+        if not isinstance(benchmark_document, dict):
+            raise ValueError("Benchmark registry document must be a mapping.")
+        for benchmark in benchmark_document.get("benchmarks") or []:
+            if not isinstance(benchmark, dict) or "id" not in benchmark:
+                continue
+            benchmark_id = str(benchmark["id"])
+            if benchmark_id in seen_benchmark_ids:
+                continue
+            seen_benchmark_ids.add(benchmark_id)
+            aliases = benchmark.get("aliases") or []
+            benchmark_data = {key: value for key, value in benchmark.items() if key != "aliases"}
+            repo.upsert_benchmark(session, benchmark_data)
+            counts["benchmarks"] += 1
+            for alias in aliases:
+                repo.add_alias(
+                    session,
+                    entity_type="benchmark",
+                    entity_id=benchmark_id,
+                    alias_text=alias,
+                    is_official_alias=True,
+                )
+                counts["aliases"] += 1
+
+    allowed_model_fields = {
+        "id",
+        "canonical_name",
+        "display_name",
+        "entity_type",
+        "provider",
+        "developer",
+        "model_family",
+        "access_type",
+        "official_model_url",
+        "official_docs_url",
+        "official_card_url",
+        "official_repo_url",
+        "official_hf_repo",
+        "api_model_id",
+        "api_version",
+        "status",
+        "context_window",
+        "modalities",
+        "license",
+    }
+    seen_model_ids: set[str] = set()
+    for model_file in _registry_files(models_path, "models*.yaml"):
+        model_document = _load_yaml(model_file)
+        if not isinstance(model_document, dict):
+            raise ValueError("Model registry document must be a mapping.")
+        for model in model_document.get("models") or []:
+            if not isinstance(model, dict) or "id" not in model:
+                continue
+            model_id = str(model["id"])
+            if model_id in seen_model_ids:
+                continue
+            seen_model_ids.add(model_id)
+            aliases = model.get("aliases") or []
+            model_data = {key: value for key, value in model.items() if key in allowed_model_fields}
+            repo.upsert_model_entity(session, model_data)
+            counts["models"] += 1
+            for alias in aliases:
+                repo.add_alias(
+                    session,
+                    entity_type="model_entity",
+                    entity_id=model_id,
+                    alias_text=alias,
+                    is_official_alias=True,
+                )
+                counts["aliases"] += 1
+
+    for source in source_entries:
+        result = repo.reconcile_official_source(session, source, registry_managed=True)
+        counts["sources"] += 1
+        if result.revision_created:
+            counts["source_revisions"] += 1
+    if retire_missing:
+        retirements = repo.retire_registry_sources_not_in(session, source_ids=source_ids)
+        counts["sources_retired"] = len(retirements)
+        counts["source_revisions"] += len(retirements)
+    return counts
 
 
 def seed_registry(
@@ -22,98 +156,23 @@ def seed_registry(
     benchmarks_path: Path,
     models_path: Path,
     sources_path: Path,
+    retire_missing: bool = False,
 ) -> dict[str, int]:
-    counts = {"benchmarks": 0, "models": 0, "aliases": 0, "sources": 0}
-    
-    # Find all benchmarks files matching benchmarks*.yaml in the same directory
-    benchmarks_files = sorted(list(benchmarks_path.parent.glob("benchmarks*.yaml"))) if benchmarks_path.parent.exists() else [benchmarks_path]
-    if not benchmarks_files:
-        benchmarks_files = [benchmarks_path]
+    """Reconcile a validated complete or partial registry without deleting evidence.
 
-    seen_benchmark_ids = set()
-    for b_file in benchmarks_files:
-        bdoc = _load_yaml(b_file)
-        for b in bdoc.get("benchmarks") or []:
-            if not isinstance(b, dict) or "id" not in b:
-                continue
-            b_id = b["id"]
-            if b_id in seen_benchmark_ids:
-                continue
-            seen_benchmark_ids.add(b_id)
-
-            aliases = b.pop("aliases", []) if isinstance(b, dict) else []
-            repo.upsert_benchmark(session, b)
-            counts["benchmarks"] += 1
-            for alias in aliases or []:
-                repo.add_alias(session, entity_type="benchmark", entity_id=b["id"], alias_text=alias, is_official_alias=True)
-                counts["aliases"] += 1
-
-    # Find all models files matching models*.yaml in the same directory
-    models_files = sorted(list(models_path.parent.glob("models*.yaml"))) if models_path.parent.exists() else [models_path]
-    if not models_files:
-        models_files = [models_path]
-
-    seen_model_ids = set()
-    for m_file in models_files:
-        mdoc = _load_yaml(m_file)
-        for m in mdoc.get("models") or []:
-            if not isinstance(m, dict) or "id" not in m:
-                continue
-            model_id = m["id"]
-            if model_id in seen_model_ids:
-                continue
-            seen_model_ids.add(model_id)
-
-            aliases = m.pop("aliases", []) if isinstance(m, dict) else []
-            # only keep model entity fields
-            allowed = {
-                "id",
-                "canonical_name",
-                "display_name",
-                "entity_type",
-                "provider",
-                "developer",
-                "model_family",
-                "access_type",
-                "official_model_url",
-                "official_docs_url",
-                "official_card_url",
-                "official_repo_url",
-                "official_hf_repo",
-                "api_model_id",
-                "api_version",
-                "status",
-                "context_window",
-                "modalities",
-                "license",
-            }
-            data = {k: v for k, v in m.items() if k in allowed}
-            repo.upsert_model_entity(session, data)
-            counts["models"] += 1
-            for alias in aliases or []:
-                repo.add_alias(
-                    session,
-                    entity_type="model_entity",
-                    entity_id=data["id"],
-                    alias_text=alias,
-                    is_official_alias=True,
-                )
-                counts["aliases"] += 1
-
-    sdoc = _load_yaml(sources_path)
-    # Source registry is the single source of truth for official_sources.
-    # Clear all source-derived rows (and their dependents) so re-seeding is
-    # idempotent and never collides on (benchmark_id, source_url) with a stale
-    # row carried under a different id. FK checks are suspended for the clear
-    # because the dependency chain (claims <- validations/review) is wide.
-    session.execute(text("PRAGMA foreign_keys=OFF"))
-    session.query(models.IngestionRun).delete()
-    session.query(models.ResultClaim).delete()
-    session.query(models.SourceSnapshot).delete()
-    session.query(models.OfficialSourceRow).delete()
-    session.execute(text("PRAGMA foreign_keys=ON"))
-    session.flush()
-    for s in sdoc.get("sources") or []:
-        repo.upsert_official_source(session, s)
-        counts["sources"] += 1
-    return counts
+    A CLI caller uses ``retire_missing=True`` only after supplying a complete
+    reviewed manifest. Programmatic callers default to no retirement so a
+    deliberately partial manifest cannot mass-retire existing sources.
+    """
+    source_entries, source_ids = _validated_source_entries(_load_yaml(sources_path))
+    # Preserve all-or-nothing behavior for the complete seed operation, even
+    # when a library caller catches an error and keeps using its outer session.
+    with session.begin_nested():
+        return _seed_registry_changes(
+            session,
+            benchmarks_path=benchmarks_path,
+            models_path=models_path,
+            source_entries=source_entries,
+            source_ids=source_ids,
+            retire_missing=retire_missing,
+        )

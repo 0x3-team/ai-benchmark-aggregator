@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "source-check-receipt-v1",
+  "availability": "synthetic_evidence_only",
+  "receiptId": "source-check-receipt-84e8f48a6935b44f1680ddb770cc170b15c8f95f2198da61a6f245efc71108bf",
+  "identity": {
+    "sourceId": "example-logical-source",
+    "sourceRevisionId": "example-source-revision-r1",
+    "contractId": "example-source-contract",
+    "contractRevisionId": "example-source-contract-r1",
+    "contractDigestSha256": "e7f4834955b89a1cfc88d40b5c4d87684185b2ecb68a4f2dc753c9c3fe4db9e6",
+    "contractDefinitionSha256": "aee8fc2d60a18bc88c1e8685eb41fcf15ae0dab969c5f27b9f15551c6d5bc1e5",
+    "certificationDecisionId": null,
+    "certificationDecisionDigestSha256": null,
+    "schedulePolicyRevisionId": "example-schedule-policy-r1",
+    "scheduledSlot": "2026-07-15T00:00:00Z",
+    "jobId": "example-source-job-r1",
+    "attemptId": "example-source-attempt-r1",
+    "attemptNumber": 1,
+    "fencingToken": 1,
+    "expectedFencingToken": 1
+  },
+  "manifest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "contentSha256": "fbcfdabe9d1b56afa9fa9e51d32a4cd0a12c460394dbe9c2a24c25efd38fa2fa",
+    "incidentReferenceCount": 1
+  },
+  "authority": {
+    "classification": "source_check_receipt_only",
+    "certifiesSource": false,
+    "authorizesCapture": false,
+    "authorizesPublication": false,
+    "createsClaims": false,
+    "frontendLoadable": false
+  },
+  "terminalDisposition": "policy_blocked",
+  "reasonCode": "EXAMPLE_UNCERTIFIED_SOURCE_BLOCKED",
+  "certificationCheck": {
+    "outcome": "missing",
+    "checkedDecisionId": null,
+    "checkedDecisionDigestSha256": null,
+    "checkedSourceRevisionId": "example-source-revision-r1",
+    "checkedContractDigestSha256": "e7f4834955b89a1cfc88d40b5c4d87684185b2ecb68a4f2dc753c9c3fe4db9e6",
+    "checkedContractDefinitionSha256": "aee8fc2d60a18bc88c1e8685eb41fcf15ae0dab969c5f27b9f15551c6d5bc1e5",
+    "checkedBeforeFetch": true,
+    "checkedBeforeClaimWrite": true,
+    "effectiveForAttempt": false
+  },
+  "request": {
+    "disposition": "not_started",
+    "method": "GET",
+    "requestedUrl": "https://results.example.com/releases/example-v1/results.json",
+    "finalUrl": null,
+    "lastApprovedUrl": null,
+    "redirectCount": 0,
+    "statusCode": null,
+    "conditionalRequestUsed": false,
+    "responseBodyReceived": false,
+    "failureStage": null,
+    "failureCode": null
+  },
+  "networkEvidence": {
+    "dnsPolicyStatus": "not_checked",
+    "connectedPeerStatus": "not_checked",
+    "tlsStatus": "not_checked",
+    "connectedPeerAddressClass": "not_observed",
+    "finalHost": null
+  },
+  "response": {
+    "contentChanged": null,
+    "bytesReceived": 0,
+    "contentSha256": null,
+    "mimeType": null,
+    "retryClassification": "non_retryable_policy",
+    "retryAfterSeconds": null
+  },
+  "conditionalMetadata": {
+    "previousSnapshotId": null,
+    "previousSnapshotContentSha256": null,
+    "previousSnapshotVerificationReceiptSha256": null,
+    "etagRequestSha256": null,
+    "lastModifiedRequestSha256": null,
+    "etagResponseSha256": null,
+    "lastModifiedResponseSha256": null
+  },
+  "snapshot": {
+    "snapshotId": null,
+    "snapshotContentSha256": null,
+    "storageReceiptSha256": null,
+    "status": "not_created",
+    "immutable": false,
+    "readBackVerified": false,
+    "committedBeforeExtraction": false
+  },
+  "extraction": {
+    "disposition": "not_run",
+    "sourceRecordsObserved": 0,
+    "rowsParsed": 0,
+    "claimCandidatesEmitted": 0,
+    "claimsAdmitted": 0,
+    "recordsExcluded": 0,
+    "recordsRejected": 0,
+    "recordsQuarantined": 0,
+    "evidenceLocatorCoverageCount": 0,
+    "duplicateLocatorCount": 0,
+    "unexplainedRecordCount": 0,
+    "schemaFingerprintSha256": null,
+    "batchReceiptSha256": null,
+    "dimensionsObserved": []
+  },
+  "incidentReferences": [
+    "incident-example-source-policy"
+  ],
+  "execution": {
+    "startedAt": "2026-07-15T00:00:00Z",
+    "finishedAt": "2026-07-15T00:00:01Z",
+    "durationMs": 1000
+  }
+}

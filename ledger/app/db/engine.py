@@ -8,7 +8,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from app.db.models import Base
+from app.db.migrate import initialize_database
 
 _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
@@ -34,8 +34,16 @@ def get_engine(url: str | None = None) -> Engine:
 
 
 def init_db(url: str | None = None) -> None:
-    engine = get_engine(url)
-    Base.metadata.create_all(bind=engine)
+    """Initialize only an empty database through the versioned migration path.
+
+    `create_all()` is intentionally not a schema-evolution mechanism.  Calling
+    this against a populated unversioned ledger fails closed and points the
+    operator to a copied-database migration rehearsal instead.
+    """
+    settings = get_settings()
+    database_url = url or settings.database_url
+    initialize_database(database_url)
+    get_engine(database_url)
 
 
 @contextmanager

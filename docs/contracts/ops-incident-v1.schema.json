@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/ops-incident-v1.schema.json",
+  "title": "Operations Incident v1",
+  "description": "Append-only operational incident projection. It cannot certify a source, authorize capture/publication, mutate evidence, or become a frontend data source.",
+  "$comment": "Semantic validation MUST derive the fingerprint and incident ID from environment, taxonomy, cause, and the sorted typed affected references; validate the exact append-only event chain and expected-prior reference, including recurrence from RESOLVED or CLOSED; keep acknowledgement and target-perspective resolution evidence separate; apply an approved SLA policy or expose the provisional business-calendar blocker; count every occurrence without moving an active episode SLA deadline; and verify the canonical self-digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "policyVersion", "availability", "mode", "incidentId",
+    "incidentFingerprintSha256", "family", "incidentCode", "causeCode",
+    "severity", "severityBasis", "severityDecisionReference", "environment",
+    "ownerRole", "assigneeId", "currentState", "occurrenceCount",
+    "firstOccurredAt", "lastOccurredAt", "runbookId", "nextActionCode",
+    "nextReviewAt", "affectedRefs", "tags", "containmentRefs",
+    "resolutionEvidenceRefs", "sla", "events", "authority", "manifest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "ops-incident-v1" },
+    "availability": { "const": "operations_record_only" },
+    "mode": { "enum": ["synthetic_fixture", "shadow", "production"] },
+    "incidentId": { "$ref": "#/$defs/stableId" },
+    "incidentFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "family": { "enum": ["DISCOVERY", "SOURCE_POLICY", "FETCH", "SNAPSHOT", "STORAGE", "SCHEMA", "EVIDENCE", "VALIDATION", "IDENTITY", "CONFLICT", "SCHEDULER", "DATABASE", "ARTIFACT", "PUBLICATION", "FRONTEND", "SECURITY", "NOTIFY"] },
+    "incidentCode": { "$ref": "#/$defs/reasonCode" },
+    "causeCode": { "$ref": "#/$defs/reasonCode" },
+    "severity": { "enum": ["SEV0", "SEV1", "SEV2", "SEV3"] },
+    "severityBasis": { "enum": ["taxonomy_default", "escalated_by_decision"] },
+    "severityDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+    "environment": { "$ref": "#/$defs/stableId" },
+    "ownerRole": { "$ref": "#/$defs/stableId" },
+    "assigneeId": { "$ref": "#/$defs/nullableStableId" },
+    "currentState": { "$ref": "#/$defs/incidentState" },
+    "occurrenceCount": { "type": "integer", "minimum": 1 },
+    "firstOccurredAt": { "$ref": "#/$defs/utcTimestamp" },
+    "lastOccurredAt": { "$ref": "#/$defs/utcTimestamp" },
+    "runbookId": { "$ref": "#/$defs/stableId" },
+    "nextActionCode": { "$ref": "#/$defs/reasonCode" },
+    "nextReviewAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+    "affectedRefs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/typedReference" } },
+    "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/tag" } },
+    "containmentRefs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/containment" } },
+    "resolutionEvidenceRefs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/evidenceReference" } },
+    "sla": { "$ref": "#/$defs/sla" },
+    "events": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/event" } },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" }
+  },
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "utcTimestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "nullableUtcTimestamp": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/utcTimestamp" }] },
+    "nullableBoolean": { "type": ["boolean", "null"] },
+    "incidentState": { "enum": ["OPEN", "ACKNOWLEDGED", "INVESTIGATING", "MITIGATED", "RESOLVED", "CLOSED"] },
+    "typedReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["referenceType", "referenceId"],
+      "properties": {
+        "referenceType": { "enum": ["cycle", "job", "attempt", "source", "source_revision", "benchmark", "artifact", "database", "notification_intent", "notification_route", "backup"] },
+        "referenceId": { "$ref": "#/$defs/stableId" }
+      }
+    },
+    "tag": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tagKey", "tagValue"],
+      "properties": {
+        "tagKey": { "enum": ["area", "sev", "state", "owner", "source", "cause"] },
+        "tagValue": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" }
+      }
+    },
+    "containment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["containmentId", "actionType", "decisionReference", "affectedRef"],
+      "properties": {
+        "containmentId": { "$ref": "#/$defs/stableId" },
+        "actionType": { "enum": ["paused", "quarantined", "revoked", "withdrawn"] },
+        "decisionReference": { "$ref": "#/$defs/stableId" },
+        "affectedRef": { "$ref": "#/$defs/typedReference" }
+      }
+    },
+    "evidenceReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidenceId", "contentSha256"],
+      "properties": { "evidenceId": { "$ref": "#/$defs/stableId" }, "contentSha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "safeContext": {
+      "type": "object", "additionalProperties": false,
+      "required": ["contextCode", "sourceControlledDataIncluded"],
+      "properties": { "contextCode": { "$ref": "#/$defs/reasonCode" }, "sourceControlledDataIncluded": { "const": false } }
+    },
+    "event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["eventId", "eventOrdinal", "eventType", "expectedPriorEventId", "fromState", "toState", "occurredAt", "actorRole", "reasonCode", "acknowledgementEvidenceRef", "resolutionEvidenceRef", "safeContext"],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/stableId" },
+        "eventOrdinal": { "type": "integer", "minimum": 1 },
+        "eventType": { "enum": ["OPENED", "ACKNOWLEDGED", "INVESTIGATION_STARTED", "MITIGATED", "RESOLVED", "CLOSED", "REOPENED", "OCCURRENCE_RECORDED"] },
+        "expectedPriorEventId": { "$ref": "#/$defs/nullableStableId" },
+        "fromState": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/incidentState" }] },
+        "toState": { "$ref": "#/$defs/incidentState" },
+        "occurredAt": { "$ref": "#/$defs/utcTimestamp" },
+        "actorRole": { "$ref": "#/$defs/stableId" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "acknowledgementEvidenceRef": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/evidenceReference" }] },
+        "resolutionEvidenceRef": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/evidenceReference" }] },
+        "safeContext": { "$ref": "#/$defs/safeContext" }
+      }
+    },
+    "sla": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policyStatus", "policyRevisionId", "policyDecisionReference", "calculationStatus", "clockType", "businessCalendarId", "timeZone", "acknowledgeWithinSeconds", "mitigateWithinSeconds", "acknowledgeDueAt", "mitigateDueAt", "acknowledgedAt", "mitigatedAt", "acknowledgedOnTime", "mitigatedOnTime"],
+      "properties": {
+        "policyStatus": { "enum": ["provisional_unapproved", "approved"] },
+        "policyRevisionId": { "$ref": "#/$defs/stableId" },
+        "policyDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "calculationStatus": { "enum": ["provisional", "blocked_business_calendar", "active", "assessed"] },
+        "clockType": { "enum": ["elapsed_utc", "business_calendar"] },
+        "businessCalendarId": { "$ref": "#/$defs/nullableStableId" },
+        "timeZone": { "$ref": "#/$defs/nullableStableId" },
+        "acknowledgeWithinSeconds": { "type": ["integer", "null"], "minimum": 1 },
+        "mitigateWithinSeconds": { "type": ["integer", "null"], "minimum": 1 },
+        "acknowledgeDueAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "mitigateDueAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "acknowledgedAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "mitigatedAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "acknowledgedOnTime": { "$ref": "#/$defs/nullableBoolean" },
+        "mitigatedOnTime": { "$ref": "#/$defs/nullableBoolean" }
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["classification", "certifiesSources", "authorizesCapture", "authorizesPublication", "frontendLoadable", "mutatesEvidence", "timeoutMayApprove"],
+      "properties": {
+        "classification": { "const": "operations_record_only" },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false },
+        "mutatesEvidence": { "const": false },
+        "timeoutMayApprove": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "affectedReferenceCount", "tagCount", "containmentReferenceCount", "resolutionEvidenceReferenceCount", "eventCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-incident-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "affectedReferenceCount": { "type": "integer", "minimum": 1 },
+        "tagCount": { "type": "integer", "minimum": 0 },
+        "containmentReferenceCount": { "type": "integer", "minimum": 0 },
+        "resolutionEvidenceReferenceCount": { "type": "integer", "minimum": 0 },
+        "eventCount": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

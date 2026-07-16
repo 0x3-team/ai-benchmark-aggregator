@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/discovery-candidate-v1.schema.json",
+  "title": "Discovery Candidate v1",
+  "description": "A quarantined discovery proposal. Candidate state records reconnaissance progress only and is never source certification, capture admission, publication approval, or a frontend artifact.",
+  "$comment": "Semantic validators MUST reject duplicate candidate/evidence/URL/benchmark identifiers, noncanonical URL aliases (including uppercase hosts, explicit default ports, missing root slash, or dot segments), manifest count mismatches, and lifecycle changes without a separate append-only decision record. Hostnames must be dotted public-style DNS names; this offline check does not replace connected-peer public-IP and DNS-rebinding controls at the later safe-fetch boundary. candidateFingerprintSha256 is SHA-256 over canonical JSON for exactly {candidateType,targetRevisionId,candidateIdentity,officialUrls,affectedBenchmarkIds}, with both arrays sorted lexicographically before serialization. For sha256-canonical-json-v1, replace manifest.contentSha256 with null before canonical serialization and hashing. Mutable observation timestamps are deliberately absent from candidate identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "candidateId",
+    "candidateFingerprintSha256",
+    "candidateType",
+    "state",
+    "stateDecisionReference",
+    "approvedSourceRevisionReference",
+    "reasonCode",
+    "targetRevisionId",
+    "authority",
+    "manifest",
+    "owner",
+    "candidateIdentity",
+    "officialUrls",
+    "affectedBenchmarkIds",
+    "artifactHint",
+    "termsHint",
+    "evidenceReferences"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "discovery-candidate-v1" },
+    "availability": { "const": "candidate_only" },
+    "candidateId": { "$ref": "#/$defs/stableId" },
+    "candidateFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "candidateType": {
+      "enum": ["benchmark", "source", "model_metadata", "evaluation_subject"]
+    },
+    "state": {
+      "enum": [
+        "observed",
+        "auto_screened",
+        "needs_governance",
+        "contract_draft",
+        "fixture_verified",
+        "certification_pending",
+        "approved_as_source_revision",
+        "rejected_nonofficial",
+        "rejected_unstructured",
+        "blocked_terms",
+        "blocked_permission",
+        "blocked_incomplete_artifact",
+        "unsupported_format",
+        "superseded",
+        "retired"
+      ]
+    },
+    "stateDecisionReference": {
+      "description": "Reference to the append-only candidate decision that produced the current non-initial state; null only for the initial observed state.",
+      "$ref": "#/$defs/nullableStableId"
+    },
+    "approvedSourceRevisionReference": {
+      "description": "External source-revision reference required only after a separately governed decision records approved_as_source_revision. It grants no authority through this candidate document.",
+      "$ref": "#/$defs/nullableStableId"
+    },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "targetRevisionId": { "$ref": "#/$defs/stableId" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "owner": { "$ref": "#/$defs/owner" },
+    "candidateIdentity": { "$ref": "#/$defs/candidateIdentity" },
+    "officialUrls": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/httpsUri" }
+    },
+    "affectedBenchmarkIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/stableId" }
+    },
+    "artifactHint": { "$ref": "#/$defs/artifactHint" },
+    "termsHint": { "$ref": "#/$defs/termsHint" },
+    "evidenceReferences": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/evidenceReference" }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "state": { "const": "observed" } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "stateDecisionReference": { "type": "null" },
+          "approvedSourceRevisionReference": { "type": "null" }
+        }
+      },
+      "else": {
+        "properties": { "stateDecisionReference": { "$ref": "#/$defs/stableId" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "state": { "const": "approved_as_source_revision" } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "stateDecisionReference": { "$ref": "#/$defs/stableId" },
+          "approvedSourceRevisionReference": { "$ref": "#/$defs/stableId" }
+        }
+      },
+      "else": {
+        "properties": { "approvedSourceRevisionReference": { "type": "null" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "candidateType": { "const": "benchmark" } },
+        "required": ["candidateType"]
+      },
+      "then": {
+        "properties": {
+          "candidateIdentity": {
+            "properties": { "identityType": { "const": "benchmark" } },
+            "required": ["identityType"]
+          },
+          "officialUrls": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "candidateType": { "const": "source" } },
+        "required": ["candidateType"]
+      },
+      "then": {
+        "properties": {
+          "candidateIdentity": {
+            "properties": { "identityType": { "const": "source" } },
+            "required": ["identityType"]
+          },
+          "officialUrls": { "minItems": 1 },
+          "affectedBenchmarkIds": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "candidateType": { "const": "model_metadata" } },
+        "required": ["candidateType"]
+      },
+      "then": {
+        "properties": {
+          "candidateIdentity": {
+            "properties": { "identityType": { "const": "model_metadata" } },
+            "required": ["identityType"]
+          },
+          "officialUrls": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "candidateType": { "const": "evaluation_subject" } },
+        "required": ["candidateType"]
+      },
+      "then": {
+        "properties": {
+          "candidateIdentity": {
+            "properties": { "identityType": { "const": "evaluation_subject" } },
+            "required": ["identityType"]
+          },
+          "affectedBenchmarkIds": { "minItems": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/stableId" }
+      ]
+    },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/nonEmptyString" }
+      ]
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/sha256" }
+      ]
+    },
+    "httpsUri": {
+      "description": "Canonical lowercase HTTPS URL with a dotted public-style hostname, no credentials/query/fragment/explicit port/dot segment, and an explicit path (`/` for a root). Runtime transport must still verify the connected peer and every redirect hop.",
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "certifiesSources",
+        "authorizesCapture",
+        "authorizesPublication",
+        "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "quarantined_proposal_only" },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "officialUrlCount",
+        "affectedBenchmarkCount",
+        "evidenceReferenceCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "officialUrlCount": { "type": "integer", "minimum": 0 },
+        "affectedBenchmarkCount": { "type": "integer", "minimum": 0 },
+        "evidenceReferenceCount": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownerId", "displayName", "officialRootUrls"],
+      "properties": {
+        "ownerId": { "$ref": "#/$defs/nullableStableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "officialRootUrls": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/httpsUri" }
+        }
+      }
+    },
+    "candidateIdentity": {
+      "oneOf": [
+        { "$ref": "#/$defs/benchmarkIdentity" },
+        { "$ref": "#/$defs/sourceIdentity" },
+        { "$ref": "#/$defs/modelMetadataIdentity" },
+        { "$ref": "#/$defs/evaluationSubjectIdentity" }
+      ]
+    },
+    "benchmarkIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityType", "proposedBenchmarkId", "editionHint"],
+      "properties": {
+        "identityType": { "const": "benchmark" },
+        "proposedBenchmarkId": { "$ref": "#/$defs/stableId" },
+        "editionHint": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityType", "proposedSourceId", "benchmarkId", "resultLocator"],
+      "properties": {
+        "identityType": { "const": "source" },
+        "proposedSourceId": { "$ref": "#/$defs/stableId" },
+        "benchmarkId": { "$ref": "#/$defs/stableId" },
+        "resultLocator": { "$ref": "#/$defs/httpsUri" }
+      }
+    },
+    "modelMetadataIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityType", "modelRaw", "providerRaw"],
+      "properties": {
+        "identityType": { "const": "model_metadata" },
+        "modelRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "providerRaw": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "evaluationSubjectIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identityType", "subjectRaw", "subjectKindHint"],
+      "properties": {
+        "identityType": { "const": "evaluation_subject" },
+        "subjectRaw": { "$ref": "#/$defs/nonEmptyString" },
+        "subjectKindHint": { "enum": ["single_model", "endpoint", "agent_model_system", "ensemble", "submission", "unknown"] }
+      }
+    },
+    "artifactHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "structured",
+        "revisionKind",
+        "revisionLocator",
+        "completenessHint",
+        "parserHint"
+      ],
+      "properties": {
+        "format": { "enum": ["api", "json", "csv", "parquet", "yaml", "html", "embedded_json", "manifest", "unknown"] },
+        "structured": { "type": "boolean" },
+        "revisionKind": { "enum": ["immutable_commit", "release_tag", "content_digest", "mutable_endpoint", "unknown"] },
+        "revisionLocator": { "$ref": "#/$defs/nullableString" },
+        "completenessHint": { "enum": ["complete", "incomplete", "preview_only", "unknown"] },
+        "parserHint": { "$ref": "#/$defs/nullableStableId" }
+      }
+    },
+    "termsHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidenceUrl", "reasonCode"],
+      "properties": {
+        "status": { "enum": ["unknown", "review_required", "reviewed_for_reconnaissance", "blocked_terms", "blocked_permission"] },
+        "evidenceUrl": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/httpsUri" }
+          ]
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "evidenceType", "locator", "contentSha256", "observationRevision"],
+      "properties": {
+        "evidenceId": { "$ref": "#/$defs/stableId" },
+        "evidenceType": { "enum": ["discovery_observation", "official_metadata", "terms_review", "manual_official_lead"] },
+        "locator": { "$ref": "#/$defs/httpsUri" },
+        "contentSha256": { "$ref": "#/$defs/nullableSha256" },
+        "observationRevision": { "$ref": "#/$defs/nullableString" }
+      }
+    }
+  }
+}

@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/discovery-target-v1.schema.json",
+  "title": "Discovery Target v1",
+  "description": "A versioned, bounded reconnaissance target. It may produce observations and quarantined candidates only; it cannot authorize result capture, source certification, claims, publication, or frontend data.",
+  "$comment": "Semantic validators MUST reject duplicate affected benchmark IDs, duplicate/invalid hosts or URL patterns, noncanonical URL aliases (including uppercase hosts, explicit default ports, missing root slash, or dot segments), an officialOrigin or allowed final pattern whose hostname is absent from allowedHosts, manifest count mismatches, and a target whose positive budgets or terms status do not permit its configured reconnaissance state. Hostnames must be dotted public-style DNS names; this offline check does not replace connected-peer public-IP and DNS-rebinding controls at the later safe-fetch boundary. These host/prefix patterns authorize candidate reconnaissance only and are never capture-time approved_source_urls or approved_final_urls. For sha256-canonical-json-v1, replace manifest.contentSha256 with null before canonical serialization and hashing. Mutable execution timestamps are deliberately absent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "targetRevisionId",
+    "supersedesTargetRevisionId",
+    "targetId",
+    "configurationStatus",
+    "decisionReference",
+    "reasonCode",
+    "authority",
+    "manifest",
+    "owner",
+    "officialOrigin",
+    "connector",
+    "urlPolicy",
+    "duePolicy",
+    "termsReview",
+    "correctionRoute",
+    "budgets",
+    "affectedBenchmarkIds"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "discovery-target-v1" },
+    "availability": { "const": "candidate_only" },
+    "targetRevisionId": { "$ref": "#/$defs/stableId" },
+    "supersedesTargetRevisionId": { "$ref": "#/$defs/nullableStableId" },
+    "targetId": { "$ref": "#/$defs/stableId" },
+    "configurationStatus": {
+      "enum": ["draft", "configured", "paused", "blocked_terms", "blocked_permission", "retired"]
+    },
+    "decisionReference": {
+      "description": "External append-only governance decision for reconnaissance authority; null only while the target remains an unapproved draft.",
+      "$ref": "#/$defs/nullableStableId"
+    },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "owner": { "$ref": "#/$defs/owner" },
+    "officialOrigin": { "$ref": "#/$defs/httpsUri" },
+    "connector": { "$ref": "#/$defs/connector" },
+    "urlPolicy": { "$ref": "#/$defs/urlPolicy" },
+    "duePolicy": { "$ref": "#/$defs/duePolicy" },
+    "termsReview": { "$ref": "#/$defs/termsReview" },
+    "correctionRoute": { "$ref": "#/$defs/correctionRoute" },
+    "budgets": { "$ref": "#/$defs/budgets" },
+    "affectedBenchmarkIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/stableId" }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "configurationStatus": { "const": "configured" } },
+        "required": ["configurationStatus"]
+      },
+      "then": {
+        "properties": {
+          "decisionReference": { "$ref": "#/$defs/stableId" },
+          "authority": {
+            "properties": {
+              "approvalStatus": { "const": "reconnaissance_approved" },
+              "permitsCandidateReconnaissance": { "const": true }
+            },
+            "required": ["approvalStatus", "permitsCandidateReconnaissance"]
+          },
+          "termsReview": {
+            "properties": { "status": { "const": "reviewed_for_reconnaissance" } },
+            "required": ["status"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "configurationStatus": { "not": { "const": "configured" } } },
+        "required": ["configurationStatus"]
+      },
+      "then": {
+        "properties": {
+          "authority": {
+            "properties": { "permitsCandidateReconnaissance": { "const": false } },
+            "required": ["permitsCandidateReconnaissance"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "authority": {
+            "properties": { "approvalStatus": { "const": "draft_unapproved" } },
+            "required": ["approvalStatus"]
+          }
+        }
+      },
+      "then": {
+        "properties": { "decisionReference": { "type": "null" } }
+      },
+      "else": {
+        "properties": { "decisionReference": { "$ref": "#/$defs/stableId" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "configurationStatus": { "const": "blocked_terms" } },
+        "required": ["configurationStatus"]
+      },
+      "then": {
+        "properties": {
+          "termsReview": {
+            "properties": { "status": { "const": "blocked_terms" } },
+            "required": ["status"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "configurationStatus": { "const": "blocked_permission" } },
+        "required": ["configurationStatus"]
+      },
+      "then": {
+        "properties": {
+          "termsReview": {
+            "properties": { "status": { "const": "blocked_permission" } },
+            "required": ["status"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/stableId" }
+      ]
+    },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "httpsUri": {
+      "description": "Canonical lowercase HTTPS URL with a dotted public-style hostname, no credentials/query/fragment/explicit port/dot segment, and an explicit path (`/` for a root). Runtime transport must still verify the connected peer and every redirect hop.",
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?$"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "approvalStatus",
+        "permitsCandidateReconnaissance",
+        "certifiesSources",
+        "authorizesCapture",
+        "authorizesPublication",
+        "frontendLoadable"
+      ],
+      "properties": {
+        "classification": { "const": "candidate_reconnaissance_only" },
+        "approvalStatus": { "enum": ["draft_unapproved", "reconnaissance_approved"] },
+        "permitsCandidateReconnaissance": { "type": "boolean" },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "affectedBenchmarkCount",
+        "allowedHostCount",
+        "allowedFinalPatternCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "affectedBenchmarkCount": { "type": "integer", "minimum": 1 },
+        "allowedHostCount": { "type": "integer", "minimum": 1 },
+        "allowedFinalPatternCount": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownerId", "displayName", "officialRootUrl"],
+      "properties": {
+        "ownerId": { "$ref": "#/$defs/stableId" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" },
+        "officialRootUrl": { "$ref": "#/$defs/httpsUri" }
+      }
+    },
+    "connector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connectorId", "version", "observationClass"],
+      "properties": {
+        "connectorId": { "$ref": "#/$defs/stableId" },
+        "version": { "$ref": "#/$defs/nonEmptyString" },
+        "observationClass": {
+          "enum": [
+            "official_api_metadata",
+            "official_repository_metadata",
+            "official_dataset_metadata",
+            "official_manifest_metadata",
+            "official_structured_page_metadata",
+            "manual_official_root"
+          ]
+        }
+      }
+    },
+    "urlPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestMethod",
+        "allowedHosts",
+        "allowedFinalUrlPatterns",
+        "discoveryOnlyPatterns",
+        "allowCredentials",
+        "allowFragments"
+      ],
+      "properties": {
+        "requestMethod": { "const": "GET" },
+        "allowedHosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+          }
+        },
+        "allowedFinalUrlPatterns": {
+          "description": "Reconnaissance patterns only. They are not source-contract approved_source_urls or approved_final_urls.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/httpsUri" }
+        },
+        "discoveryOnlyPatterns": { "const": true },
+        "allowCredentials": { "const": false },
+        "allowFragments": { "const": false }
+      }
+    },
+    "duePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cadence", "maxJitterSeconds", "catchUpMissedSlots", "maxCatchUpSlots"],
+      "properties": {
+        "cadence": { "$ref": "#/$defs/duration" },
+        "maxJitterSeconds": { "type": "integer", "minimum": 0, "maximum": 3600 },
+        "catchUpMissedSlots": { "type": "boolean" },
+        "maxCatchUpSlots": { "type": "integer", "minimum": 0, "maximum": 4 }
+      }
+    },
+    "termsReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidenceUrl", "reviewCadence", "reasonCode"],
+      "properties": {
+        "status": {
+          "enum": ["reviewed_for_reconnaissance", "review_required", "blocked_terms", "blocked_permission"]
+        },
+        "evidenceUrl": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/httpsUri" }
+          ]
+        },
+        "reviewCadence": { "$ref": "#/$defs/duration" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "correctionRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeType", "locator", "reasonCode"],
+      "properties": {
+        "routeType": { "enum": ["official_contact_url", "official_repository_issue", "manual_governance"] },
+        "locator": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/httpsUri" }
+          ]
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxRequestsPerRun",
+        "maxBytesPerResponse",
+        "maxRedirects",
+        "timeoutSeconds",
+        "maxConcurrency"
+      ],
+      "properties": {
+        "maxRequestsPerRun": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "maxBytesPerResponse": { "type": "integer", "minimum": 1 },
+        "maxRedirects": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "maxConcurrency": { "type": "integer", "minimum": 1, "maximum": 10 }
+      }
+    }
+  }
+}

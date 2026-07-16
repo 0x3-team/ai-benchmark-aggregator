@@ -1,130 +1,65 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# MVP acceptance test for the benchmark-ledger CLI.
+# Containment acceptance smoke for the benchmark-ledger CLI.
 #
-# Exercises:
-#   1. init-db            — create ledger tables
-#   2. seed-registry      — load curated benchmarks, models, official sources
-#   3. ingest (fake)      — run ingestion once (creates snapshot + claims)
-#   4. ingest (fake)      — run again to verify idempotency (0 new claims)
-#   5. claims list        — show stored claims
-#   6. review queue       — show claims needing review (e.g. unmatched models)
+# This script deliberately uses a temporary database and proves the safe
+# current behavior: versioned empty-db initialization, registry seeding,
+# read-only migration status, and fail-closed ingestion.  It never removes a
+# user's data directory, contacts a source, or creates a benchmark claim.
 #
-# Usage:  bash scripts/mvp_acceptance.sh
+# Usage: bash scripts/mvp_acceptance.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
 LEDGER_CLI="benchmark-ledger"
-FIXTURE="tests/fixtures/fake_source.json"
-
-# Resolve project root (script location → parent)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$(cd "$HERE/.." && pwd)"
 cd "$PROJECT"
 
-echo "=== MVP Acceptance — $(date) ==="
-echo "Project: $PROJECT"
-echo ""
-
-# ---- helpers ---------------------------------------------------------------
-run() {
-    echo "> $*"
-    "$@"
-    echo ""
-}
-
-check_grep() {
-    local label="$1" pattern="$2"
-    if grep -q "$pattern" /dev/stdin 2>/dev/null; then
-        :  # matched via pipe
-    elif echo "$3" | grep -q "$pattern" 2>/dev/null; then
-        :  # matched via arg
-    else
-        echo "FAIL: $label — expected /$pattern/ not found"
-        exit 1
-    fi
-}
-
-# Ensure the CLI is on PATH (prefer project .venv)
 if ! command -v "$LEDGER_CLI" &>/dev/null; then
-    if [ -f "$PROJECT/.venv/bin/$LEDGER_CLI" ]; then
+    if [ -x "$PROJECT/.venv/bin/$LEDGER_CLI" ]; then
         PATH="$PROJECT/.venv/bin:$PATH"
     else
-        echo "FATAL: $LEDGER_CLI not found on PATH or in .venv/bin"
+        echo "FATAL: benchmark-ledger not found on PATH or in .venv/bin" >&2
         exit 1
     fi
 fi
 
-# Clean slate — remove old DB & snapshots
-rm -f data/benchmark_ledger.db
-rm -rf data/snapshots
-mkdir -p data/snapshots
+work_dir="$(mktemp -d)"
+trap 'rm -rf "$work_dir"' EXIT
+export DATABASE_URL="sqlite:///$work_dir/benchmark_ledger.db"
+export SNAPSHOT_LOCAL_ROOT="$work_dir/snapshots"
 
-# ---------------------------------------------------------------------- STEP 1
-echo "────────────────────────────────────────────────────────────────────────"
-echo "STEP 1: init-db"
-echo "────────────────────────────────────────────────────────────────────────"
-run $LEDGER_CLI init-db
+echo "=== Ledger containment smoke — $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+echo "Temporary database: $DATABASE_URL"
 
-# ---------------------------------------------------------------------- STEP 2
-echo "────────────────────────────────────────────────────────────────────────"
-echo "STEP 2: seed-registry"
-echo "────────────────────────────────────────────────────────────────────────"
-output=$($LEDGER_CLI seed-registry 2>&1)
-echo "$output"
-# Expect all categories populated
-echo ""
-grep -qE "benchmarks.*[1-9]" <<<"$output" || { echo "FAIL: no benchmarks seeded"; exit 1; }
-grep -qE "models.*[1-9]" <<<"$output" || { echo "FAIL: no models seeded"; exit 1; }
-grep -qE "sources.*[1-9]" <<<"$output" || { echo "FAIL: no sources seeded"; exit 1; }
-echo "  ✓ Registry seeded"
+echo "> $LEDGER_CLI init-db"
+"$LEDGER_CLI" init-db
 
-# ---------------------------------------------------------------------- STEP 3
-echo "────────────────────────────────────────────────────────────────────────"
-echo "STEP 3: ingest (first run — fake source with fixture)"
-echo "────────────────────────────────────────────────────────────────────────"
-output=$($LEDGER_CLI ingest --source fake_local_fixture --fixture "$FIXTURE" 2>&1)
-echo "$output"
-echo ""
-grep -q "Snapshots created: [1-9]" <<<"$output" || { echo "FAIL: no snapshot created"; exit 1; }
-grep -q "Claims inserted: [1-9]" <<<"$output" || { echo "FAIL: no claims inserted"; exit 1; }
-echo "  ✓ First ingest OK"
+echo "> $LEDGER_CLI seed-registry"
+seed_output="$("$LEDGER_CLI" seed-registry 2>&1)"
+echo "$seed_output"
+grep -qE "benchmarks.*[1-9]" <<<"$seed_output"
+grep -qE "models.*[1-9]" <<<"$seed_output"
+grep -qE "sources.*[1-9]" <<<"$seed_output"
 
-# ---------------------------------------------------------------------- STEP 4
-echo "────────────────────────────────────────────────────────────────────────"
-echo "STEP 4: ingest (idempotency — second run must reuse snapshot + no new claims)"
-echo "────────────────────────────────────────────────────────────────────────"
-output=$($LEDGER_CLI ingest --source fake_local_fixture --fixture "$FIXTURE" 2>&1)
-echo "$output"
-echo ""
-grep -q "Snapshots reused: [1-9]" <<<"$output" || { echo "FAIL: snapshot should be reused"; exit 1; }
-grep -q "Claims inserted: 0" <<<"$output" || { echo "FAIL: second ingest inserted claims (not idempotent)"; exit 1; }
-grep -q "Claims unchanged: [1-9]" <<<"$output" || { echo "FAIL: expected unchanged claims"; exit 1; }
-echo "  ✓ Second ingest is idempotent"
+echo "> $LEDGER_CLI db preflight"
+preflight_output="$("$LEDGER_CLI" db preflight 2>&1)"
+echo "$preflight_output"
+grep -q '"kind": "current"' <<<"$preflight_output"
+grep -q '"integrity_ok": true' <<<"$preflight_output"
 
-# ---------------------------------------------------------------------- STEP 5
-echo "────────────────────────────────────────────────────────────────────────"
-echo "STEP 5: claims list"
-echo "────────────────────────────────────────────────────────────────────────"
-output=$($LEDGER_CLI claims list --limit 10 2>&1)
-echo "$output"
-echo ""
-grep -q "Fake-Model-1" <<<"$output" || { echo "FAIL: Fake-Model-1 not found in claims"; exit 1; }
-grep -q "42.50" <<<"$output" || { echo "FAIL: score 42.50 not found in claims"; exit 1; }
-echo "  ✓ Claims listed"
+echo "> $LEDGER_CLI ingest --source fake_local_fixture --dry-run (expected block)"
+if blocked_output="$("$LEDGER_CLI" ingest --source fake_local_fixture --dry-run 2>&1)"; then
+    echo "$blocked_output"
+    echo "FAIL: quarantined fixture ingestion unexpectedly succeeded" >&2
+    exit 1
+fi
+echo "$blocked_output"
+grep -q "Ingestion blocked:" <<<"$blocked_output"
+grep -q "Ingestion complete\." <<<"$blocked_output" && {
+    echo "FAIL: blocked ingestion reported completion" >&2
+    exit 1
+}
 
-# ---------------------------------------------------------------------- STEP 6
-echo "────────────────────────────────────────────────────────────────────────"
-echo "STEP 6: review queue"
-echo "────────────────────────────────────────────────────────────────────────"
-output=$($LEDGER_CLI review queue 2>&1)
-echo "$output"
-echo ""
-# Unknown-Model-X has no alias → should be in review queue
-grep -q "Unknown-Model-X" <<<"$output" || { echo "FAIL: Unknown-Model-X should be in review queue"; exit 1; }
-echo "  ✓ Review queue populated"
-
-# ---------------------------------------------------------------------- DONE
-echo "========================================"
-echo "MVP ACCEPTANCE — ALL CHECKS PASSED"
-echo "========================================"
+echo "CONTAINMENT SMOKE PASSED"

@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/official-release-artifact-v2.schema.json",
+  "title": "Official Release Artifact v2 — future governed publication",
+  "description": "A future-only frontend artifact. It is distinct from the v1 containment fixture and LDR-08 candidate feed. A document matching this schema is still unavailable unless REL-05 supplies a separately governed authorization that pins this artifact ID, approval decision, and canonical digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactKind",
+    "artifactId",
+    "availability",
+    "policyVersion",
+    "releaseApproval",
+    "manifest",
+    "models",
+    "benchmarks",
+    "sourceManifest",
+    "scores"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "2.0.0" },
+    "artifactKind": { "const": "official-release-artifact" },
+    "artifactId": { "$ref": "#/$defs/identifier" },
+    "availability": { "const": "published" },
+    "policyVersion": { "const": "official-release-artifact-v2" },
+    "releaseApproval": { "$ref": "#/$defs/releaseApproval" },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "models": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/model" }
+    },
+    "benchmarks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/benchmark" }
+    },
+    "sourceManifest": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sourceManifest" }
+    },
+    "scores": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/score" }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableNonnegativeNumber": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "nullableNonemptyString": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "releaseApproval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decisionId", "policyVersion", "approvedAt"],
+      "properties": {
+        "decisionId": { "$ref": "#/$defs/identifier" },
+        "policyVersion": { "const": "official-release-artifact-v2" },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "modelCount",
+        "benchmarkCount",
+        "sourceSnapshotCount",
+        "scoreCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "modelCount": { "type": "integer", "minimum": 0 },
+        "benchmarkCount": { "type": "integer", "minimum": 0 },
+        "sourceSnapshotCount": { "type": "integer", "minimum": 0 },
+        "scoreCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "vendor",
+        "family",
+        "releaseDate",
+        "contextWindowK",
+        "paramsB",
+        "modalities",
+        "openWeights",
+        "priceInPer1M",
+        "priceOutPer1M"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "vendor": { "type": "string", "minLength": 1 },
+        "family": { "type": "string", "minLength": 1 },
+        "releaseDate": { "type": "string", "format": "date" },
+        "contextWindowK": { "type": "integer", "minimum": 1 },
+        "paramsB": { "$ref": "#/$defs/nullableNonnegativeNumber" },
+        "modalities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["text", "vision", "audio"] }
+        },
+        "openWeights": { "type": "boolean" },
+        "priceInPer1M": { "$ref": "#/$defs/nullableNonnegativeNumber" },
+        "priceOutPer1M": { "$ref": "#/$defs/nullableNonnegativeNumber" }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "fullName",
+        "category",
+        "higherIsBetter",
+        "scaleMax",
+        "description",
+        "methodology",
+        "sourceUrl"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "fullName": { "type": "string", "minLength": 1 },
+        "category": {
+          "enum": [
+            "knowledge",
+            "reasoning",
+            "math",
+            "coding",
+            "agentic",
+            "instruction",
+            "chat",
+            "vision",
+            "other"
+          ]
+        },
+        "higherIsBetter": { "type": "boolean" },
+        "scaleMax": { "type": "number", "exclusiveMinimum": 0 },
+        "description": { "type": "string", "minLength": 1 },
+        "methodology": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "sourceManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceManifestKey",
+        "officialSourceId",
+        "sourceRevisionId",
+        "sourceRevisionDecisionId",
+        "sourceName",
+        "sourceUrl",
+        "sourceType",
+        "sourceRevisionDefinitionSha256",
+        "sourceSnapshotId",
+        "snapshotContentSha256",
+        "snapshotCapturedAt"
+      ],
+      "properties": {
+        "sourceManifestKey": { "$ref": "#/$defs/identifier" },
+        "officialSourceId": { "$ref": "#/$defs/identifier" },
+        "sourceRevisionId": { "$ref": "#/$defs/identifier" },
+        "sourceRevisionDecisionId": { "$ref": "#/$defs/identifier" },
+        "sourceName": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceType": { "type": "string", "minLength": 1 },
+        "sourceRevisionDefinitionSha256": { "$ref": "#/$defs/sha256" },
+        "sourceSnapshotId": { "$ref": "#/$defs/identifier" },
+        "snapshotContentSha256": { "$ref": "#/$defs/sha256" },
+        "snapshotCapturedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelId", "benchmarkId", "metric", "split", "setting", "evaluationVersion"],
+      "properties": {
+        "modelId": { "$ref": "#/$defs/identifier" },
+        "benchmarkId": { "$ref": "#/$defs/identifier" },
+        "metric": { "$ref": "#/$defs/nullableNonemptyString" },
+        "split": { "$ref": "#/$defs/nullableNonemptyString" },
+        "setting": { "$ref": "#/$defs/nullableNonemptyString" },
+        "evaluationVersion": { "$ref": "#/$defs/nullableNonemptyString" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "locator", "modelLocator", "benchmarkLocator", "scoreLocator"],
+      "properties": {
+        "type": { "enum": ["json_pointer", "html_selector", "text_span"] },
+        "locator": { "type": "string", "minLength": 1 },
+        "modelLocator": { "type": "string", "minLength": 1 },
+        "benchmarkLocator": { "type": "string", "minLength": 1 },
+        "scoreLocator": { "type": "string", "minLength": 1 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceManifestKey",
+        "officialSourceId",
+        "sourceRevisionId",
+        "sourceRevisionDecisionId",
+        "sourceName",
+        "sourceUrl",
+        "sourceType",
+        "sourceRevisionDefinitionSha256",
+        "sourceSnapshotId",
+        "snapshotContentSha256",
+        "snapshotCapturedAt",
+        "claimReviewDecisionId",
+        "claimPublicationDecisionId",
+        "captureMethod"
+      ],
+      "properties": {
+        "sourceManifestKey": { "$ref": "#/$defs/identifier" },
+        "officialSourceId": { "$ref": "#/$defs/identifier" },
+        "sourceRevisionId": { "$ref": "#/$defs/identifier" },
+        "sourceRevisionDecisionId": { "$ref": "#/$defs/identifier" },
+        "sourceName": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceType": { "type": "string", "minLength": 1 },
+        "sourceRevisionDefinitionSha256": { "$ref": "#/$defs/sha256" },
+        "sourceSnapshotId": { "$ref": "#/$defs/identifier" },
+        "snapshotContentSha256": { "$ref": "#/$defs/sha256" },
+        "snapshotCapturedAt": { "type": "string", "format": "date-time" },
+        "claimReviewDecisionId": { "$ref": "#/$defs/identifier" },
+        "claimPublicationDecisionId": { "$ref": "#/$defs/identifier" },
+        "captureMethod": { "type": "string", "minLength": 1 }
+      }
+    },
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell",
+        "claimId",
+        "value",
+        "modelRaw",
+        "benchmarkRaw",
+        "scoreRaw",
+        "scoreUnit",
+        "reportedAt",
+        "evidenceText",
+        "evidence",
+        "provenance"
+      ],
+      "properties": {
+        "cell": { "$ref": "#/$defs/cell" },
+        "claimId": { "$ref": "#/$defs/identifier" },
+        "value": { "type": "number" },
+        "modelRaw": { "type": "string", "minLength": 1 },
+        "benchmarkRaw": { "type": "string", "minLength": 1 },
+        "scoreRaw": { "type": "string", "minLength": 1 },
+        "scoreUnit": { "$ref": "#/$defs/nullableNonemptyString" },
+        "reportedAt": { "type": "string", "format": "date-time" },
+        "evidenceText": { "$ref": "#/$defs/nullableNonemptyString" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    }
+  }
+}

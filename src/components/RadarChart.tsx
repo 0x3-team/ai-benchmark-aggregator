@@ -15,7 +15,7 @@ interface RadarChartProps {
   activeId?: string | null;
 }
 
-const ORDER: BenchmarkCategory[] = [
+export const RADAR_CATEGORIES: readonly BenchmarkCategory[] = [
   "knowledge",
   "reasoning",
   "math",
@@ -24,13 +24,13 @@ const ORDER: BenchmarkCategory[] = [
   "instruction",
   "chat",
   "vision",
-];
+] as const;
 
 export function RadarChart({ series, size = 420, activeId = null }: RadarChartProps) {
   const cx = size / 2;
   const cy = size / 2;
   const radius = size / 2 - 54;
-  const axes = ORDER.length;
+  const axes = RADAR_CATEGORIES.length;
 
   const angleFor = (i: number) => (Math.PI * 2 * i) / axes - Math.PI / 2;
   const pointFor = (i: number, r: number) => {
@@ -51,11 +51,11 @@ export function RadarChart({ series, size = 420, activeId = null }: RadarChartPr
         <polygon
           key={ring}
           className="fill-none stroke-white/15"
-          points={ORDER.map((_, i) => pointFor(i, radius * ring).join(",")).join(" ")}
+          points={RADAR_CATEGORIES.map((_, i) => pointFor(i, radius * ring).join(",")).join(" ")}
         />
       ))}
 
-      {ORDER.map((cat, i) => {
+      {RADAR_CATEGORIES.map((cat, i) => {
         const [x, y] = pointFor(i, radius);
         const [lx, ly] = pointFor(i, radius + 22);
         const anchor =
@@ -77,10 +77,19 @@ export function RadarChart({ series, size = 420, activeId = null }: RadarChartPr
       })}
 
       {series.map((s) => {
-        const pts = ORDER.map((cat, i) => {
-          const p = s.points.find((pp) => pp.category === cat);
-          const v = p?.value ?? 0;
-          return pointFor(i, radius * v).join(",");
+        const values = RADAR_CATEGORIES.map(
+          (cat) => s.points.find((point) => point.category === cat)?.value ?? null
+        );
+        if (!values.every((value): value is number => value !== null)) {
+          return (
+            <g key={s.modelId} data-radar-series-unavailable={s.modelId}>
+              <title>{`${s.name}: incomplete category data`}</title>
+              <desc>{`${s.name}: incomplete category data; no radar polygon is drawn.`}</desc>
+            </g>
+          );
+        }
+        const pts = values.map((value, i) => {
+          return pointFor(i, radius * value).join(",");
         }).join(" ");
         const isActive = activeId != null && s.modelId === activeId;
         const isDim = activeId != null && s.modelId !== activeId;
@@ -97,6 +106,7 @@ export function RadarChart({ series, size = 420, activeId = null }: RadarChartPr
             strokeWidth={strokeWidth}
             strokeLinejoin="round"
             style={{ opacity }}
+            data-radar-series={s.modelId}
           />
         );
       })}

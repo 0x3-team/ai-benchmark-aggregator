@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/scheduled-job-attempt-v1.schema.json",
+  "title": "Scheduled Job Attempt v1",
+  "description": "Immutable, redacted attempt receipt for one deterministic scheduled job. It records bounded retry and fencing evidence but authorizes no fetch, capture, certification, publication, or frontend data.",
+  "$comment": "Semantic validation MUST rederive cycleId/jobId/attemptId, require canonical UTC, cap attempts at three, permit retries only for the explicit transient allowlist and inside the current slot retry window, require monotonically increasing fencingToken, reject a stale token or a current-token commit completed after lease expiry, and bind a supplied recheck receipt by exact slot/source/job/attempt/fencing/output ID/digest and compatible terminal semantics. Queue/trigger delivery is supporting wake-up evidence only. Set-like outputReferences are sorted for sha256-canonical-operations-json-v1 before hashing after manifest.contentSha256 is replaced with null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "policyVersion", "availability", "mode", "attemptId",
+    "cycleId", "jobId", "environment", "lane", "schedulePolicyRevisionId",
+    "scheduledFor", "targetType", "targetRevisionId", "sourceRevisionId",
+    "attemptNumber", "maxAttempts", "workerIdentitySha256", "wakeup", "lease",
+    "timing", "stageReached", "outcome", "causeCode", "retry",
+    "outputReferences", "authority", "manifest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "scheduled-job-attempt-v1" },
+    "availability": { "const": "operations_record_only" },
+    "mode": { "enum": ["synthetic_fixture", "shadow", "production"] },
+    "attemptId": { "$ref": "#/$defs/stableId" },
+    "cycleId": { "$ref": "#/$defs/stableId" },
+    "jobId": { "$ref": "#/$defs/stableId" },
+    "environment": { "$ref": "#/$defs/stableId" },
+    "lane": { "$ref": "#/$defs/lane" },
+    "schedulePolicyRevisionId": { "$ref": "#/$defs/stableId" },
+    "scheduledFor": { "$ref": "#/$defs/utcTimestamp" },
+    "targetType": { "enum": ["discovery_target", "source_revision", "maintenance_task"] },
+    "targetRevisionId": { "$ref": "#/$defs/stableId" },
+    "sourceRevisionId": { "$ref": "#/$defs/nullableStableId" },
+    "attemptNumber": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "maxAttempts": { "const": 3 },
+    "workerIdentitySha256": { "$ref": "#/$defs/sha256" },
+    "wakeup": { "$ref": "#/$defs/wakeup" },
+    "lease": { "$ref": "#/$defs/lease" },
+    "timing": { "$ref": "#/$defs/timing" },
+    "stageReached": {
+      "enum": [
+        "leased", "revision_admitted", "fetch_started", "not_modified",
+        "bytes_received", "snapshot_committed", "schema_checked",
+        "extraction_accounted", "claims_admitted", "discovery_accounted",
+        "maintenance_completed"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "succeeded", "retryable_failed", "retry_exhausted",
+        "nonretryable_failed", "blocked", "stale_fenced"
+      ]
+    },
+    "causeCode": { "$ref": "#/$defs/reasonCode" },
+    "retry": { "$ref": "#/$defs/retry" },
+    "outputReferences": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/outputReference" }
+    },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" }
+  },
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "utcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "lane": { "enum": ["discovery", "recheck", "maintenance"] },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification", "certifiesSources", "authorizesCapture",
+        "authorizesPublication", "frontendLoadable", "wakeupAuthoritative"
+      ],
+      "properties": {
+        "classification": { "const": "schedule_receipt_only" },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false },
+        "wakeupAuthoritative": { "const": false }
+      }
+    },
+    "wakeup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "opaqueDeliveryId", "deliveryAttempt", "authoritative"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "cloudflare_cron", "cloudflare_workflow", "queue", "reconciler",
+            "manual_fixture"
+          ]
+        },
+        "opaqueDeliveryId": { "$ref": "#/$defs/stableId" },
+        "deliveryAttempt": { "type": "integer", "minimum": 1 },
+        "authoritative": { "const": false }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leaseId", "fencingToken", "priorFencingToken", "acquiredAt",
+        "expiresAt", "lastHeartbeatAt", "state", "commitPresentedToken",
+        "commitDisposition"
+      ],
+      "properties": {
+        "leaseId": { "$ref": "#/$defs/stableId" },
+        "fencingToken": { "type": "integer", "minimum": 1 },
+        "priorFencingToken": {
+          "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 1 }]
+        },
+        "acquiredAt": { "$ref": "#/$defs/utcTimestamp" },
+        "expiresAt": { "$ref": "#/$defs/utcTimestamp" },
+        "lastHeartbeatAt": { "$ref": "#/$defs/utcTimestamp" },
+        "state": { "enum": ["released", "expired", "superseded"] },
+        "commitPresentedToken": {
+          "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 1 }]
+        },
+        "commitDisposition": { "enum": ["accepted_current", "rejected_stale", "no_commit"] }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "endedAt"],
+      "properties": {
+        "startedAt": { "$ref": "#/$defs/utcTimestamp" },
+        "endedAt": { "$ref": "#/$defs/utcTimestamp" }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification", "retryAt", "backoffSeconds", "retryAfterSource",
+        "retryWindowEndsAt", "nextScheduledFor"
+      ],
+      "properties": {
+        "classification": { "enum": ["none", "transient", "non_retryable"] },
+        "retryAt": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/utcTimestamp" }]
+        },
+        "backoffSeconds": { "type": "integer", "minimum": 0 },
+        "retryAfterSource": { "enum": ["none", "policy", "safe_retry_after"] },
+        "retryWindowEndsAt": { "$ref": "#/$defs/utcTimestamp" },
+        "nextScheduledFor": { "$ref": "#/$defs/utcTimestamp" }
+      }
+    },
+    "outputReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["referenceType", "referenceId", "contentSha256"],
+      "properties": {
+        "referenceType": {
+          "enum": [
+            "source_check_receipt", "discovery_receipt", "maintenance_receipt",
+            "schedule_disposition_receipt", "source_snapshot",
+            "discovery_observation", "quarantine_receipt", "incident"
+          ]
+        },
+        "referenceId": { "$ref": "#/$defs/stableId" },
+        "contentSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "outputReferenceCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-operations-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "outputReferenceCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

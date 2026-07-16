@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/notification-receipt-v1.schema.json",
+  "title": "Notification Receipt v1",
+  "description": "Immutable local, blocked, delivery, retry, dead-letter, recovery, or canary receipt bound to the exact notification intent/payload/route/adapter.",
+  "$comment": "Semantic validation MUST bind the exact intent self-digest, dedupe key, redacted payload digest, route, and adapter; cap and order attempts, never start before the prior retryAt, and forbid a fourth retry; reconcile notification kind with final outcome, dead-letter, recovery, observed canary, and route authority facts; derive the receipt dedupe key and ID; and verify the canonical self-digest. A receipt never acknowledges/resolves an incident or mutates evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyVersion", "availability", "mode", "receiptId", "receiptDedupeKeySha256", "intentBinding", "routeAuthorityStatus", "outcome", "attempts", "deadLetter", "recovery", "canary", "effects", "manifest"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "notification-receipt-v1" },
+    "availability": { "const": "operations_record_only" },
+    "mode": { "enum": ["synthetic_fixture", "shadow", "production"] },
+    "receiptId": { "$ref": "#/$defs/stableId" },
+    "receiptDedupeKeySha256": { "$ref": "#/$defs/sha256" },
+    "intentBinding": { "$ref": "#/$defs/intentBinding" },
+    "routeAuthorityStatus": { "enum": ["local_fixture_only", "externally_blocked", "approved_external"] },
+    "outcome": { "enum": ["local_fixture_recorded", "blocked_authority", "delivered", "retry_exhausted", "dead_lettered", "suppressed_duplicate", "canary_failed", "recovery_delivered"] },
+    "attempts": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "$ref": "#/$defs/attempt" } },
+    "deadLetter": { "$ref": "#/$defs/deadLetter" },
+    "recovery": { "$ref": "#/$defs/recovery" },
+    "canary": { "$ref": "#/$defs/canary" },
+    "effects": { "$ref": "#/$defs/effects" },
+    "manifest": { "$ref": "#/$defs/manifest" }
+  },
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "utcTimestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "nullableUtcTimestamp": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/utcTimestamp" }] },
+    "intentBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["intentId", "intentContentSha256", "intentDedupeKeySha256", "payloadSha256", "routeId", "adapterId", "adapterVersion"],
+      "properties": {
+        "intentId": { "$ref": "#/$defs/stableId" },
+        "intentContentSha256": { "$ref": "#/$defs/sha256" },
+        "intentDedupeKeySha256": { "$ref": "#/$defs/sha256" },
+        "payloadSha256": { "$ref": "#/$defs/sha256" },
+        "routeId": { "$ref": "#/$defs/stableId" },
+        "adapterId": { "$ref": "#/$defs/stableId" },
+        "adapterVersion": { "$ref": "#/$defs/stableId" }
+      }
+    },
+    "attempt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attemptNumber", "startedAt", "endedAt", "outcome", "causeCode", "safeProviderMessageReferenceSha256", "retryAt"],
+      "properties": {
+        "attemptNumber": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "startedAt": { "$ref": "#/$defs/utcTimestamp" },
+        "endedAt": { "$ref": "#/$defs/utcTimestamp" },
+        "outcome": { "enum": ["local_recorded", "blocked_authority", "delivered", "failed_transient", "failed_permanent", "suppressed"] },
+        "causeCode": { "$ref": "#/$defs/reasonCode" },
+        "safeProviderMessageReferenceSha256": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }] },
+        "retryAt": { "$ref": "#/$defs/nullableUtcTimestamp" }
+      }
+    },
+    "deadLetter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "deadLetterReferenceId", "nextActionCode"],
+      "properties": { "status": { "enum": ["none", "dead_lettered"] }, "deadLetterReferenceId": { "$ref": "#/$defs/nullableStableId" }, "nextActionCode": { "$ref": "#/$defs/reasonCode" } }
+    },
+    "recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["priorReceiptId", "recoveryIntentId", "recoveredAt"],
+      "properties": { "priorReceiptId": { "$ref": "#/$defs/nullableStableId" }, "recoveryIntentId": { "$ref": "#/$defs/nullableStableId" }, "recoveredAt": { "$ref": "#/$defs/nullableUtcTimestamp" } }
+    },
+    "canary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["isCanary", "canaryId", "expectedBy", "observedAt"],
+      "properties": { "isCanary": { "type": "boolean" }, "canaryId": { "$ref": "#/$defs/nullableStableId" }, "expectedBy": { "$ref": "#/$defs/nullableUtcTimestamp" }, "observedAt": { "$ref": "#/$defs/nullableUtcTimestamp" } }
+    },
+    "effects": {
+      "type": "object", "additionalProperties": false,
+      "required": ["acknowledgesIncident", "resolvesIncident", "mutatesEvidence"],
+      "properties": { "acknowledgesIncident": { "const": false }, "resolvesIncident": { "const": false }, "mutatesEvidence": { "const": false } }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "attemptCount"],
+      "properties": { "algorithm": { "const": "sha256-canonical-incident-json-v1" }, "contentSha256": { "$ref": "#/$defs/sha256" }, "attemptCount": { "type": "integer", "minimum": 1, "maximum": 3 } }
+    }
+  }
+}

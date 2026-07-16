@@ -17,10 +17,12 @@ export interface Model {
   vendor: string;
   family: string;
   releaseDate: string;
-  contextWindowK: number;
+  /** Null means the selected dataset did not supply this metadata. */
+  contextWindowK: number | null;
   paramsB: number | null;
-  modalities: Modality[];
-  openWeights: boolean;
+  modalities: readonly Modality[];
+  /** Null means the selected dataset did not supply this metadata. */
+  openWeights: boolean | null;
   priceInPer1M: number | null;
   priceOutPer1M: number | null;
 }
@@ -43,6 +45,78 @@ export interface ScoreEvidence {
   modelPath: string | null;
 }
 
+/**
+ * The display identity that an Official release explicitly selected.  The
+ * React grid currently has one cell per model/benchmark pair, but retaining
+ * all six dimensions here prevents a later feed adapter from silently hiding
+ * the metric, split, setting, or evaluation-version decision behind a number.
+ */
+export interface OfficialDisplayIdentity {
+  modelId: string;
+  benchmarkId: string;
+  metric: string | null;
+  split: string | null;
+  setting: string | null;
+  evaluationVersion: string | null;
+}
+
+/** A closed evidence envelope used only by the governed release contract. */
+export interface OfficialEvidenceLocation {
+  type: "json_pointer" | "html_selector" | "text_span";
+  locator: string;
+  modelLocator: string;
+  benchmarkLocator: string;
+  scoreLocator: string;
+}
+
+/** One immutable source/snapshot row from a governed release manifest. */
+export interface OfficialSourceManifestEntry {
+  sourceManifestKey: string;
+  officialSourceId: string;
+  sourceRevisionId: string;
+  sourceRevisionDecisionId: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceType: string;
+  sourceRevisionDefinitionSha256: string;
+  sourceSnapshotId: string;
+  snapshotContentSha256: string;
+  snapshotCapturedAt: string;
+}
+
+/**
+ * Immutable release-level context carried alongside a published dataset.
+ * It deliberately contains no score value: score cells remain reachable only
+ * through `getValue`, while evidence UI can use the policy and source manifest
+ * that governed the selected release.
+ */
+export interface OfficialReleaseContext {
+  artifactId: string;
+  policyVersion: string;
+  releaseApprovalDecisionId: string;
+  releaseApprovedAt: string;
+  sourceManifest: readonly OfficialSourceManifestEntry[];
+}
+
+/**
+ * Provenance preserved from a governed published artifact.  This is separate
+ * from the legacy loose `ScoreEvidence` fields so older demo data remains
+ * compatible while Official data retains all release-critical raw fields.
+ */
+export interface OfficialScoreProvenance {
+  displayIdentity: OfficialDisplayIdentity;
+  modelRaw: string;
+  benchmarkRaw: string;
+  scoreRaw: string;
+  scoreUnit: string | null;
+  evidenceText: string | null;
+  evidence: OfficialEvidenceLocation;
+  source: OfficialSourceManifestEntry;
+  claimReviewDecisionId: string;
+  claimPublicationDecisionId: string;
+  captureMethod: string;
+}
+
 export interface Score {
   modelId: string;
   benchmarkId: string;
@@ -57,6 +131,7 @@ export interface Score {
   sourceSnapshotId?: string | null;
   evidenceLocation?: ScoreEvidence | null;
   claimId?: string | null;
+  officialProvenance?: OfficialScoreProvenance | null;
 }
 
 export const CATEGORY_LABELS: Record<BenchmarkCategory, string> = {

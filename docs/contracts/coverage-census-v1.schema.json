@@ -1,0 +1,584 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/coverage-census-v1.schema.json",
+  "title": "Coverage Census v1",
+  "description": "A deterministic, read-only reconciliation report over a bounded Coverage Universe, configured registries, and optional quarantined legacy database evidence. Its readiness describes internal reconciliation only; freshness is not assessed. It cannot certify sources, authorize capture or publication, mutate ledger state, or supply frontend data.",
+  "$comment": "Semantic validators MUST reconcile manifest.denominators to the exact arrays, nested aliases, universe counts, legacy table counts, and issues; reject duplicate row/input/issue keys; require every input and row to have one disposition and reason; require every missing/duplicate/outside-universe fact to have an issue; tie each row's stableId to its typed benchmarkId/modelId/sourceRouteId; require a draft_unapproved universe to carry a blocking UNIVERSE_REVISION_UNAPPROVED issue; and reject any attempt to infer freshness, certified status, or published status from configured, active, discovered, or legacy state. readiness is blocked exactly when at least one blocking reconciliation issue exists, but ready never means fresh or launch-ready. contentSha256 is the SHA-256 of canonical JSON for the whole report after only manifest.contentSha256 is replaced with null. Inputs use relative paths and semantic content digests; rowIndex is assigned after canonical row ordering, so mutable YAML order, timestamps, mtimes, and absolute checkout paths are forbidden from identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "readiness",
+    "manifest",
+    "universe",
+    "inputs",
+    "summary",
+    "benchmarks",
+    "sources",
+    "models",
+    "legacyDatabase",
+    "issues"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "coverage-census-v1" },
+    "availability": { "const": "report_only" },
+    "readiness": { "enum": ["ready", "blocked"] },
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "universe": { "$ref": "#/$defs/universe" },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "benchmarks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/benchmarkRow" }
+    },
+    "sources": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/sourceRow" }
+    },
+    "models": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/modelRow" }
+    },
+    "legacyDatabase": { "$ref": "#/$defs/legacyDatabase" },
+    "issues": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/issue" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "readiness": { "const": "ready" } }, "required": ["readiness"] },
+      "then": {
+        "properties": {
+          "issues": {
+            "not": {
+              "contains": {
+                "type": "object",
+                "properties": { "blocking": { "const": true } },
+                "required": ["blocking"]
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "issues": {
+            "contains": {
+              "type": "object",
+              "properties": { "blocking": { "const": true } },
+              "required": ["blocking"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "summary": {
+            "properties": { "certificationAssessmentStatus": { "const": "not_assessed" } },
+            "required": ["certificationAssessmentStatus"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "summary": {
+            "properties": {
+              "certifiedSourceCount": { "type": "null" },
+              "publishedSourceCount": { "type": "null" }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "summary": {
+            "properties": {
+              "certifiedSourceCount": { "$ref": "#/$defs/count" },
+              "publishedSourceCount": { "$ref": "#/$defs/count" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/nonEmptyString" }
+      ]
+    },
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "nullableStableId": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/stableId" }
+      ]
+    },
+    "registryEntityId": {
+      "description": "Exact registry/database identity. Case, slashes, punctuation, and Unicode are preserved; this is not a schema-owned slug.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "nullableRegistryEntityId": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/registryEntityId" }
+      ]
+    },
+    "reasonCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/sha256" }
+      ]
+    },
+    "count": { "type": "integer", "minimum": 0 },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "denominators"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "denominators": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "universeBenchmarkIdCount",
+            "benchmarkRowCount",
+            "benchmarkUniqueIdCount",
+            "sourceRowCount",
+            "sourceUniqueIdCount",
+            "modelRowCount",
+            "modelUniqueIdCount",
+            "registryAliasRowCount",
+            "legacyTableCount",
+            "issueCount"
+          ],
+          "properties": {
+            "universeBenchmarkIdCount": { "$ref": "#/$defs/count" },
+            "benchmarkRowCount": { "$ref": "#/$defs/count" },
+            "benchmarkUniqueIdCount": { "$ref": "#/$defs/count" },
+            "sourceRowCount": { "$ref": "#/$defs/count" },
+            "sourceUniqueIdCount": { "$ref": "#/$defs/count" },
+            "modelRowCount": { "$ref": "#/$defs/count" },
+            "modelUniqueIdCount": { "$ref": "#/$defs/count" },
+            "registryAliasRowCount": { "$ref": "#/$defs/count" },
+            "legacyTableCount": { "$ref": "#/$defs/count" },
+            "issueCount": { "$ref": "#/$defs/count" }
+          }
+        }
+      }
+    },
+    "universe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "universeRevisionId",
+        "contentSha256",
+        "approvalStatus",
+        "effectiveOn",
+        "decisionReference",
+        "benchmarkIdCount",
+        "configuredSourceRouteIdCount"
+      ],
+      "properties": {
+        "universeRevisionId": { "$ref": "#/$defs/stableId" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "approvalStatus": {
+          "description": "Approval of this bounded coverage definition only; it is never source certification or publication authority.",
+          "enum": ["draft_unapproved", "owner_approved"]
+        },
+        "effectiveOn": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        },
+        "decisionReference": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stableId" }
+          ]
+        },
+        "benchmarkIdCount": { "$ref": "#/$defs/count" },
+        "configuredSourceRouteIdCount": { "$ref": "#/$defs/count" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "approvalStatus": { "const": "owner_approved" } },
+            "required": ["approvalStatus"]
+          },
+          "then": {
+            "properties": {
+              "effectiveOn": { "type": "string", "format": "date" },
+              "decisionReference": { "$ref": "#/$defs/stableId" }
+            }
+          },
+          "else": {
+            "properties": {
+              "effectiveOn": { "type": "null" },
+              "decisionReference": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputId",
+        "inputType",
+        "relativePath",
+        "contentSha256",
+        "rowCount",
+        "inspectionStatus",
+        "reasonCode"
+      ],
+      "properties": {
+        "inputId": { "$ref": "#/$defs/nonEmptyString" },
+        "inputType": {
+          "enum": ["coverage_universe", "benchmark_registry", "model_registry", "source_registry", "legacy_database"]
+        },
+        "relativePath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "contentSha256": {
+          "description": "Semantic SHA-256 of parsed registry rows with nested aliases sorted by canonical JSON and rows sorted by exact stable ID with canonical JSON as a duplicate-ID tie-breaker. Comments, whitespace, mapping-key order, and source row order do not affect this digest. Null is allowed only when the input cannot exist or be inspected.",
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "rowCount": { "$ref": "#/$defs/count" },
+        "inspectionStatus": {
+          "enum": ["loaded", "not_configured", "absent", "read_only", "blocked", "unsupported"]
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reasonCounts",
+        "statusCounts",
+        "configuredActiveSourceCount",
+        "certificationAssessmentStatus",
+        "certifiedSourceCount",
+        "publishedSourceCount",
+        "universeSourceRouteCount",
+        "resultClaimQuarantineCount"
+      ],
+      "properties": {
+        "reasonCounts": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/count" }
+        },
+        "statusCounts": {
+          "description": "Source-route-scoped coverage ladder for the bounded universe only. In this baseline census, known means a unique configured route reconciled to the universe; every later maturity count is zero because discovery, contract, certification, capture, review, and publication state are not assessed here. These counts must not be summed with benchmark or model rows.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "known",
+            "watched",
+            "candidate",
+            "contract_ready",
+            "certified",
+            "captured",
+            "reviewed",
+            "published",
+            "deferred",
+            "terms_blocked",
+            "unsupported"
+          ],
+          "properties": {
+            "known": { "$ref": "#/$defs/count" },
+            "watched": { "$ref": "#/$defs/count" },
+            "candidate": { "$ref": "#/$defs/count" },
+            "contract_ready": { "$ref": "#/$defs/count" },
+            "certified": { "$ref": "#/$defs/count" },
+            "captured": { "$ref": "#/$defs/count" },
+            "reviewed": { "$ref": "#/$defs/count" },
+            "published": { "$ref": "#/$defs/count" },
+            "deferred": { "$ref": "#/$defs/count" },
+            "terms_blocked": { "$ref": "#/$defs/count" },
+            "unsupported": { "$ref": "#/$defs/count" }
+          }
+        },
+        "configuredActiveSourceCount": { "$ref": "#/$defs/count" },
+        "certificationAssessmentStatus": { "enum": ["not_assessed", "assessed"] },
+        "certifiedSourceCount": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/count" }]
+        },
+        "publishedSourceCount": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/count" }]
+        },
+        "universeSourceRouteCount": { "$ref": "#/$defs/count" },
+        "resultClaimQuarantineCount": { "$ref": "#/$defs/count" }
+      }
+    },
+    "aliasRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rowKey", "aliasIndex", "aliasText", "reportDisposition", "reasonCode"],
+      "properties": {
+        "rowKey": { "$ref": "#/$defs/nonEmptyString" },
+        "aliasIndex": { "type": "integer", "minimum": 0 },
+        "aliasText": { "$ref": "#/$defs/nullableString" },
+        "reportDisposition": { "enum": ["accounted", "invalid"] },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "commonRegistryRowProperties": {
+      "type": "object",
+      "required": [
+        "rowKey",
+        "inputId",
+        "rowIndex",
+        "stableId",
+        "registryStatus",
+        "coverageStatus",
+        "reportDisposition",
+        "reasonCode",
+        "aliases"
+      ],
+      "properties": {
+        "rowKey": { "$ref": "#/$defs/nonEmptyString" },
+        "inputId": { "$ref": "#/$defs/nonEmptyString" },
+        "rowIndex": {
+          "description": "Zero-based position after canonical logical-row ordering, never mutable YAML input order.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "stableId": { "$ref": "#/$defs/nullableRegistryEntityId" },
+        "registryStatus": { "$ref": "#/$defs/nullableString" },
+        "coverageStatus": {
+          "description": "Coverage-Universe configuration/maturity classification for this census row only. It never implies source certification, claim approval, publication, or frontend eligibility.",
+          "oneOf": [
+            { "type": "null" },
+            { "enum": ["configured", "omitted"] }
+          ]
+        },
+        "reportDisposition": {
+          "enum": ["configured", "omitted", "catalogued", "outside_universe", "conflicted", "invalid"]
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "aliases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/aliasRow" }
+        }
+      }
+    },
+    "benchmarkRow": {
+      "allOf": [
+        { "$ref": "#/$defs/commonRegistryRowProperties" },
+        {
+          "type": "object",
+          "required": ["benchmarkId"],
+          "properties": { "benchmarkId": { "$ref": "#/$defs/nullableStableId" } }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "modelRow": {
+      "allOf": [
+        { "$ref": "#/$defs/commonRegistryRowProperties" },
+        {
+          "type": "object",
+          "required": ["modelId"],
+          "properties": { "modelId": { "$ref": "#/$defs/nullableRegistryEntityId" } }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "sourceRow": {
+      "allOf": [
+        { "$ref": "#/$defs/commonRegistryRowProperties" },
+        {
+          "type": "object",
+          "required": ["sourceRouteId", "benchmarkId"],
+          "properties": {
+            "sourceRouteId": { "$ref": "#/$defs/nullableStableId" },
+            "benchmarkId": { "$ref": "#/$defs/nullableStableId" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issueKey",
+        "issueType",
+        "entityType",
+        "stableId",
+        "matchKind",
+        "matchKey",
+        "entityIds",
+        "rowKeys",
+        "reasonCode",
+        "blocking"
+      ],
+      "properties": {
+        "issueKey": { "$ref": "#/$defs/nonEmptyString" },
+        "issueType": {
+          "enum": [
+            "invalid_registry_row",
+            "duplicate_registry_id",
+            "registry_alias_collision",
+            "universe_gap",
+            "legacy_database",
+            "legacy_alias_collision",
+            "registry_database_divergence"
+          ]
+        },
+        "entityType": {
+          "oneOf": [
+            { "type": "null" },
+            { "enum": ["benchmark", "model", "source", "database", "universe"] }
+          ]
+        },
+        "stableId": { "$ref": "#/$defs/nullableRegistryEntityId" },
+        "matchKind": {
+          "oneOf": [
+            { "type": "null" },
+            { "enum": ["exact", "normalized"] }
+          ]
+        },
+        "matchKey": { "$ref": "#/$defs/nullableString" },
+        "entityIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/registryEntityId" }
+        },
+        "rowKeys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "blocking": { "type": "boolean" }
+      }
+    },
+    "legacyCollision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityType", "matchKind", "matchKey", "entityIds", "reasonCode"],
+      "properties": {
+        "entityType": { "enum": ["benchmark", "model", "source"] },
+        "matchKind": { "enum": ["exact", "normalized"] },
+        "matchKey": { "$ref": "#/$defs/nonEmptyString" },
+        "entityIds": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/registryEntityId" }
+        },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" }
+      }
+    },
+    "legacyDatabase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "kind",
+        "path",
+        "contentSha256",
+        "schemaSha256",
+        "reasonCode",
+        "integrityOk",
+        "foreignKeyViolationCount",
+        "orphanedReferenceCount",
+        "resultClaimQuarantineCount",
+        "revision",
+        "tableCounts",
+        "sourceIds",
+        "registrySourceIdsMissingFromDatabase",
+        "databaseSourceIdsMissingFromRegistry",
+        "aliasCollisions"
+      ],
+      "properties": {
+        "status": {
+          "description": "Read-only census classification only. current_read_only is reserved for an integrity-clean database at the exact Alembic head; quarantined_read_only covers integrity-clean legacy evidence or a versioned database that is not at that head; quarantined_invalid covers invalid, internally inconsistent, or unknown schema state. No status implies migration readiness, source certification, claim approval, publication, or frontend eligibility.",
+          "enum": ["absent", "current_read_only", "quarantined_read_only", "quarantined_invalid", "unavailable"]
+        },
+        "kind": { "enum": ["not_configured", "absent", "empty", "versioned", "legacy_unversioned", "unknown_schema", "invalid", "unsupported_url"] },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "contentSha256": {
+          "description": "Raw SQLite file-byte SHA-256. This differs deliberately from semantic registry input digests and is null only when no readable local database file exists.",
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "schemaSha256": { "$ref": "#/$defs/nullableSha256" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "integrityOk": {
+          "oneOf": [{ "type": "boolean" }, { "type": "null" }]
+        },
+        "foreignKeyViolationCount": { "$ref": "#/$defs/count" },
+        "orphanedReferenceCount": { "$ref": "#/$defs/count" },
+        "resultClaimQuarantineCount": { "$ref": "#/$defs/count" },
+        "revision": { "$ref": "#/$defs/nullableString" },
+        "tableCounts": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/count" }
+        },
+        "sourceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/registryEntityId" }
+        },
+        "registrySourceIdsMissingFromDatabase": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/registryEntityId" }
+        },
+        "databaseSourceIdsMissingFromRegistry": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/registryEntityId" }
+        },
+        "aliasCollisions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/legacyCollision" }
+        }
+      }
+    }
+  }
+}

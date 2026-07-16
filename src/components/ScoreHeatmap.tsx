@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import type { Benchmark, Model } from "../types";
-import { getValue, getScoreEntry } from "../data/registry";
+import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
 import { computeRanking, bestModelId } from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
@@ -8,14 +7,16 @@ import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { cn } from "@/lib/utils";
 import { fmtScore as fmt } from "../lib/format";
 import { STICKY_BG, GROUP_H } from "../lib/table";
+import { ClaimEvidence } from "./ClaimEvidence";
 
 interface ScoreHeatmapProps {
-  models: Model[];
-  benchmarks: Benchmark[];
+  models: readonly DatasetModel[];
+  benchmarks: readonly DatasetBenchmark[];
   onOpenModel: (modelId: string) => void;
 }
 
 export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapProps) {
+  const { getValue, getScoreEntry } = useDataset();
   const statsByBench = useMemo(() => {
     const map: Record<string, ReturnType<typeof columnStats>> = {};
     for (const b of benchmarks) {
@@ -23,21 +24,17 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
       map[b.id] = columnStats(values, b);
     }
     return map;
-  }, [models, benchmarks]);
+  }, [models, benchmarks, getValue]);
 
   const bestByBench = useMemo(() => {
     const map: Record<string, string | null> = {};
-    for (const b of benchmarks) map[b.id] = bestModelId(b.id, models);
+    for (const b of benchmarks) map[b.id] = bestModelId(b.id, models, benchmarks, getValue);
     return map;
-  }, [models, benchmarks]);
+  }, [models, benchmarks, getValue]);
 
-  const orderedModels = useMemo(() => {
-    const ranking = computeRanking(models, benchmarks);
-    const byId = new Map(models.map((m) => [m.id, m]));
-    return ranking
-      .map((r) => byId.get(r.model.id))
-      .filter((m): m is Model => m != null);
-  }, [models, benchmarks]);
+  const orderedRows = useMemo(() => {
+    return computeRanking(models, benchmarks, getValue);
+  }, [models, benchmarks, getValue]);
 
   const groups = useMemo(
     () =>
@@ -110,8 +107,8 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
             </tr>
           </thead>
           <tbody>
-            {orderedModels.map((m, idx) => {
-              const isTop = idx === 0;
+            {orderedRows.map(({ model: m, rank }) => {
+              const isTop = rank === 1;
               return (
                 <tr key={m.id} className="transition-colors hover:bg-white/[0.03]">
                   <td
@@ -147,13 +144,7 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
                   {benchmarks.map((b) => {
                     const v = getValue(m.id, b.id);
                     const entry = getScoreEntry(m.id, b.id);
-                    const prov =
-                      entry && (entry.captureStatus || entry.officialSourceId)
-                        ? entry
-                        : null;
-                    const tooltipText = prov
-                      ? `Source: ${prov.officialSourceId ?? "—"}, captured ${prov.date || "—"}, status ${prov.captureStatus ?? "—"}`
-                      : "";
+                    const claim = entry?.officialProvenance ? entry : null;
                     const stats = statsByBench[b.id];
                     const isBest = v != null && stats.best != null && v === stats.best;
                     const bg = heatmapColor(v, stats, b);
@@ -175,33 +166,44 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
                         title={
                           v == null
                             ? `${m.name} · ${b.name}: no data`
-                            : prov
-                              ? tooltipText
+                            : claim
+                              ? `${m.name} · ${b.name}: claim evidence available`
                               : `${m.name} · ${b.name}: ${v}`
                         }
                       >
-                        <button
-                          type="button"
-                          onClick={() => onOpenModel(m.id)}
-                          className="relative flex h-full w-full items-center justify-center px-1 py-1 text-[12.5px] font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
-                          style={
-                            v == null
-                              ? { color: "rgba(255,255,255,0.32)" }
-                              : { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.65)" }
-                          }
-                          aria-label={
-                            v == null
-                              ? `${m.name} · ${b.name}: no data`
-                              : `${m.name} · ${b.name}: ${v}`
-                          }
-                        >
-                          {fmt(v, b.scaleMax)}
-                        </button>
-                        {prov && (
-                          <span
-                            className="absolute right-1 top-1 z-20 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399] opacity-75 pointer-events-none"
-                            title={tooltipText}
+                        {claim ? (
+                          <ClaimEvidence
+                            entry={claim}
+                            modelName={m.name}
+                            benchmarkName={b.fullName}
+                            trigger={
+                              <button
+                                type="button"
+                                className="data-claim-evidence relative flex h-full w-full items-center justify-center px-1 py-1 text-[12.5px] font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)] focus:outline-none focus:ring-2 focus:ring-ring"
+                                aria-label={`View claim evidence for ${m.name} on ${b.fullName}`}
+                              >
+                                {fmt(v, b.scaleMax)}
+                              </button>
+                            }
                           />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onOpenModel(m.id)}
+                            className="relative flex h-full w-full items-center justify-center px-1 py-1 text-[12.5px] font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                            style={
+                              v == null
+                                ? { color: "rgba(255,255,255,0.32)" }
+                                : { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.65)" }
+                            }
+                            aria-label={
+                              v == null
+                                ? `${m.name} · ${b.name}: no data`
+                                : `${m.name} · ${b.name}: ${v}`
+                            }
+                          >
+                            {fmt(v, b.scaleMax)}
+                          </button>
                         )}
                       </td>
                     );
@@ -221,10 +223,15 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
               {benchmarks.map((b) => {
                 const bestId = bestByBench[b.id];
                 const display = fmt(statsByBench[b.id].best, b.scaleMax);
+                const bestModel = bestId
+                  ? models.find((model) => model.id === bestId) ?? null
+                  : null;
+                const bestEntry = bestId ? getScoreEntry(bestId, b.id) : null;
+                const bestClaim = bestEntry?.officialProvenance ? bestEntry : null;
                 return (
                   <td
                     key={b.id}
-                    className="border-t-2 border-white/15 p-0 text-center font-mono text-[12px] font-bold"
+                    className="relative border-t-2 border-white/15 p-0 text-center font-mono text-[12px] font-bold"
                     style={{ color: "rgb(110,231,183)" }}
                   >
                     {bestId ? (
@@ -239,6 +246,14 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
                     ) : (
                       <span className="block py-2">{display}</span>
                     )}
+                    {bestModel ? (
+                      <ClaimEvidence
+                        entry={bestClaim}
+                        modelName={bestModel.name}
+                        benchmarkName={b.fullName}
+                        className="absolute right-0.5 top-0.5 z-20"
+                      />
+                    ) : null}
                   </td>
                 );
               })}

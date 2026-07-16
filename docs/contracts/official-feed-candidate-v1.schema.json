@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/official-feed-candidate-v1.schema.json",
+  "title": "Official Feed Candidate v1",
+  "description": "Offline ledger projection only. This is not a frontend-loadable published Official artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "availability",
+    "manifest",
+    "models",
+    "benchmarks",
+    "sourceManifest",
+    "scores",
+    "excludedClaims"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "official-feed-projection-v1" },
+    "availability": { "const": "candidate" },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentSha256",
+        "scoreCount",
+        "modelCount",
+        "benchmarkCount",
+        "sourceSnapshotCount"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-json-v1" },
+        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "scoreCount": { "type": "integer", "minimum": 0 },
+        "modelCount": { "type": "integer", "minimum": 0 },
+        "benchmarkCount": { "type": "integer", "minimum": 0 },
+        "sourceSnapshotCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "models": { "type": "array", "items": { "$ref": "#/$defs/model" } },
+    "benchmarks": { "type": "array", "items": { "$ref": "#/$defs/benchmark" } },
+    "sourceManifest": { "type": "array", "items": { "$ref": "#/$defs/sourceManifest" } },
+    "scores": { "type": "array", "items": { "$ref": "#/$defs/score" } },
+    "excludedClaims": { "type": "array", "items": { "$ref": "#/$defs/excludedClaim" } }
+  },
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "canonicalName", "displayName", "provider", "modelFamily", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "canonicalName": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "provider": { "$ref": "#/$defs/nullableString" },
+        "modelFamily": { "$ref": "#/$defs/nullableString" },
+        "status": { "type": "string", "minLength": 1 }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "canonicalName", "displayName", "benchmarkFamily", "primaryMetric", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "canonicalName": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "benchmarkFamily": { "$ref": "#/$defs/nullableString" },
+        "primaryMetric": { "$ref": "#/$defs/nullableString" },
+        "status": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sourceManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceManifestKey",
+        "officialSourceId",
+        "sourceRevisionId",
+        "sourceRevisionDecisionId",
+        "sourceName",
+        "sourceUrl",
+        "sourceType",
+        "sourceRevisionDefinitionSha256",
+        "sourceSnapshotId",
+        "snapshotContentSha256",
+        "snapshotCapturedAt"
+      ],
+      "properties": {
+        "sourceManifestKey": { "type": "string", "minLength": 1 },
+        "officialSourceId": { "type": "string", "minLength": 1 },
+        "sourceRevisionId": { "type": "string", "minLength": 1 },
+        "sourceRevisionDecisionId": { "type": "string", "minLength": 1 },
+        "sourceName": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceType": { "type": "string", "minLength": 1 },
+        "sourceRevisionDefinitionSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sourceSnapshotId": { "type": "string", "minLength": 1 },
+        "snapshotContentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "snapshotCapturedAt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelId", "benchmarkId", "metric", "split", "setting", "evaluationVersion"],
+      "properties": {
+        "modelId": { "type": "string", "minLength": 1 },
+        "benchmarkId": { "type": "string", "minLength": 1 },
+        "metric": { "$ref": "#/$defs/nullableString" },
+        "split": { "$ref": "#/$defs/nullableString" },
+        "setting": { "$ref": "#/$defs/nullableString" },
+        "evaluationVersion": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceManifestKey",
+        "officialSourceId",
+        "sourceRevisionId",
+        "sourceRevisionDecisionId",
+        "sourceName",
+        "sourceUrl",
+        "sourceType",
+        "sourceRevisionDefinitionSha256",
+        "sourceSnapshotId",
+        "snapshotContentSha256",
+        "snapshotCapturedAt",
+        "claimReviewDecisionId",
+        "claimPublicationDecisionId",
+        "captureMethod"
+      ],
+      "properties": {
+        "sourceManifestKey": { "type": "string", "minLength": 1 },
+        "officialSourceId": { "type": "string", "minLength": 1 },
+        "sourceRevisionId": { "type": "string", "minLength": 1 },
+        "sourceRevisionDecisionId": { "type": "string", "minLength": 1 },
+        "sourceName": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceType": { "type": "string", "minLength": 1 },
+        "sourceRevisionDefinitionSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sourceSnapshotId": { "type": "string", "minLength": 1 },
+        "snapshotContentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "snapshotCapturedAt": { "type": "string", "minLength": 1 },
+        "claimReviewDecisionId": { "type": "string", "minLength": 1 },
+        "claimPublicationDecisionId": { "type": "string", "minLength": 1 },
+        "captureMethod": { "type": "string", "minLength": 1 }
+      }
+    },
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell",
+        "claimId",
+        "value",
+        "scoreRaw",
+        "scoreUnit",
+        "evidenceText",
+        "evidenceLocation",
+        "provenance"
+      ],
+      "properties": {
+        "cell": { "$ref": "#/$defs/cell" },
+        "claimId": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "scoreRaw": { "type": "string", "minLength": 1 },
+        "scoreUnit": { "$ref": "#/$defs/nullableString" },
+        "evidenceText": { "$ref": "#/$defs/nullableString" },
+        "evidenceLocation": { "type": "object", "minProperties": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "excludedClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimId", "reasonCode"],
+      "properties": {
+        "claimId": { "type": "string", "minLength": 1 },
+        "reasonCode": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

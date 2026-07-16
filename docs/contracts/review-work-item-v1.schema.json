@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/review-work-item-v1.schema.json",
+  "title": "Review Work Item v1",
+  "description": "Append-only owner-facing review queue item. Claim, defer, and terminal actions are explicit; elapsed time cannot approve a source, claim, artifact, or publication.",
+  "$comment": "Semantic validation MUST derive identity from environment, work class, reason, and sorted typed subject references; reject stale or branched event chains; require decisions for terminal actions and an exact next-review time for deferral; expose provisional owner-calendar blockers; reconcile all manifest denominators; and verify the canonical self-digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyVersion", "availability", "mode", "workItemId", "workItemFingerprintSha256", "environment", "workClass", "reasonCode", "ownerRole", "assigneeId", "currentState", "publicationBlocking", "subjectRefs", "duePolicy", "events", "authority", "manifest"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "const": "review-work-item-v1" },
+    "availability": { "const": "operations_record_only" },
+    "mode": { "enum": ["synthetic_fixture", "shadow", "production"] },
+    "workItemId": { "$ref": "#/$defs/stableId" },
+    "workItemFingerprintSha256": { "$ref": "#/$defs/sha256" },
+    "environment": { "$ref": "#/$defs/stableId" },
+    "workClass": { "enum": ["source_candidate", "terms_certification", "source_contract_evidence_drift", "model_system_identity", "validation", "display_conflict", "publication_artifact", "incident_followup"] },
+    "reasonCode": { "$ref": "#/$defs/reasonCode" },
+    "ownerRole": { "$ref": "#/$defs/stableId" },
+    "assigneeId": { "$ref": "#/$defs/nullableStableId" },
+    "currentState": { "$ref": "#/$defs/workState" },
+    "publicationBlocking": { "type": "boolean" },
+    "subjectRefs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/typedReference" } },
+    "duePolicy": { "$ref": "#/$defs/duePolicy" },
+    "events": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/event" } },
+    "authority": { "$ref": "#/$defs/authority" },
+    "manifest": { "$ref": "#/$defs/manifest" }
+  },
+  "$defs": {
+    "stableId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "nullableStableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stableId" }] },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "utcTimestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "nullableUtcTimestamp": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/utcTimestamp" }] },
+    "workState": { "enum": ["OPEN", "CLAIMED", "DEFERRED", "RESOLVED", "REJECTED", "BLOCKED"] },
+    "typedReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["referenceType", "referenceId"],
+      "properties": {
+        "referenceType": { "enum": ["cycle", "job", "attempt", "source", "source_revision", "benchmark", "artifact", "database", "notification_intent", "notification_route", "backup"] },
+        "referenceId": { "$ref": "#/$defs/stableId" }
+      }
+    },
+    "safeContext": {
+      "type": "object", "additionalProperties": false,
+      "required": ["contextCode", "sourceControlledDataIncluded"],
+      "properties": { "contextCode": { "$ref": "#/$defs/reasonCode" }, "sourceControlledDataIncluded": { "const": false } }
+    },
+    "event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["eventId", "eventOrdinal", "eventType", "expectedPriorEventId", "fromState", "toState", "occurredAt", "actorRole", "reasonCode", "decisionReference", "nextReviewAt", "safeContext"],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/stableId" },
+        "eventOrdinal": { "type": "integer", "minimum": 1 },
+        "eventType": { "enum": ["CREATED", "CLAIMED", "DEFERRED", "RESOLVED", "REJECTED", "BLOCKED", "REOPENED"] },
+        "expectedPriorEventId": { "$ref": "#/$defs/nullableStableId" },
+        "fromState": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/workState" }] },
+        "toState": { "$ref": "#/$defs/workState" },
+        "occurredAt": { "$ref": "#/$defs/utcTimestamp" },
+        "actorRole": { "$ref": "#/$defs/stableId" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "decisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "nextReviewAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "safeContext": { "$ref": "#/$defs/safeContext" }
+      }
+    },
+    "duePolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policyStatus", "policyRevisionId", "policyDecisionReference", "dueKind", "businessCalendarId", "timeZone", "dueAt", "nextReviewAt", "calculationStatus", "terminalAt", "onTime"],
+      "properties": {
+        "policyStatus": { "enum": ["provisional_unapproved", "approved"] },
+        "policyRevisionId": { "$ref": "#/$defs/stableId" },
+        "policyDecisionReference": { "$ref": "#/$defs/nullableStableId" },
+        "dueKind": { "enum": ["business_calendar", "immediate_before_expiry", "release_specific", "incident_recorded"] },
+        "businessCalendarId": { "$ref": "#/$defs/nullableStableId" },
+        "timeZone": { "$ref": "#/$defs/nullableStableId" },
+        "dueAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "nextReviewAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "calculationStatus": { "enum": ["blocked_owner_policy", "active", "assessed"] },
+        "terminalAt": { "$ref": "#/$defs/nullableUtcTimestamp" },
+        "onTime": { "type": ["boolean", "null"] }
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["classification", "certifiesSources", "authorizesCapture", "authorizesPublication", "frontendLoadable", "mutatesEvidence", "timeoutMayApprove"],
+      "properties": {
+        "classification": { "const": "operations_record_only" },
+        "certifiesSources": { "const": false },
+        "authorizesCapture": { "const": false },
+        "authorizesPublication": { "const": false },
+        "frontendLoadable": { "const": false },
+        "mutatesEvidence": { "const": false },
+        "timeoutMayApprove": { "const": false }
+      }
+    },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "contentSha256", "subjectReferenceCount", "eventCount"],
+      "properties": {
+        "algorithm": { "const": "sha256-canonical-incident-json-v1" },
+        "contentSha256": { "$ref": "#/$defs/sha256" },
+        "subjectReferenceCount": { "type": "integer", "minimum": 1 },
+        "eventCount": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
