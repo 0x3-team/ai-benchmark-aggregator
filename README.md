@@ -118,11 +118,13 @@ ai-benchmark-aggregator/
 │   └── CODEOWNERS              # Auto-review assignment
 ├── src/                        # React SPA (Vite + TS + Tailwind)
 │   ├── components/             # UI components (glassmorphism, charts, tables)
+│   │   ├── evilcharts/        # Vendored EvilCharts (Recharts 3 + Motion), read-only
+│   │   └── charts/             # App chart adapters mapping app data to EvilCharts
 │   ├── data/                   # Data access layer
 │   │   ├── official/           # Tracked unavailable artifact; ignored local export is not runtime input
 │   │   ├── dataset.tsx         # Immutable React snapshot + sole getValue() accessor
 │   │   └── scores.ts           # Deterministic synthetic Demo score generator
-│   ├── lib/                    # Utilities (colors, aggregation, categories)
+│   ├── lib/                    # Utilities (colors, aggregation, categories, chartData builders)
 │   └── types.ts                # Shared TypeScript types
 ├── ledger/                     # Python CLI (Typer + SQLAlchemy + Pydantic)
 │   ├── app/
@@ -218,6 +220,7 @@ routes. See the [safe-fetch runbook](docs/runbooks/source-certification-and-safe
 - **Ledger:** Preserve raw source values exactly. No recalculation. Existing claims/snapshots are retained; do not use registry reseeding as a reset mechanism.
 - **Frontend:** `getValue(modelId, benchmarkId)` is the **only** score accessor. Null scores render as `—` (dashed).
 - **UI:** Glassmorphism via `cn(...)` + Tailwind. Sticky columns = `overflow-x-auto` + sticky left. SOTA = gold ring (`.sota-cell`).
+- **Charts:** EvilCharts (Recharts 3 + Motion), vendored read-only at `src/components/evilcharts/`; app adapters in `src/components/charts/`; data builders in `src/lib/chartData.ts`. All new charts MUST use EvilCharts; hand-rolled SVG/div charts are forbidden. Heatmap tables (ScoreTable, ScoreHeatmap, ModelDetail dots) are data tables, not charts, and remain on `heatmapColor()`.
 - **Quality gates:** `npm run typecheck && npm run build && npm test` + `cd ledger && pytest -q` **must pass** before merge.
 
 ---

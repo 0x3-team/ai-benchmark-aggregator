@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { radarAverages, categoryLeader } from "../lib/aggregate";
-import { RadarChart, RADAR_CATEGORIES, type RadarSeries } from "./RadarChart";
+import { CapabilityRadar } from "./charts/CapabilityRadar";
+import { CategoryAverageBars } from "./charts/CategoryAverageBars";
+import { CategoryVsFieldComposed } from "./charts/CategoryVsFieldComposed";
+import { CategoryBenchmarkSankey } from "./charts/CategoryBenchmarkSankey";
 import { ScoreHeatmap } from "./ScoreHeatmap";
 import { BenchmarkBars } from "./BenchmarkBars";
 import {
@@ -22,26 +24,30 @@ import {
 interface ModelComparisonProps {
   models: readonly DatasetModel[];
   benchmarks: readonly DatasetBenchmark[];
+  allModels: readonly DatasetModel[];
   onOpenModel: (modelId: string) => void;
 }
 
-export function ModelComparison({ models, benchmarks, onOpenModel }: ModelComparisonProps) {
+export function ModelComparison({ models, benchmarks, allModels, onOpenModel }: ModelComparisonProps) {
   const { getValue } = useDataset();
-  const allSeries: RadarSeries[] = useMemo(
+
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+
+  const visibleModels = useMemo(
+    () => models.filter((m) => !hidden.has(m.id)),
+    [models, hidden]
+  );
+
+  const modelPoints = useMemo(
     () =>
-      models.map((m, i) => ({
+      models.map((m) => ({
         modelId: m.id,
         name: m.name,
-        color: modelColor(i),
+        color: modelColor(models.indexOf(m)),
         points: radarAverages(m.id, benchmarks, getValue),
       })),
     [models, benchmarks, getValue]
   );
-
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const visibleSeries = allSeries.filter((s) => !hidden.has(s.modelId));
 
   const leaders = useMemo(
     () => categoryLeader(models, benchmarks, getValue),
@@ -85,38 +91,29 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
         <CardHeader>
           <CardTitle className="text-base">Capability radar</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Average normalized score per category (0–100%). Hover a label to
-            highlight a model; click to hide/show it.
+            Average normalized score per category (0–100%). Click a model below to hide/show it.
           </p>
         </CardHeader>
         <CardContent>
           <div className="mx-auto w-full max-w-[620px]">
-            <RadarChart series={visibleSeries} activeId={activeId} />
+            <CapabilityRadar models={visibleModels} benchmarks={benchmarks} />
           </div>
           <ul className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
-            {allSeries.map((s) => {
+            {modelPoints.map((s) => {
               const off = hidden.has(s.modelId);
-              const active = activeId === s.modelId;
-              const incomplete = s.points.some(
-                (point) => RADAR_CATEGORIES.includes(point.category) && point.value === null
-              );
+              const incomplete = s.points.some((point) => point.value === null);
               return (
                 <li key={s.modelId}>
                   <button
                     type="button"
                     onClick={() => toggleSeries(s.modelId)}
-                    onMouseEnter={() => setActiveId(s.modelId)}
-                    onMouseLeave={() => setActiveId(null)}
                     className={cn(
                       "flex items-center gap-2 rounded-md px-1.5 py-0.5 text-sm transition-opacity focus:outline-none focus:ring-2 focus:ring-ring",
                       off && "opacity-40"
                     )}
                   >
                     <span
-                      className={cn(
-                        "inline-block h-3 w-3 rounded-sm transition-shadow",
-                        active && !off && "ring-2 ring-white/40"
-                      )}
+                      className="inline-block h-3 w-3 rounded-sm transition-shadow"
                       style={{
                         background: s.color,
                         boxShadow: off ? "none" : `0 0 8px ${s.color}`,
@@ -138,57 +135,39 @@ export function ModelComparison({ models, benchmarks, onOpenModel }: ModelCompar
         <CardHeader>
           <CardTitle className="text-base">By category</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Stacked per-category averages across selected models.
+            Per-category averages across selected models. Click a legend entry to isolate a model.
           </p>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-2.5">
-            {CATEGORIES.map((cat) => (
-              <div
-                key={cat}
-                className="grid grid-cols-[90px_1fr] items-center gap-3"
-              >
-                <span className="text-xs text-muted-foreground">
-                  {CATEGORY_LABELS[cat]}
-                </span>
-                <div className="flex flex-col gap-1">
-                  {visibleSeries.map((s) => {
-                    const p = s.points.find((pp) => pp.category === cat);
-                    const v = p?.value ?? null;
-                    const dim = activeId != null && activeId !== s.modelId;
-                    const unavailable = v === null;
-                    const pct = unavailable ? null : Math.round(v * 100);
-                    return (
-                      <div
-                        key={s.modelId}
-                        className={cn(
-                          "relative h-3.5 rounded-sm bg-white/5 transition-opacity",
-                          dim && "opacity-30"
-                        )}
-                        title={unavailable ? `${s.name}: no category data` : `${s.name}: ${pct}%`}
-                        aria-label={unavailable ? `${s.name}: no category data` : `${s.name}: ${pct}%`}
-                      >
-                        {unavailable ? (
-                          <div className="h-full rounded-sm border border-dashed border-white/20" />
-                        ) : (
-                          <div
-                            className="h-full rounded-sm transition-[width] duration-300"
-                            style={{
-                              width: `${Math.max(v * 100, 2)}%`,
-                              background: s.color,
-                            }}
-                          />
-                        )}
-                        <span className="absolute right-1 top-1/2 -translate-y-1/2 font-mono text-[10px] text-foreground/80">
-                          {unavailable ? "—" : `${pct}%`}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+          <CategoryAverageBars models={visibleModels} benchmarks={benchmarks} />
+        </CardContent>
+      </Card>
+
+      <Card className="glass-strong border-white/10">
+        <CardHeader>
+          <CardTitle className="text-base">Categories vs field average</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Selected models vs the whole dataset per category.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <CategoryVsFieldComposed
+            models={visibleModels}
+            benchmarks={benchmarks}
+            allModels={allModels}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="glass-strong border-white/10">
+        <CardHeader>
+          <CardTitle className="text-base">Where peak scores concentrate</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Category to benchmark flow weighted by best (SOTA) normalized score.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <CategoryBenchmarkSankey benchmarks={benchmarks} allModels={allModels} />
         </CardContent>
       </Card>
 

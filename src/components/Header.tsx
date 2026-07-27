@@ -30,7 +30,7 @@ export function Header({
   onViewChange,
   selectedCount,
   onOpenGlossary,
-  dataModeLabel = "Demo (synthetic)",
+  dataModeLabel = "Awaiting data",
   dataMode,
   onDataModeChange,
   officialUnavailableReason,
@@ -108,7 +108,7 @@ export function Header({
                         : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {m === "demo" ? "Demo" : unavailable ? "Official unavailable" : "Official"}
+                  {m === "demo" ? "Data" : unavailable ? "Official unavailable" : "Official"}
                 </button>
               );
             })}
@@ -148,7 +148,7 @@ export function Header({
           className="glass rounded-xl px-5 py-3 text-xs text-muted-foreground"
         >
           <strong className="text-foreground">Official claims unavailable.</strong>{" "}
-          {officialUnavailableReason} The visible data remains <strong className="text-foreground">Demo (synthetic)</strong>.
+          {officialUnavailableReason} No benchmark data is currently published.
           {officialUnavailableAnnouncement ? (
             <span key={officialUnavailableAnnouncementId} className="sr-only">
               {officialUnavailableAnnouncement}

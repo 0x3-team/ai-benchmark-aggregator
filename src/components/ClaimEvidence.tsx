@@ -272,14 +272,21 @@ export function ClaimEvidence({
   if (!resolveClaimEvidence(entry, officialRelease)) return null;
 
   const label = `View claim evidence for ${modelName} on ${benchmarkName}`;
-  const suppliedLabel = trigger?.props["aria-label"];
+  const triggerProps = trigger?.props as Record<string, unknown> | undefined;
+  const suppliedLabel =
+    typeof triggerProps?.["aria-label"] === "string"
+      ? triggerProps["aria-label"]
+      : undefined;
   const evidenceTrigger = trigger
-    ? cloneElement(trigger, {
-        "aria-label":
-          typeof suppliedLabel === "string" && suppliedLabel.trim().length > 0
-            ? suppliedLabel
-            : label,
-      })
+    ? cloneElement(
+        trigger,
+        {
+          "aria-label":
+            typeof suppliedLabel === "string" && suppliedLabel.trim().length > 0
+              ? suppliedLabel
+              : label,
+        } as Record<string, unknown>
+      )
     : (
       <button
         type="button"

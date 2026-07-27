@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { BenchmarkCategory } from "./types";
-import { models as demoModels } from "./data/models";
-import { benchmarks as demoBenchmarks } from "./data/benchmarks";
+import { models as catalogModels } from "./data/models";
+import { benchmarks as catalogBenchmarks } from "./data/benchmarks";
 import { getScores } from "./data/scores";
 import {
   DatasetProvider,
@@ -17,10 +17,17 @@ import { Filters } from "./components/Filters";
 import { ScoreTable } from "./components/ScoreTable";
 import { BenchmarkCard } from "./components/BenchmarkCard";
 import { CategoryLeaders } from "./components/CategoryLeaders";
+import { CatalogSharePie } from "./components/charts/CatalogSharePie";
 import { ModelDetail } from "./components/ModelDetail";
 import { ModelComparison } from "./components/ModelComparison";
 import { GlossaryDialog } from "./components/GlossaryDialog";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/card";
 import { DATA_MODE_LABEL, type DataMode } from "./data/dataMode";
 import {
   Sheet,
@@ -40,8 +47,8 @@ import { useToast } from "./components/ui/use-toast";
 
 const MAX_COMPARE = 6;
 const DEMO_DATASET: DatasetInput = {
-  models: demoModels,
-  benchmarks: demoBenchmarks,
+  models: catalogModels,
+  benchmarks: catalogBenchmarks,
   scores: getScores(),
 };
 
@@ -136,6 +143,7 @@ function AppContent({
     null
   );
   const [officialUnavailableAnnouncementId, setOfficialUnavailableAnnouncementId] = useState(0);
+  const [showAllBenchmarks, setShowAllBenchmarks] = useState(false);
   const { toast } = useToast();
 
   const officialUnavailableReason =
@@ -160,13 +168,25 @@ function AppContent({
     [activeModels]
   );
 
-  const visibleBenchmarks = useMemo(
+  const categoryBenchmarks = useMemo(
     () =>
       categoryFilter
         ? activeBenchmarks.filter((b) => b.category === categoryFilter)
         : activeBenchmarks,
     [categoryFilter, activeBenchmarks]
   );
+
+  // Limit benchmark columns to avoid rendering too many DOM nodes at once.
+  // When "All" is selected and showAllBenchmarks is false, show the first 12.
+  const visibleBenchmarks = useMemo(
+    () =>
+      !categoryFilter && !showAllBenchmarks && categoryBenchmarks.length > 12
+        ? categoryBenchmarks.slice(0, 12)
+        : categoryBenchmarks,
+    [categoryBenchmarks, categoryFilter, showAllBenchmarks]
+  );
+
+  const hiddenBenchmarkCount = categoryBenchmarks.length - visibleBenchmarks.length;
 
   const filteredModels = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -294,7 +314,7 @@ function AppContent({
 
   function handleDataModeChange(next: DataMode) {
     if (next === "official" && officialLoadResult.availability !== "published") {
-      const message = `Official claims remain unavailable. ${officialLoadResult.reason} Visible data remains Demo (synthetic).`;
+      const message = `Official claims are not yet available. ${officialLoadResult.reason}`;
       setOfficialUnavailableAnnouncement(message);
       setOfficialUnavailableAnnouncementId((current) => current + 1);
       toast({ description: message });
@@ -337,6 +357,18 @@ function AppContent({
 
           {view === "table" ? (
             <main id="main-content">
+              {activeModels.length === 0 ? (
+                <div className="glass-strong flex flex-col items-center justify-center gap-3 rounded-xl px-6 py-24 text-center">
+                  <p className="text-lg font-semibold text-foreground">
+                    No benchmark data yet
+                  </p>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    This platform displays only verified, source-backed benchmark results.
+                    Data will appear here once official source captures are published.
+                  </p>
+                </div>
+              ) : (
+              <>
               <Filters
                 search={search}
                 onSearch={setSearch}
@@ -356,6 +388,17 @@ function AppContent({
                 categoryFilter={categoryFilter}
                 onOpenModel={openModel}
               />
+              <Card className="glass-strong border-white/10 mb-3">
+                <CardHeader>
+                  <CardTitle className="text-base">Benchmark catalog</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Share of benchmarks per category.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <CatalogSharePie benchmarks={activeBenchmarks} />
+                </CardContent>
+              </Card>
               {sortedModels.length === 0 ? (
                 <div className="glass-strong flex flex-col items-center justify-center gap-2 rounded-xl px-6 py-16 text-center">
                   <p className="text-sm font-medium text-foreground">
@@ -373,6 +416,7 @@ function AppContent({
                   </button>
                 </div>
               ) : (
+                <>
                 <ScoreTable
                   models={sortedModels}
                   benchmarks={visibleBenchmarks}
@@ -386,6 +430,31 @@ function AppContent({
                   rankMap={rankMap}
                   rankCohortTotal={activeBenchmarks.length}
                 />
+                {hiddenBenchmarkCount > 0 && (
+                  <div className="flex justify-center py-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllBenchmarks(true)}
+                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                    >
+                      Show all {categoryBenchmarks.length} benchmarks ({hiddenBenchmarkCount} hidden)
+                    </button>
+                  </div>
+                )}
+                {showAllBenchmarks && hiddenBenchmarkCount === 0 && categoryBenchmarks.length > 12 && (
+                  <div className="flex justify-center py-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllBenchmarks(false)}
+                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                    >
+                      Show fewer benchmarks
+                    </button>
+                  </div>
+                )}
+                </>
+              )}
+              </>
               )}
             </main>
           ) : (
@@ -393,6 +462,7 @@ function AppContent({
               <ModelComparison
                 models={selectedModelObjects}
                 benchmarks={activeBenchmarks}
+                allModels={activeModels}
                 onOpenModel={openModel}
               />
             </main>

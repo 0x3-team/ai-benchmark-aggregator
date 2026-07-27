@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Info, ArrowUp, ArrowDown, X } from "lucide-react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
@@ -6,7 +6,7 @@ import { bestModelId, type RankRow } from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { fmtScore as fmt } from "../lib/format";
-import { STICKY_BG, GROUP_H } from "../lib/table";
+import { STICKY_BG, GROUP_H, ROW_H, ROW_BUFFER, BODY_MAX_H } from "../lib/table";
 import {
   Tooltip,
   TooltipContent,
@@ -83,6 +83,32 @@ export function ScoreTable({
   const activeCol = sort?.benchmarkId ?? null;
   const sortBench = benchmarks.find((b) => b.id === activeCol) ?? null;
 
+  // --- Row virtualization -------------------------------------------------
+  // Only render the rows inside (and a small buffer around) the vertical
+  // viewport. The scroll container reports its scrollTop; we translate that
+  // into a [start,end) window of model indices and pad the body with spacer
+  // rows so the scrollbar reflects the true total row count. A fixed ROW_H
+  // keeps the math O(1) and avoids per-row DOM measurement.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportH, setViewportH] = useState(BODY_MAX_H);
+
+  const totalRows = models.length;
+  const bodyMaxH = Math.min(BODY_MAX_H, totalRows * ROW_H);
+  const visibleH = Math.min(viewportH, bodyMaxH);
+  const firstIndex = Math.max(0, Math.floor(scrollTop / ROW_H) - ROW_BUFFER);
+  const visibleCount = Math.ceil(visibleH / ROW_H) + ROW_BUFFER * 2;
+  const lastIndex = Math.min(totalRows, firstIndex + visibleCount);
+  const visibleModels = models.slice(firstIndex, lastIndex);
+  const topPad = firstIndex * ROW_H;
+  const bottomPad = (totalRows - lastIndex) * ROW_H;
+
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    setScrollTop(el.scrollTop);
+    if (el.clientHeight !== viewportH) setViewportH(el.clientHeight);
+  }
+
   return (
     <div className="glass-strong overflow-hidden rounded-xl">
       {sort?.benchmarkId && sortBench && (
@@ -107,6 +133,12 @@ export function ScoreTable({
       )}
 
       <div className="overflow-x-auto scroll-thin">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="overflow-y-auto scroll-thin"
+          style={{ maxHeight: bodyMaxH || undefined }}
+        >
         <table className="w-full border-separate border-spacing-0 text-[12px]">
           <caption className="sr-only">
             Overall ranks use every benchmark in the selected dataset snapshot. A model must have a
@@ -309,7 +341,12 @@ export function ScoreTable({
             </tr>
           </thead>
           <tbody>
-            {models.map((m) => {
+            {topPad > 0 && (
+              <tr aria-hidden="true" style={{ height: topPad }}>
+                <td colSpan={benchmarks.length + 2} style={{ padding: 0, border: "none" }} />
+              </tr>
+            )}
+            {visibleModels.map((m) => {
               const rank = rankMap[m.id];
               const selected = selectedModels.includes(m.id);
               const isTop = rank?.rank === 1;
@@ -438,9 +475,14 @@ export function ScoreTable({
                 </tr>
               );
             })}
+            {bottomPad > 0 && (
+              <tr aria-hidden="true" style={{ height: bottomPad }}>
+                <td colSpan={benchmarks.length + 2} style={{ padding: 0, border: "none" }} />
+              </tr>
+            )}
           </tbody>
           <tfoot>
-            <tr>
+            <tr className="sticky bottom-0 z-30" style={{ background: STICKY_BG }}>
               <td
                 className="sticky left-0 z-20 border-t-2 border-white/15 text-center font-mono text-[11px] text-muted-foreground"
                 style={{ background: STICKY_BG, width: 34, minWidth: 34 }}
@@ -488,6 +530,7 @@ export function ScoreTable({
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-white/10 px-3 py-2 text-[11px] text-muted-foreground">

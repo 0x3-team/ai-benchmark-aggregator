@@ -4,22 +4,18 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import { AppWithDataSources } from "./App";
-import { benchmarks as demoBenchmarks } from "./data/benchmarks";
-import { models as demoModels } from "./data/models";
-import { getScores } from "./data/scores";
 import type { DatasetInput } from "./data/dataset";
 import type { OfficialLoadResult } from "./data/official";
+import { fixtureModel, fixtureBenchmark, fixtureScore } from "./data/testFixtures";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 function demoFixture(): DatasetInput {
-  const model = demoModels[0];
-  const benchmark = demoBenchmarks[0];
-  const score = getScores().find(
-    (entry) => entry.modelId === model.id && entry.benchmarkId === benchmark.id
-  );
-  if (!score) throw new Error("Expected Demo score.");
-  return { models: [model], benchmarks: [benchmark], scores: [score] };
+  return {
+    models: [fixtureModel],
+    benchmarks: [fixtureBenchmark],
+    scores: [fixtureScore],
+  };
 }
 
 function publishedFixture(): OfficialLoadResult {
@@ -159,8 +155,8 @@ describe("App data-mode transition", () => {
 
       const status = container.querySelector("#official-data-status");
       expect(status?.getAttribute("role")).toBe("status");
-      expect(status?.textContent).toContain("Demo (synthetic)");
-      expect(status?.textContent).toContain("Official claims remain unavailable.");
+      expect(status?.textContent).toContain("No benchmark data is currently published");
+      expect(status?.textContent).toContain("Official claims unavailab");
       expect(container.textContent).toContain(demo.models[0].name);
       expect(document.activeElement).toBe(official);
     } finally {

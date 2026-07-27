@@ -6,10 +6,8 @@ import { createRoot } from "react-dom/client";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { benchmarks as demoBenchmarks } from "./benchmarks";
 import { selectDataset } from "./dataSelection";
 import { DatasetProvider, useDataset, type DatasetInput } from "./dataset";
-import { models as demoModels } from "./models";
 import {
   loadOfficialData,
   parseOfficialArtifact,
@@ -18,7 +16,7 @@ import {
   type OfficialLoadResult,
   type OfficialReleaseAuthorization,
 } from "./official";
-import { getScores } from "./scores";
+import { fixtureModel, fixtureBenchmark, fixtureScore, fixtureDataset } from "./testFixtures";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -49,13 +47,7 @@ interface PublishedArtifactFixture {
 }
 
 function demoFixture(): DatasetInput {
-  const model = demoModels[0];
-  const benchmark = demoBenchmarks[0];
-  const score = getScores().find(
-    (entry) => entry.modelId === model.id && entry.benchmarkId === benchmark.id
-  );
-  if (!score) throw new Error("Expected a Demo score fixture.");
-  return { models: [model], benchmarks: [benchmark], scores: [score] };
+  return fixtureDataset();
 }
 
 function publishedArtifactFixture(): PublishedArtifactFixture {

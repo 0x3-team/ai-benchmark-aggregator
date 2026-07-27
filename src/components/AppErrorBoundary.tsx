@@ -28,7 +28,8 @@ export class AppErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(_error: Error, _errorInfo: ErrorInfo): void {
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo): void {
+    console.error("AppErrorBoundary caught:", error.message, error.stack);
     this.headingRef.current?.focus();
   }
 

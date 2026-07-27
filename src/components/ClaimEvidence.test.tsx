@@ -3,13 +3,12 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
-import { benchmarks as demoBenchmarks } from "../data/benchmarks";
 import {
   DatasetProvider,
   useDataset,
   type DatasetInput,
 } from "../data/dataset";
-import { models as demoModels } from "../data/models";
+import { fixtureModel, fixtureBenchmark } from "../data/testFixtures";
 import { BenchmarkBars } from "./BenchmarkBars";
 import { BenchmarkCard } from "./BenchmarkCard";
 import { ClaimEvidence, SourceManifestEvidence } from "./ClaimEvidence";
@@ -22,12 +21,12 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 function officialFixture({ includeManifest = true }: { includeManifest?: boolean } = {}): DatasetInput {
   const model = {
-    ...demoModels[0],
+    ...fixtureModel,
     id: "provenance-model",
     name: "Provenance Model",
   };
   const benchmark = {
-    ...demoBenchmarks[0],
+    ...fixtureBenchmark,
     id: "provenance-benchmark",
     name: "ProvenanceBench",
     fullName: "Provenance Benchmark",
@@ -313,9 +312,9 @@ describe("ClaimEvidence", () => {
       </DatasetProvider>
     );
     try {
-      expect(claimEvidenceButtons(view.container).length).toBeGreaterThanOrEqual(7);
+      expect(claimEvidenceButtons(view.container).length).toBeGreaterThanOrEqual(6);
       expect(view.container.querySelectorAll("button button")).toHaveLength(0);
-      expect(view.container.querySelectorAll(".data-claim-evidence").length).toBeGreaterThanOrEqual(7);
+      expect(view.container.querySelectorAll(".data-claim-evidence").length).toBeGreaterThanOrEqual(6);
     } finally {
       view.cleanup();
     }

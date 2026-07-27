@@ -66,7 +66,7 @@ function renderHeader(
     onViewChange: vi.fn(),
     selectedCount: 0,
     onOpenGlossary: vi.fn(),
-    dataModeLabel: "Demo (synthetic)",
+    dataModeLabel: "Awaiting data",
     dataMode: "demo" as const,
     onDataModeChange: vi.fn(),
   };
@@ -109,7 +109,7 @@ describe("Header trust status", () => {
       const official = buttonByText(view.container, "Official unavailable");
       expect(status?.getAttribute("role")).toBe("status");
       expect(status?.textContent).toContain("Official claims unavailable.");
-      expect(status?.textContent).toContain("Demo (synthetic)");
+      expect(status?.textContent).toContain("No benchmark data is currently published");
       expect(official.getAttribute("aria-disabled")).toBeNull();
       expect(official.getAttribute("aria-label")).toContain("Official claims unavailable");
       expect(official.getAttribute("aria-describedby")).toBe("official-data-status");

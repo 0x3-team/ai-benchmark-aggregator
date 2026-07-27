@@ -86,17 +86,17 @@ function immutableBenchmarks(
   );
 }
 
-function immutableScores(scores: readonly Score[]): readonly Readonly<Score>[] {
-  return Object.freeze(
-    scores.map((score) =>
-      Object.freeze({
-        ...score,
-        evidenceLocation: score.evidenceLocation
-          ? Object.freeze({ ...score.evidenceLocation })
-          : score.evidenceLocation,
-        officialProvenance: immutableOfficialProvenance(score.officialProvenance),
-      })
-    )
+function immutableScores(scores: readonly Score[]): readonly Score[] {
+  return scores.map((score) =>
+    score.evidenceLocation || score.officialProvenance
+      ? Object.freeze({
+          ...score,
+          evidenceLocation: score.evidenceLocation
+            ? Object.freeze({ ...score.evidenceLocation })
+            : score.evidenceLocation,
+          officialProvenance: immutableOfficialProvenance(score.officialProvenance),
+        })
+      : score
   );
 }
 

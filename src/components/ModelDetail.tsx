@@ -16,6 +16,14 @@ import {
   formatPricePair,
 } from "../lib/metadata";
 import { ClaimEvidence } from "./ClaimEvidence";
+import { ModelScoreRadial } from "./charts/ModelScoreRadial";
+import { ModelScoreProfileLine } from "./charts/ModelScoreProfileLine";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface ModelDetailProps {
   model: DatasetModel;
@@ -120,6 +128,26 @@ export function ModelDetail({
           ))}
         </div>
       )}
+
+      <Separator className="my-4" />
+
+      <ModelScoreRadial modelId={model.id} benchmarks={benchmarks} />
+
+      <Card className="glass-strong border-white/10 mt-4">
+        <CardHeader>
+          <CardTitle className="text-base">Score profile vs field</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Model score vs benchmark average across all models.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ModelScoreProfileLine
+            model={model}
+            allModels={models}
+            benchmarks={benchmarks}
+          />
+        </CardContent>
+      </Card>
 
       <Separator className="my-4" />
 

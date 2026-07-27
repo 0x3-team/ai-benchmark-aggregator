@@ -6,6 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS } from "../types";
 import { fmtScore } from "../lib/format";
 import { ClaimEvidence, ExternalSourceLink } from "./ClaimEvidence";
+import { BenchmarkSpreadArea } from "./charts/BenchmarkSpreadArea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface BenchmarkCardProps {
   benchmark: DatasetBenchmark;
@@ -74,6 +81,20 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
           </div>
         ))}
       </div>
+
+      <Separator className="my-4" />
+
+      <Card className="glass-strong border-white/10">
+        <CardHeader>
+          <CardTitle className="text-base">Score spread</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Normalized scores across models, ranked.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <BenchmarkSpreadArea benchmark={benchmark} models={models} />
+        </CardContent>
+      </Card>
 
       <Separator className="my-4" />
 

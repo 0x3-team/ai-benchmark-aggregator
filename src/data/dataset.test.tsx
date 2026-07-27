@@ -5,29 +5,21 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act } from "react";
 import { describe, expect, it } from "vitest";
-import { benchmarks as demoBenchmarks } from "./benchmarks";
+import { loadOfficialData, parseOfficialArtifact } from "./official";
 import {
   DatasetProvider,
   createDatasetAccess,
   useDataset,
   type DatasetInput,
 } from "./dataset";
-import { models as demoModels } from "./models";
-import { loadOfficialData, parseOfficialArtifact } from "./official";
-import { getScores } from "./scores";
+import { fixtureModel, fixtureBenchmark, fixtureScore, fixtureDataset } from "./testFixtures";
 
 // React's act() uses this documented test-environment flag to surface
 // asynchronous commit mistakes instead of silently accepting them.
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 function demoFixture(): DatasetInput {
-  const model = demoModels[0];
-  const benchmark = demoBenchmarks[0];
-  const score = getScores().find(
-    (entry) => entry.modelId === model.id && entry.benchmarkId === benchmark.id
-  );
-  if (!score) throw new Error("Expected demo score fixture.");
-  return { models: [model], benchmarks: [benchmark], scores: [score] };
+  return fixtureDataset();
 }
 
 // This is an in-memory provider fixture only. It is not parsed by
@@ -144,7 +136,7 @@ describe("DatasetProvider", () => {
     const alternate = renderDataset(alternateFixture());
     const demoAgain = renderDataset(demoFixture());
 
-    expect(demo).toContain('data-model="gpt-4o"');
+    expect(demo).toContain('data-model="fixture-model-1"');
     expect(demo).toContain('data-provenance="demo"');
     expect(alternate).toContain('data-model="alternate-model"');
     expect(alternate).toContain('data-benchmark="alternate-benchmark"');
@@ -258,12 +250,9 @@ describe("DatasetProvider", () => {
     };
 
     expectSnapshot(initialCommits, {
-      modelId: "gpt-4o",
+      modelId: "fixture-model-1",
       benchmarkId: demo.benchmarks[0].id,
-      value: getScores().find(
-        (score) =>
-          score.modelId === "gpt-4o" && score.benchmarkId === demo.benchmarks[0].id
-      )?.value ?? null,
+      value: fixtureScore.value,
       provenanceSourceId: null,
     });
     expectSnapshot(fixtureCommits, {
@@ -273,12 +262,9 @@ describe("DatasetProvider", () => {
       provenanceSourceId: "fixture-source",
     });
     expectSnapshot(returnedCommits, {
-      modelId: "gpt-4o",
+      modelId: "fixture-model-1",
       benchmarkId: demo.benchmarks[0].id,
-      value: getScores().find(
-        (score) =>
-          score.modelId === "gpt-4o" && score.benchmarkId === demo.benchmarks[0].id
-      )?.value ?? null,
+      value: fixtureScore.value,
       provenanceSourceId: null,
     });
   });
