@@ -21,7 +21,7 @@ The originating session ended mid-A1. Concrete state at handoff:
 
 | #  | Task | Status | Notes |
 |----|------|--------|-------|
-| A1 | DSC-01: scheduling + discovery packages, CLI, tests | 🔶 In progress | `scheduling/` package done; `discovery/` package, CLI sub-app, and tests remain |
+| A1 | DSC-01: scheduling + discovery packages, CLI, tests | ✅ Done | 61 tests; full suite 1080 passed / 11 skipped |
 | A2 | DSC-02: fixture-only discovery connectors | ⬜ Pending | |
 | A3 | DSC-03: candidate lifecycle + batch review + reports | ⬜ Pending | |
 | B1 | `parquet_cell_v1` evidence resolver + pinned `pyarrow` | ⬜ Pending | |
@@ -36,6 +36,10 @@ The originating session ended mid-A1. Concrete state at handoff:
 ## Execution log (append-only)
 
 - 2026-07-27 — Plan persisted to the repository from the Qoder session transcript; A1 resumed.
+- 2026-07-27 — **A1 complete.** `ledger/app/scheduling/` (slot calculus, from the original session), new `ledger/app/discovery/` package (`manifest.py` fail-closed fixture-root loader, `planner.py` pure due planner with allowlisted terminal dispositions, `candidates.py` deterministic candidate assembly, `connectors/base.py` DSC-01 connector seam + strict `StaticFixtureConnector`, `controller.py` cycle runner with balanced denominator accounting, `reporting.py` read-only status projection), `discovery plan|run|report` CLI built via the inert composition root, and 61 new tests (idempotent replay, two-cycle no-duplicate runs, replay-conflict closure, explicit blocked/not-due/failed buckets, zero claim/snapshot/decision writes). Full ledger suite: 1080 passed, 11 skipped.
+  - *Tweak 1 (recorded per plan assumptions):* A1 ships the connector **interface** and one strict fixture connector; the five bounded connector families remain in A2 as planned.
+  - *Tweak 2 (DATA-09 gap found, deferred rather than migrated):* `append_scheduled_cycle` currently binds terminal job outputs of type `source_check_receipt` only, so a discovery-lane terminal `scheduled-cycle-v1` receipt cannot be persisted without a forward-only schema/contract change. A1 therefore emits the cycle run receipt as a deterministic CLI artifact (`discovery-run-receipt-v1`) and persists exactly the pre-dispatch intents + quarantined candidates — which is all the DSC-01 acceptance criteria require. Closing the terminal-receipt gap is deferred to the scheduler/runner integration phase (SCH-01/PLT), never via table rewrite.
+  - *Tweak 3:* the frontend C workstream (C1–C3) is being executed in parallel by a delegated agent per the repo's local-model orchestration rule; this log records the routing decision, and the result will be reviewed before commit.
 
 ---
 

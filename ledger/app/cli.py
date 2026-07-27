@@ -10,6 +10,23 @@ from typing import Optional
 import typer
 
 from app.config import get_settings
+from app.discovery import (
+    DiscoveryControllerError,
+    DiscoveryManifestError,
+    DiscoveryPlannerError,
+    build_discovery_status,
+    build_fixture_connectors,
+    load_manifest,
+    plan_dispositions,
+    render_status_markdown,
+    run_discovery_cycle,
+)
+from app.db.operational_repositories import OperationalPersistenceError
+from app.runtime.dependencies import (
+    RuntimeDependencyError,
+    contained_runtime_dependencies,
+)
+from app.scheduling.slots import ScheduleSlotError, slot_for_ordinal
 from app.backup import (
     LocalRecoveryStore,
     RecoveryContractError,
@@ -68,6 +85,12 @@ recovery_app = typer.Typer(
         "never authorizes cutover or Official publication"
     )
 )
+discovery_app = typer.Typer(
+    help=(
+        "Fixture-only discovery planning and candidate reconnaissance; "
+        "never certifies sources or writes claims"
+    )
+)
 app.add_typer(claims_app, name="claims")
 app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(review_app, name="review")
@@ -76,6 +99,7 @@ app.add_typer(db_app, name="db")
 app.add_typer(reports_app, name="reports")
 app.add_typer(coverage_app, name="coverage")
 app.add_typer(recovery_app, name="recovery")
+app.add_typer(discovery_app, name="discovery")
 
 
 def _default_registry_dir() -> Path:
@@ -905,6 +929,158 @@ def coverage_status(
     # for launch readiness; malformed/unreadable inputs use exit 2 above.
     if report["readiness"] != "ready":
         raise typer.Exit(code=1)
+
+
+def _fail_discovery(exc: BaseException) -> None:
+    typer.echo(
+        json.dumps(
+            {
+                "availability": "candidate_only",
+                "status": "failed_closed",
+                "reasonCode": "DISCOVERY_INPUT_REJECTED",
+                "detail": str(exc),
+            },
+            sort_keys=True,
+        ),
+        err=True,
+    )
+    raise typer.Exit(code=2) from None
+
+
+def _load_discovery_inputs(fixture_root: Path, slot_ordinal: int):
+    try:
+        manifest = load_manifest(fixture_root)
+        slot = slot_for_ordinal(
+            manifest.anchor_utc, manifest.cadence_seconds, slot_ordinal
+        )
+    except (DiscoveryManifestError, ScheduleSlotError) as exc:
+        _fail_discovery(exc)
+    return manifest, slot
+
+
+@discovery_app.command("plan")
+def discovery_plan(
+    fixture_root: Path = typer.Option(
+        ...,
+        "--fixture-root",
+        help="Directory holding manifest.json, coverage-universe.json, and targets/",
+    ),
+    slot_ordinal: int = typer.Option(
+        ..., "--slot-ordinal", min=0, help="Deterministic slot ordinal from the anchor"
+    ),
+) -> None:
+    """Print one slot's planner dispositions without touching any database."""
+    manifest, slot = _load_discovery_inputs(fixture_root, slot_ordinal)
+    try:
+        dispositions = plan_dispositions(
+            manifest.targets,
+            anchor_utc=manifest.anchor_utc,
+            cadence_seconds=manifest.cadence_seconds,
+            slot=slot,
+        )
+    except DiscoveryPlannerError as exc:
+        _fail_discovery(exc)
+    counts = {"due": 0, "not_due": 0, "blocked": 0}
+    for disposition in dispositions:
+        counts[disposition.due_disposition] += 1
+    document = {
+        "schemaVersion": "1.0.0",
+        "policyVersion": "discovery-plan-v1",
+        "availability": "candidate_only",
+        "cycleId": slot.cycle_id(
+            manifest.environment,
+            manifest.lane,
+            manifest.schedule_policy_revision_id,
+        ),
+        "environment": manifest.environment,
+        "lane": manifest.lane,
+        "schedulePolicyRevisionId": manifest.schedule_policy_revision_id,
+        "mode": manifest.mode,
+        "slot": slot.slot_document(),
+        "counts": {
+            "expectedTargetCount": len(dispositions),
+            "dueCount": counts["due"],
+            "notDueCount": counts["not_due"],
+            "blockedCount": counts["blocked"],
+        },
+        "targets": [
+            {
+                "targetRevisionId": disposition.target_revision_id,
+                "targetId": disposition.target_id,
+                "dueDisposition": disposition.due_disposition,
+                "dispositionReasonCode": disposition.disposition_reason_code,
+            }
+            for disposition in dispositions
+        ],
+        "authority": {
+            "classification": "candidate_reconnaissance_only",
+            "certifiesSources": False,
+            "authorizesCapture": False,
+            "authorizesPublication": False,
+            "frontendLoadable": False,
+        },
+    }
+    typer.echo(json.dumps(document, indent=2, sort_keys=True))
+
+
+@discovery_app.command("run")
+def discovery_run(
+    fixture_root: Path = typer.Option(
+        ...,
+        "--fixture-root",
+        help="Directory holding manifest.json, coverage-universe.json, targets/, connectors/",
+    ),
+    slot_ordinal: int = typer.Option(
+        ..., "--slot-ordinal", min=0, help="Deterministic slot ordinal from the anchor"
+    ),
+) -> None:
+    """Run one deterministic fixture cycle against the configured DATABASE_URL.
+
+    The cycle is idempotent: replaying the same manifest at the same slot
+    re-derives identical intents and candidates.  Operational rows only —
+    no snapshots, claims, source decisions, or certification writes.
+    """
+    manifest, slot = _load_discovery_inputs(fixture_root, slot_ordinal)
+    try:
+        connectors = build_fixture_connectors(contained_runtime_dependencies())
+    except (RuntimeDependencyError, DiscoveryControllerError) as exc:
+        _fail_discovery(exc)
+    try:
+        with get_session() as session:
+            report = run_discovery_cycle(
+                session,
+                manifest=manifest,
+                slot=slot,
+                connectors=connectors,
+                fixture_root=Path(fixture_root),
+            )
+    except (
+        DiscoveryControllerError,
+        DiscoveryPlannerError,
+        OperationalPersistenceError,
+    ) as exc:
+        _fail_discovery(exc)
+    typer.echo(json.dumps(report.to_document(), indent=2, sort_keys=True))
+    if any(record.run_outcome == "failed" for record in report.records):
+        raise typer.Exit(code=1)
+
+
+@discovery_app.command("report")
+def discovery_report(
+    output_format: str = typer.Option(
+        "json", "--format", help="Output format: json or markdown"
+    ),
+) -> None:
+    """Print a read-only projection of discovery cycles and candidates."""
+    normalized_format = output_format.strip().lower()
+    if normalized_format not in {"json", "markdown"}:
+        raise typer.BadParameter("--format must be either 'json' or 'markdown'.")
+    with get_session() as session:
+        document = build_discovery_status(session)
+    if normalized_format == "json":
+        typer.echo(json.dumps(document, indent=2, sort_keys=True))
+    else:
+        typer.echo(render_status_markdown(document), nl=False)
 
 
 @aliases_app.command("add")
