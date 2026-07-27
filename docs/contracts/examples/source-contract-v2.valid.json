@@ -38,8 +38,8 @@
   },
   "manifest": {
     "algorithm": "sha256-canonical-json-v1",
-    "contentSha256": "e7f4834955b89a1cfc88d40b5c4d87684185b2ecb68a4f2dc753c9c3fe4db9e6",
-    "definitionSha256": "aee8fc2d60a18bc88c1e8685eb41fcf15ae0dab969c5f27b9f15551c6d5bc1e5",
+    "contentSha256": "f95e110518c5ea4615ab14d67078d3a535f0dbb7b680949e3bc116ec4d0aebcc",
+    "definitionSha256": "934e7e07df324adbca1b2afd569bc643a6cfdbe031d52fca5db328db7b902625",
     "approvedSourceUrlCount": 1,
     "approvedFinalUrlCount": 1,
     "acceptedMimeTypeCount": 1,
@@ -69,7 +69,9 @@
     "allowedHosts": [
       "results.example.com"
     ],
-    "allowedPorts": [443],
+    "allowedPorts": [
+      443
+    ],
     "queryPolicy": {
       "mode": "none",
       "allowedParameterNames": []
@@ -113,7 +115,7 @@
     "currentAdmissionPolicy": "source-admission-v2",
     "currentSafeFetchPolicy": "safe-fetch-v1",
     "connectedPeerProof": "required_not_implemented",
-    "parquetLocatorSupport": "contract_only"
+    "parquetLocatorSupport": "implemented_verified"
   },
   "extraction": {
     "parser": {

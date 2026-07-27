@@ -19,6 +19,7 @@ dependencies = [
   "PyYAML>=6.0",
   "beautifulsoup4>=4.12",
   "lxml>=5.0",
+  "pyarrow>=18,<19",
 ]
 
 [project.optional-dependencies]

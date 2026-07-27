@@ -1,8 +1,9 @@
 # Exact Python 3.11 CI constraints, captured from the reviewed local test
-# environment on 2026-07-14 and updated on 2026-07-15 for the real PostgreSQL
-# target driver. This is intentionally separate from the package's broad
-# compatibility metadata: update it only through a reviewed dependency change
-# after a clean-environment test and audit.
+# environment on 2026-07-14, updated on 2026-07-15 for the real PostgreSQL
+# target driver, and updated on 2026-07-27 for pyarrow (fixture-verified
+# parquet_cell_v1 evidence resolution, B1). This is intentionally separate
+# from the package's broad compatibility metadata: update it only through a
+# reviewed dependency change after a clean-environment test and audit.
 #
 # It is a version constraint file, not a source of release authorization and
 # not a substitute for future hash/SBOM/provenance decisions under REL-02.
@@ -34,6 +35,7 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 pydantic_core==2.46.4
 Pygments==2.20.0
+pyarrow==18.1.0
 pytest==9.1.1
 python-dotenv==1.2.2
 PyYAML==6.0.3

@@ -24,7 +24,7 @@ The originating session ended mid-A1. Concrete state at handoff:
 | A1 | DSC-01: scheduling + discovery packages, CLI, tests | ✅ Done | 61 tests; full suite 1080 passed / 11 skipped |
 | A2 | DSC-02: fixture-only discovery connectors | ⬜ Pending | |
 | A3 | DSC-03: candidate lifecycle + batch review + reports | ⬜ Pending | |
-| B1 | `parquet_cell_v1` evidence resolver + pinned `pyarrow` | ⬜ Pending | |
+| B1 | `parquet_cell_v1` evidence resolver + pinned `pyarrow` | ✅ Done | 17 new tests; contract example flipped to `implemented_verified` |
 | B2 | BigCodeBench Parquet adapter + fixtures | ⬜ Pending | |
 | B3 | SWE-bench Verified full-artifact hardening | ⬜ Pending | |
 | B4 | Draft `source-contract-v2` examples + runbook update | ⬜ Pending | |
@@ -40,6 +40,7 @@ The originating session ended mid-A1. Concrete state at handoff:
   - *Tweak 1 (recorded per plan assumptions):* A1 ships the connector **interface** and one strict fixture connector; the five bounded connector families remain in A2 as planned.
   - *Tweak 2 (DATA-09 gap found, deferred rather than migrated):* `append_scheduled_cycle` currently binds terminal job outputs of type `source_check_receipt` only, so a discovery-lane terminal `scheduled-cycle-v1` receipt cannot be persisted without a forward-only schema/contract change. A1 therefore emits the cycle run receipt as a deterministic CLI artifact (`discovery-run-receipt-v1`) and persists exactly the pre-dispatch intents + quarantined candidates — which is all the DSC-01 acceptance criteria require. Closing the terminal-receipt gap is deferred to the scheduler/runner integration phase (SCH-01/PLT), never via table rewrite.
   - *Tweak 3:* the frontend C workstream (C1–C3) is being executed in parallel by a delegated agent per the repo's local-model orchestration rule; this log records the routing decision, and the result will be reviewed before commit.
+- 2026-07-27 — **B1 complete.** New `ledger/app/ingestion/parquet_cells.py`: deterministic raw-lexeme rendering (verbatim strings, canonical ints, shortest-round-trip floats, scale-preserving decimals; null/unsupported cells absent — never coerced), `read_parquet_record` mirroring the CSV/JSON evidence seam, `parquet_row_group_rows`/`iter_parquet_records` for complete-accounting consumers. Wired through claim admission: `SUPPORTED_LOCATOR_TYPES`, evidence-contract well-formedness, locator-contract matching, and `_evidence_record` dispatch. `pyarrow>=18,<19` pinned in `pyproject.toml` + `uv.lock` (18.1.0) + `requirements-ci.lock`. `parquetLocatorSupport` flipped to `implemented_verified` in the `source-contract-v2` example (re-signed; receipt example re-bound to the new digests); the approved-contract guard test still proves rejection at `contract_only`. 17 new tests (lexeme rendering, bounds, malformed bytes, complete accounting, admit/drift/shape/missing/nonfinite/unsupported admission paths, malformed policy rejection). Affected suites: 120 passed.
 
 ---
 

@@ -562,7 +562,8 @@ def test_draft_contract_families_cover_structured_source_formats_without_enablin
     assert contract["schedule"]["enabled"] is False
     assert contract["implementationBinding"]["connectedPeerProof"] == "required_not_implemented"
     if structured_format == "parquet":
-        assert contract["implementationBinding"]["parquetLocatorSupport"] == "contract_only"
+        # B1 landed the fixture-verified resolver, so contracts now declare it.
+        assert contract["implementationBinding"]["parquetLocatorSupport"] == "implemented_verified"
 
 
 def test_draft_contract_cannot_self_approve_or_schedule() -> None:
@@ -643,6 +644,8 @@ def test_approved_contract_rejects_browser_capture_and_unimplemented_parquet() -
         value["extraction"]["evidenceContracts"][0][
             "recordLocatorTemplate"
         ] = "row-group:{row_group}:row:{row_index}"
+        # The guard must still fire when support is not implemented_verified.
+        value["implementationBinding"]["parquetLocatorSupport"] = "contract_only"
 
     _reject_contract(
         parquet_without_implementation,
