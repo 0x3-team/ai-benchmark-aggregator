@@ -67,6 +67,5 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 
 ## Local model orchestration
 
-- Before delegating project work across local model harnesses, consult `docs/local-model-guideline-ledger.md` and record the routing decision.
-- Treat the guideline ledger as local operational evidence only; it is never an official benchmark claim or frontend data source.
-- The parent agent must review every delegated result, run the relevant verification, and append the task outcome and lesson to the guideline ledger.
+- Before delegating project work across local model harnesses, record the routing decision and review every delegated result.
+- Treat local operational evidence as internal only; it is never an official benchmark claim or frontend data source.

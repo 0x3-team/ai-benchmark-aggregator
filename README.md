@@ -2,7 +2,7 @@
 
 **Organization:** 0x3-team  
 **Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Status:** Private — Official-mode remediation in progress (Demo available; Official publication intentionally unavailable)
+**Status:** Open-source (MIT) — Demo available; Official publication intentionally unavailable pending source certification
 
 A single-page **AI model benchmark comparison dashboard** with a **dual-mode data architecture**:
 
@@ -142,7 +142,6 @@ ai-benchmark-aggregator/
 │   └── pyproject.toml
 ├── docs/adr/                   # Architecture Decision Records
 ├── AGENTS.md                   # Agent rules for both systems
-├── CONTINUATION-HANDOFF.md     # Session continuity notes
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts

@@ -890,7 +890,7 @@ This slice removes ambiguity before migrations, provider work, or live discovery
 - a read-only CLI command in `ledger/app/cli.py` with database preflight before ORM access;
 - focused registry/census/report tests under `ledger/tests/`;
 - `README.md`, `ledger/README.md`, and this plan/implementation ledger only if CLI/trust wording changes;
-- `docs/local-model-guideline-ledger.md` routing and closeout rows when implementation delegates.
+- internal routing and closeout rows when implementation delegates (not tracked in public repo).
 
 ### Phase order and dependency constraints
 
@@ -929,7 +929,7 @@ Disallowed in the first slice:
 - PostgreSQL/Supabase best-practice skill for the real dialect/role/backup work;
 - Cloudflare/Workers/Wrangler skills for the control plane, R2, Queue, and container proof;
 - security/threat-model and validation skills for peer proof, secrets, RBAC, alert redaction, and failure injection;
-- local repository instructions and `docs/local-model-guideline-ledger.md` before any delegation.
+- local repository instructions before any delegation.
 
 Obscura/background browser tooling is optional only for later bounded source reconnaissance and must follow the discovery-only contract.
 
@@ -994,7 +994,6 @@ The future Implementation Orchestrator must turn the selected slice into its own
 - [ADR-005: Official publication governance](../adr/ADR-005-official-publication-governance.md)
 - [ADR-006: Versioned ledger migrations](../adr/ADR-006-versioned-ledger-migrations.md)
 - [ADR-007: PostgreSQL portability and private data plane](../adr/ADR-007-postgresql-portability-and-private-data-plane.md)
-- [Local model guideline ledger](../local-model-guideline-ledger.md)
 
 ### Official platform documentation checked on 2026-07-15
 

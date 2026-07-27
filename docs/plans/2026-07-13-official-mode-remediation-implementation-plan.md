@@ -9,7 +9,7 @@
 | Date | 2026-07-13 |
 | Planning mode | Full worker run; read-only planning only |
 | Primary input | [Comprehensive project audit](../audits/2026-07-13-comprehensive-project-audit.md) |
-| Routing input | [Local Model Guideline Ledger](../local-model-guideline-ledger.md) |
+| Routing input | (internal, not tracked) |
 | Product surfaces | Python claim ledger and immutable snapshots; deterministic Official feed; React Official-mode UX; CI/release/operator workflow |
 | Planning workers | Ledger/data-contract lens, frontend trust-UX lens, release/QA lens |
 | External research | None requested or needed. The audit and repository are the evidence source. |
@@ -96,7 +96,7 @@ total tokens, tool-call count, elapsed time, and cost. If your interface cannot 
 field, write NOT_EMITTED; never estimate or invent it.
 ```
 
-The parent reconciles the report against native harness telemetry. A task is not closed until the reconciled usage (or explicit `NOT_EMITTED` reason), changed files, evidence, validation results, parent decision, and lesson are appended to `docs/local-model-guideline-ledger.md`.
+The parent reconciles the report against native harness telemetry. A task is not closed until the reconciled usage (or explicit `NOT_EMITTED` reason), changed files, evidence, validation results, parent decision, and lesson are recorded in the internal routing ledger (not tracked in the public repo).
 
 ## Current-state diagnosis
 
