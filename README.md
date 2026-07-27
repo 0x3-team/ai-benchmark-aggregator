@@ -2,7 +2,7 @@
 
 **Organization:** 0x3-team  
 **Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Status:** Open-source (MIT) — Demo available; Official publication intentionally unavailable pending source certification
+**Status:** Private (MIT-licensed, open-source-quality standards) — Demo available; Official publication intentionally unavailable pending source certification
 
 A single-page **AI model benchmark comparison dashboard** with a **dual-mode data architecture**:
 
