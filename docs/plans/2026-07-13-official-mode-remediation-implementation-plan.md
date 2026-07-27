@@ -96,7 +96,7 @@ total tokens, tool-call count, elapsed time, and cost. If your interface cannot 
 field, write NOT_EMITTED; never estimate or invent it.
 ```
 
-The parent reconciles the report against native harness telemetry. A task is not closed until the reconciled usage (or explicit `NOT_EMITTED` reason), changed files, evidence, validation results, parent decision, and lesson are recorded in the internal routing ledger (not tracked in the public repo).
+The parent reconciles the report against native harness telemetry. A task is not closed until the reconciled usage (or explicit `NOT_EMITTED` reason), changed files, evidence, validation results, parent decision, and lesson are recorded in the internal routing ledger (not tracked in repo).
 
 ## Current-state diagnosis
 

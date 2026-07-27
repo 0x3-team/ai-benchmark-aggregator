@@ -890,7 +890,7 @@ This slice removes ambiguity before migrations, provider work, or live discovery
 - a read-only CLI command in `ledger/app/cli.py` with database preflight before ORM access;
 - focused registry/census/report tests under `ledger/tests/`;
 - `README.md`, `ledger/README.md`, and this plan/implementation ledger only if CLI/trust wording changes;
-- internal routing and closeout rows when implementation delegates (not tracked in public repo).
+- internal routing and closeout rows when implementation delegates (not tracked in repo).
 
 ### Phase order and dependency constraints
 
