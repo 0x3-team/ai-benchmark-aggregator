@@ -6,7 +6,7 @@ anywhere on disk. The production ``SafeFetch`` seam in ``app/ingestion/`` is
 the only sanctioned transport and defaults to a disabled network transport.
 
 Unlike a purely tracked-tree scan, this test walks the **on-disk** runnable
-``app/`` and ``scripts/`` trees, so it also catches untracked task outputs
+``app/``, ``scripts/``, and ``tools/`` trees, so it also catches untracked task outputs
 that might smuggle a raw HTTP client back into a runnable path. Test files are
 excluded because they legitimately quote these strings, and the single
 governed seam is allowed explicitly — every other runnable file must be free
@@ -45,7 +45,7 @@ SAFE_FETCH_SEAM = "app/ingestion/safe_fetch.py"
 # Runnable roots we gate. ``scripts/`` includes any untracked task outputs the
 # prior worker left there; a directory that could hold a runnable raw-network
 # copy is NOT exempted.
-_RUNNABLE_DIRS = ("app", "scripts")
+_RUNNABLE_DIRS = ("app", "scripts", "tools")
 
 
 def _runnable_py_files() -> list[str]:
@@ -95,23 +95,23 @@ def test_safe_fetch_seam_is_still_the_single_network_boundary():
     seam = LEDGER / SAFE_FETCH_SEAM
     assert seam.exists(), "governed SafeFetch seam must remain present"
     text = seam.read_text(encoding="utf-8")
-    assert "DisabledNetworkTransport" in text, (
-        "SafeFetch seam must keep a fail-closed disabled transport"
-    )
+    assert (
+        "DisabledNetworkTransport" in text
+    ), "SafeFetch seam must keep a fail-closed disabled transport"
 
 
 @pytest.mark.parametrize(
     "rel",
     [
-        "check_aider_yaml.py",
-        "check_bfcl_humaneval.py",
-        "check_frontiercode.py",
-        "check_gaia.py",
-        "check_paperbench.py",
-        "check_tool_mt.py",
-        "check_urls.py",
-        "dump_tables.py",
-        "test_hf_urls.py",
+        "tools/retired/check_aider_yaml.py",
+        "tools/retired/check_bfcl_humaneval.py",
+        "tools/retired/check_frontiercode.py",
+        "tools/retired/check_gaia.py",
+        "tools/retired/check_paperbench.py",
+        "tools/retired/check_tool_mt.py",
+        "tools/retired/check_urls.py",
+        "tools/retired/dump_tables.py",
+        "tools/retired/test_hf_urls.py",
     ],
 )
 def test_legacy_network_helper_is_a_no_network_stub(rel: str):
@@ -135,13 +135,13 @@ def test_legacy_network_helper_is_a_no_network_stub(rel: str):
         timeout=15,
     )
     assert proc.returncode != 0, f"{rel} must exit non-zero (retired, no work done)"
-    assert "retired" in (proc.stderr + proc.stdout).lower(), (
-        f"{rel} must print an explicit retired/governed message"
-    )
+    assert (
+        "retired" in (proc.stderr + proc.stdout).lower()
+    ), f"{rel} must print an explicit retired/governed message"
 
 
 def test_no_runnable_raw_network_archive_is_retained_on_disk():
-    """No ``scripts/retired/`` (or any archive dir) may hold a runnable raw copy.
+    """No ``scripts/retired/`` archive may hold a runnable raw copy.
 
     Retirement must preserve history through git, not by leaving an executable
     raw-network copy on disk where it can run again. A retired archive directory
@@ -156,25 +156,34 @@ def test_no_runnable_raw_network_archive_is_retained_on_disk():
         )
 
 
-_LEGACY_ENTRYPOINTS = (
-    "ledger/check_aider_yaml.py",
-    "ledger/check_bfcl_humaneval.py",
-    "ledger/check_frontiercode.py",
-    "ledger/check_gaia.py",
-    "ledger/check_paperbench.py",
-    "ledger/check_tool_mt.py",
-    "ledger/check_urls.py",
-    "ledger/dump_tables.py",
-    "ledger/test_hf_urls.py",
+_RETIRED_TOOL_NAMES = (
+    "check_aider_yaml.py",
+    "check_bfcl_humaneval.py",
+    "check_frontiercode.py",
+    "check_gaia.py",
+    "check_paperbench.py",
+    "check_tool_mt.py",
+    "check_urls.py",
+    "dump_tables.py",
+    "test_hf_urls.py",
+    "verify_adapter.py",
+    "list_benchmark_ids.py",
 )
+_RETIRED_ENTRYPOINTS = tuple(f"ledger/tools/retired/{name}" for name in _RETIRED_TOOL_NAMES)
+
+
+def test_retired_tools_are_relocated_out_of_ledger_root():
+    for name in _RETIRED_TOOL_NAMES:
+        assert not (LEDGER / name).exists(), f"retired helper must leave ledger root: {name}"
+        assert (
+            LEDGER / "tools" / "retired" / name
+        ).is_file(), f"retired helper must be under ledger/tools/retired: {name}"
 
 
 def test_no_owned_path_is_staged():
     """None of the worker-owned tooling paths may appear in the git index.
 
-    The worker's retirement move was undone intentionally: the legacy entrypoints
-    stay tracked (as stubs) and no moved/untracked owned path may be left staged
-    in the shared index.
+    The retired tools are intentionally left unstaged while this worker is active.
     """
     staged = subprocess.run(
         ["git", "diff", "--cached", "--name-only"],
@@ -183,7 +192,7 @@ def test_no_owned_path_is_staged():
         capture_output=True,
         text=True,
     ).stdout.splitlines()
-    for path in _LEGACY_ENTRYPOINTS:
+    for path in _RETIRED_ENTRYPOINTS:
         assert path not in staged, f"owned path must not be staged: {path}"
     assert "ledger/scripts/retired" not in "\n".join(staged), "retired archive must not be staged"
 

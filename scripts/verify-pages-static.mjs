@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const requiredFiles = ["404.html", "robots.txt", "_headers"];
+const requiredAssets = [
+  "favicon.svg",
+  "favicon-32x32.png",
+  "apple-touch-icon.png",
+  "social-preview.png",
+];
 
 async function isFile(filePath) {
   try {
@@ -32,6 +38,16 @@ async function readRequiredFiles(directory, label) {
   return contents;
 }
 
+async function readRequiredAssets(directory, label) {
+  const contents = new Map();
+  for (const file of requiredAssets) {
+    const filePath = join(directory, file);
+    assert.ok(await isFile(filePath), `${label} is missing required ${file}`);
+    contents.set(file, await readFile(filePath));
+  }
+  return contents;
+}
+
 function assertRobots(robots, label) {
   assert.doesNotMatch(robots, /<\/?(?:!doctype|html|head|body)\b/i, `${label} must be plain text`);
   assert.match(robots, /^User-agent:\s*\*\s*$/m, `${label} needs User-agent`);
@@ -55,6 +71,7 @@ function assertHeaders(headers, label) {
     "Referrer-Policy: strict-origin-when-cross-origin",
     "X-Frame-Options: DENY",
     "Permissions-Policy:",
+    "Content-Security-Policy:",
     "Content-Security-Policy-Report-Only:",
     "https://:project.pages.dev/*",
     "https://:version.:project.pages.dev/*",
@@ -63,10 +80,20 @@ function assertHeaders(headers, label) {
     assert.ok(headers.includes(expected), `${label} is missing ${expected}`);
   }
   assert.doesNotMatch(headers, /^\s*Strict-Transport-Security:/im, `${label} must not add HSTS`);
+  assert.match(
+    headers,
+    /^\s*Content-Security-Policy:\s*[^\n]*script-src 'self'(?:;|\s*$)/im,
+    `${label} needs an enforcing self-script CSP`,
+  );
+  assert.match(
+    headers,
+    /^\s*Content-Security-Policy-Report-Only:\s*[^\n]*script-src 'self'(?:;|\s*$)/im,
+    `${label} needs a report-only CSP companion`,
+  );
   assert.doesNotMatch(
     headers,
-    /^\s*Content-Security-Policy:/im,
-    `${label} must keep CSP report-only`,
+    /^\s*Content-Security-Policy:\s*[^\n]*script-src 'self' 'unsafe-inline'/im,
+    `${label} must not permit inline scripts in enforcing CSP`,
   );
   assert.doesNotMatch(headers, /_worker\.js|functions\//i, `${label} must not add a Worker`);
 }
@@ -83,6 +110,31 @@ function assertCanonical(index, label) {
   );
 }
 
+function assertMetadata(index, label) {
+  for (const expected of [
+    /<meta\s+name=["']description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']theme-color["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:title["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:url["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/["'][^>]*>/i,
+    /<meta\s+property=["']og:image["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/social-preview\.png["'][^>]*>/i,
+    /<meta\s+property=["']og:image:width["']\s+content=["']1200["'][^>]*>/i,
+    /<meta\s+property=["']og:image:height["']\s+content=["']630["'][^>]*>/i,
+    /<meta\s+property=["']og:image:alt["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:card["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:url["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/["'][^>]*>/i,
+    /<meta\s+name=["']twitter:title["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:image["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/social-preview\.png["'][^>]*>/i,
+    /<meta\s+name=["']twitter:image:alt["']\s+content=["'][^"']+[^>]*>/i,
+    /<link\s+rel=["']icon["'][^>]+href=["']\/favicon\.svg["']/i,
+    /<link\s+rel=["']icon["'][^>]+href=["']\/favicon-32x32\.png["']/i,
+    /<link\s+rel=["']apple-touch-icon["'][^>]+href=["']\/apple-touch-icon\.png["']/i,
+  ]) {
+    assert.match(index, expected, `${label} is missing production metadata or favicon wiring`);
+  }
+}
+
 /**
  * Validate source Pages controls and, when requested/present, their built copy.
  * Unit tests can omit `requireDist`; the public CLI/package command passes
@@ -94,7 +146,13 @@ export async function verifyPagesStatic({ rootDir = repoRoot, requireDist = fals
   assertNotFound(source.get("404.html"), "public/404.html");
   assertRobots(source.get("robots.txt"), "public/robots.txt");
   assertHeaders(source.get("_headers"), "public/_headers");
-  assertCanonical(await readFile(join(rootDir, "index.html"), "utf8"), "index.html");
+  const index = await readFile(join(rootDir, "index.html"), "utf8");
+  assertCanonical(index, "index.html");
+  assertMetadata(index, "index.html");
+  const sourceAssets = await readRequiredAssets(publicDir, "public/");
+  assert.equal(sourceAssets.get("social-preview.png").readUInt32BE(0), 0x89504e47, "social-preview.png must be PNG");
+  assert.equal(sourceAssets.get("social-preview.png").readUInt32BE(16), 1200, "social preview must be 1200px wide");
+  assert.equal(sourceAssets.get("social-preview.png").readUInt32BE(20), 630, "social preview must be 630px tall");
 
   const distDir = join(rootDir, "dist");
   const distPresent = await isDirectory(distDir);
@@ -104,7 +162,13 @@ export async function verifyPagesStatic({ rootDir = repoRoot, requireDist = fals
     for (const file of requiredFiles) {
       assert.equal(built.get(file), source.get(file), `dist/${file} is missing or stale`);
     }
-    assertCanonical(await readFile(join(distDir, "index.html"), "utf8"), "dist/index.html");
+    const builtAssets = await readRequiredAssets(distDir, "dist/");
+    for (const file of requiredAssets) {
+      assert.deepEqual(builtAssets.get(file), sourceAssets.get(file), `dist/${file} is missing or stale`);
+    }
+    const builtIndex = await readFile(join(distDir, "index.html"), "utf8");
+    assertCanonical(builtIndex, "dist/index.html");
+    assertMetadata(builtIndex, "dist/index.html");
   }
 
   return { sourceChecked: true, distChecked: requireDist || distPresent };

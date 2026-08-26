@@ -1,12 +1,14 @@
 # Conservative static-asset headers. This file is parsed by Cloudflare Pages and is
-# not served as an asset. No HSTS or enforcing CSP is declared until a real domain
-# and browser/deployment evidence exist.
+# not served as an asset. HSTS is staged in this comment only until the custom
+# domain has verified HTTPS coverage and a deployment-specific rollout decision.
+# The report-only mirror can be removed after one release confirms this policy.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
-  Content-Security-Policy-Report-Only: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'
+  Content-Security-Policy-Report-Only: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'
 
 # Cloudflare documents these host patterns for keeping project and branch preview
 # URLs out of search indexes. The custom domain remains the canonical target in
