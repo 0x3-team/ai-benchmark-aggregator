@@ -1,10 +1,10 @@
 # Real-data-only launch: local continuation handoff
 
-**Checkpoint:** 2026-08-26  
-**Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Main observed at:** `21d24dc8534dfe6b179ec692c7e2dd29bc7ce182`  
-**Execution state:** stopped by owner request; continue strictly outside this Capy thread  
-**Merge authority:** the owner reviews and merges every pull request
+**Checkpoint:** 2026-08-26
+**Repository:** `0x3-team/ai-benchmark-aggregator`
+**Main observed at:** `21d24dc8534dfe6b179ec692c7e2dd29bc7ce182`
+**Execution state:** stopped by owner request; continue strictly outside this Capy thread
+**Merge authority:** the owner or an operator explicitly authorized by the owner reviews and merges each pull request
 
 ## Executive state
 
@@ -21,10 +21,10 @@ source bytes were captured, no Official claim was admitted, no release
 authorization instance exists, no governed published artifact exists, and no
 Cloudflare deployment or paid operation was performed.
 
-The repository was made public by the owner. This restored GitHub Actions: the
-four root PRs reached green Ledger, Frontend, and Clean Archive jobs before
-subsequent review-fix pushes. New pushes must be checked again; a historical
-green check is not evidence for a newer head.
+The repository was made public by the owner and must remain public. This
+restored GitHub Actions: the four root PRs reached green Ledger, Frontend, and
+Clean Archive jobs before subsequent review-fix pushes. New pushes must be
+checked again; historical green evidence does not transfer to a newer head.
 
 ## GitHub pull-request graph
 

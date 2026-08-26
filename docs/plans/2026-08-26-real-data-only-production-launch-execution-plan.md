@@ -16,7 +16,7 @@
 1. **Launch = the first governed Official release.** There is no interim beta. The public site goes live only when real claims flow: certified sources → snapshots → claims → review → export → digest-pinned artifact → deploy. Everything else (UX, headers, deploy pipeline) is built in parallel but is not the launch gate.
 2. **The synthetic dataset is deleted, not relabeled.** `src/data/scores.json` + `models.json` (486 fictional-or-scraped models, 976 scores) leave the runtime. The immutable `DatasetProvider`/`getValue` boundary stays (it is load-bearing in tests and architecture); the UI becomes single-source Official with the existing "awaiting publication" empty state until the artifact exists. Tests keep their own fixtures (`testFixtures.ts`, scale fixtures) — those never render to users.
 3. **The data machine is the critical path**, so it gets the strongest models and the most parallel lanes: live transport, runner, certifications for *every structured source that passes terms review* (not just 3), REL-05, identity resolution, and an explicit pipeline-validation stage with receipts.
-4. **"Most current info" is engineered, not assumed:** every certified source gets a freshness check at capture (source-declared update time vs. capture time), every claim carries its capture date in the UI (already in the schema), and a scheduled re-ingest keeps data moving after launch. Sources that are historically frozen are labeled with their last-update date rather than silently presented as current.
+4. **"Most current info" is engineered, not assumed:** every certified source gets a freshness check at capture using a publisher-provided timestamp or a timestamped immutable revision. An opaque ETag or untimestamped revision cannot prove age and yields `freshness=unknown`. Every claim carries its capture date in the UI, and a scheduled re-ingest keeps data moving after launch. Historically frozen sources are labeled with their publisher-provided last-update date rather than silently presented as current.
 
 ### Honest coverage forecast (set expectations before approving)
 
@@ -42,13 +42,13 @@ Expected launch shape: **≈40–150 models with ≥1 real score across 8–14 b
 | # | Decision | Default |
 | --- | --- | --- |
 | ND1 | Launch gate | ≥4 certified sources across ≥3 categories, ≥40 models with ≥1 real score, all freshness receipts ≤7 days old at deploy. Launch as soon as the gate is met, not when the backlog is empty. |
-| ND2 | Frozen-source policy (OLL v2 family) | Include, with a per-source "source last updated YYYY-MM-DD" label in the benchmark sheet and manifest; excluded from any "current" claim. If you prefer strictly-live sources only, we drop ~8 routes and most open-model knowledge coverage at launch. |
+| ND2 | Frozen-source policy (OLL v2 family) | Include only when a publisher-provided timestamp or timestamped immutable revision supports a per-source "source last updated YYYY-MM-DD" label in the benchmark sheet and manifest; always exclude it from any "current" claim. If that timestamp evidence is absent, mark freshness unknown and exclude the source from freshness-qualified launch coverage. |
 | ND3 | Vendor-reported slice at launch | **Yes.** New `vendor_reported` officialness class (ADR-011): snapshot the vendor's own system/model card (PDF/HTML), extract exact reported values with typed evidence, distinct UI badge. Launch slice: top ~10 frontier models × their reported GPQA/SWE-bench/AIME-class numbers. This is real, source-backed, and current — it is a policy widening, not a trust-boundary breach. |
 | ND4 | Pre-launch deploy | No public deploy until the artifact merges. (The stale 421-byte page at `benchmark.0x3.dev` gets replaced at launch; if you want it blanked sooner, say so — 5-minute human action.) |
 | ND5 | Demo removal semantics | Delete `scores.json`/`models.json` and the Demo toggle from the UI; keep the dual-mode dataset boundary internally (Official-or-awaiting), keep test fixtures for CI. `export.sample.json` remains test-only. |
 | ND6 | Review cadence (you merge every PR) | Two daily merge windows (start/end of your day). Lanes are batched into **~13 PRs total** with a one-paragraph review guide each; the timeline below assumes windows actually happen — each skipped day slips the tail 1:1. |
 
-Carried over from v1 unchanged: ranking threshold ≥60% coverage with visible caption (now essential — real data *will* be sparse), hide zero-score models by default, Cloudflare Pages + wrangler deploy, GitHub-Actions runner with private `benchmark-ledger-data` repo for snapshots/checkpoints, CSP/HSTS sequencing, registry retirement of aggregator routes, release approval = your merge of the release PR (that merge *is* REL-05), withdrawal = revert + redeploy.
+Carried over from v1 with governance clarification: ranking threshold ≥60% coverage with visible caption, hide zero-score models by default, Cloudflare Pages + wrangler deploy, GitHub-Actions runner with private `benchmark-ledger-data` repo for snapshots/checkpoints, CSP/HSTS sequencing, and registry retirement of aggregator routes. Before the release PR can merge, an independently supplied append-only REL-05 authorization must pin the exact artifact ID, digest, policy, signer, timestamp, and frontend build. Withdrawal requires an append-only revocation decision naming the artifact and reason, an explicit withdrawn frontend state, and then cache invalidation or redeployment; a Git revert alone is not a withdrawal record.
 
 ---
 
@@ -61,7 +61,7 @@ Carried over from v1 unchanged: ranking threshold ≥60% coverage with visible c
 | H3 | Branch protection (require `Verify` + review); read the 3 Dependabot alerts and paste them (agents draft dispositions) | merge train |
 | H4 | Create private repo `0x3-team/benchmark-ledger-data`; add `LEDGER_DATA_TOKEN` secret | runner (Wave 2) |
 | H5 | Security sign-off: pinned-transport PR | first live byte |
-| H6 | Release sign-off: first artifact PR (= REL-05 decision = launch) | launch |
+| H6 | Create and verify the append-only REL-05 authorization for the exact first artifact before approving its release PR | launch |
 | H7 | Daily merge windows per ND6 | overall pace |
 
 ---
@@ -102,7 +102,7 @@ Research (no PR): licensing memo (T-I1, CHEAP) feeding P4–P6 terms citations; 
 1. **Fixture truth (exists):** every adapter already has offline fixture tests; CI enforces them.
 2. **Live rehearsal per source (new, P8):** one governed capture on a disposable DB per certified source; receipt records URL, revision, bytes, content hash, HTTP metadata, and the extracted claim count.
 3. **Idempotency proof (new):** immediate second ingest of the same snapshot must insert zero claims — receipt committed.
-4. **Freshness receipt (new):** source-declared update time (ETag/Last-Modified/commit date/dataset revision) compared to capture time; sources older than the ND2 threshold get the stale label in the manifest and UI.
+4. **Freshness receipt (new):** compare capture time only with a publisher-provided timestamp such as `Last-Modified` or a timestamped immutable commit or dataset revision. Treat opaque ETags and untimestamped revisions as `freshness=unknown`. Frozen sources use the exact publisher date and never satisfy the current-source launch gate.
 5. **Evidence re-resolution (exists, spot-checked in P8):** sampled claims re-resolved from immutable snapshot bytes must reproduce the exact raw lexemes.
 6. **Continuous:** the runner re-ingests on schedule (daily default), the coverage census runs weekly in CI, and a source that fails N=3 consecutive captures opens an issue automatically. Post-launch, the discovery engine's live connector leg (currently fixture-only) is the first expansion item so new sources/models surface as quarantined candidates instead of hand-edits.
 
@@ -117,7 +117,7 @@ Research (no PR): licensing memo (T-I1, CHEAP) feeding P4–P6 terms citations; 
 | 2–4 | P3 runner, P5/P6 certifications, P10/P11 UX, P13 deploy pipeline up; merge windows 3–4 |
 | 4–6 | P7 identity + P8 live rehearsals run against certified sources; receipts committed |
 | 6–8 | Real captures → review queue (agents draft dispositions; you approve batches) → export → **first artifact PR** |
-| 8–12 | **H6 sign-off = REL-05 = launch**: deploy, smoke matrix on `benchmark.0x3.dev`, HSTS second deploy, announce |
+| 8–12 | **H6 authorization verified, then release PR approval**: deploy, smoke matrix on `benchmark.0x3.dev`, HSTS second deploy, announce |
 | 12+ | Weekly: +1–2 new certified sources, discovery live connectors, review-queue burn-down, coverage census in CI |
 
 Critical path: P1 → (P3, P4) → P8 → captures → P2's builder → H6. Frontend track has ~4 days of slack; it can never delay launch.
@@ -126,4 +126,4 @@ Critical path: P1 → (P3, P4) → P8 → captures → P2's builder → H6. Fron
 
 ## 7. Standing rules for every task (embedded in each prompt)
 
-Same as v1 §5, plus: **no synthetic, mock, fallback, or derived data may be introduced anywhere in runtime paths** — test fixtures live under `tests`/`testFixtures` only; any agent that cannot complete with real inputs stops and reports rather than fabricating; all merges are performed by the repository owner — agents and the orchestrator never merge, and the two sign-off PRs (P1, first release) additionally require your explicit line-by-line review.
+Same as v1 §5, plus: **no synthetic, mock, fallback, or derived data may be introduced anywhere in runtime paths** — test fixtures live under `tests`/`testFixtures` only; any agent that cannot complete with real inputs stops and reports rather than fabricating. The repository owner or an operator explicitly authorized by the owner may merge ordinary code PRs after required review and CI. The first release remains blocked until the independent REL-05 authorization is recorded and verified against the exact artifact and frontend build.
