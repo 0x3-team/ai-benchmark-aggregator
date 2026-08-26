@@ -13,6 +13,16 @@ A single-page **AI model benchmark comparison dashboard** with a real-only publi
 
 > **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export, test fixture, or sample artifact is not an Official release artifact. The v2 activation seam requires canonical artifact bytes plus a separately governed external authorization that exactly pins the artifact ID, digest, approval decision, and policy. The repository supplies neither, so the production provider receives an immutable empty snapshot; a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
 
+### Presentation ranking policy
+
+For a governed Official release, overall rankings are UI-only presentation data,
+not ledger claims. The ranking cohort is every benchmark in the immutable active
+snapshot, regardless of filters. A model needs published scores for at least
+60% of that cohort to receive an ordinal rank. Each missing score receives the
+deterministic rank penalty `models.length + 1`, then the resulting ranks are
+averaged across the complete cohort. Raw published-score coverage remains
+visible, and competition ties remain presentation-only.
+
 ### Future governed score evidence
 
 Official remains unavailable in the shipped runtime. Once REL-05 authorizes an

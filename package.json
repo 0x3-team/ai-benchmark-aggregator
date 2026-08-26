@@ -10,6 +10,7 @@
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "typecheck:test": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.test.json",
     "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:mobile-overflow": "node ./scripts/test-mobile-overflow.mjs",
     "test:watch": "node ./node_modules/vitest/vitest.mjs",
     "verify:official-artifact": "node ./scripts/verify-official-artifact.mjs && node --test ./scripts/verify-official-artifact-node-tests.mjs",
     "verify:build-provenance": "node ./scripts/build-provenance.mjs verify && node --test ./scripts/build-provenance-node-tests.mjs",
@@ -42,7 +43,8 @@
     "typescript": "^5.6.3",
     "vite": "^8.1.5",
     "wrangler": "4.126.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "ws": "^8.21.3"
   },
   "overrides": {
     "esbuild": "^0.25.0",

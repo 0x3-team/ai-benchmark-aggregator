@@ -25,6 +25,9 @@ function renderFilters() {
         onToggleOpenWeights={vi.fn()}
         onClear={vi.fn()}
         resultCount={2}
+        hasModelsWithNoPublishedScores
+        showModelsWithNoPublishedScores={false}
+        onToggleModelsWithNoPublishedScores={vi.fn()}
       />
     );
   });
@@ -72,6 +75,19 @@ describe("Filters accessibility semantics", () => {
       expect(
         view.container.querySelector('[aria-label="Show all categories"]')?.getAttribute("aria-pressed")
       ).toBe("true");
+    } finally {
+      view.cleanup();
+    }
+  });
+
+  it("exposes the zero-score visibility control as an accessible switch", () => {
+    const view = renderFilters();
+    try {
+      const toggle = view.container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      );
+      expect(toggle?.getAttribute("role")).toBe("switch");
+      expect(toggle?.getAttribute("aria-checked")).toBe("false");
     } finally {
       view.cleanup();
     }

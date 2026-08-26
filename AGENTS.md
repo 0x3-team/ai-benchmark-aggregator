@@ -29,6 +29,11 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 ## Frontend rules
 
 - `getValue(modelId, benchmarkId)` is the only score accessor.
+- Overall ranking is UI-only: use the complete immutable active benchmark cohort,
+  require at least 60% published-score coverage for eligibility, and give every
+  missing cohort cell the deterministic `models.length + 1` rank penalty before
+  averaging across that full cohort. Keep raw coverage visible and never store
+  this derived ranking as a ledger claim.
 - Dataset state must come from an immutable `DatasetProvider`; do not add a
   module-global active registry or a default Demo fallback. Context provenance
   is value-free, so consumers cannot bypass `getValue` with a raw score entry.

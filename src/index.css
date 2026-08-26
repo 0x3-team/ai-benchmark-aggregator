@@ -44,12 +44,14 @@
 
   html {
     color-scheme: dark;
+    overflow-x: clip;
   }
 
   body {
     @apply text-foreground font-sans antialiased;
     margin: 0;
     min-height: 100vh;
+    overflow-x: clip;
     background-color: hsl(var(--background));
     background-image:
       radial-gradient(60rem 60rem at 12% -8%, rgba(59, 130, 246, 0.16), transparent 60%),
