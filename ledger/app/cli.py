@@ -1071,7 +1071,11 @@ def coverage_status(
     """Print a deterministic census without creating, migrating, or changing a ledger."""
     normalized_format = output_format.strip().lower()
     if normalized_format not in {"json", "markdown"}:
-        raise typer.BadParameter("--format must be either 'json' or 'markdown'.")
+        # Keep this validation failure stable across Typer/Click versions.
+        # Rendering a BadParameter through the framework can produce styled
+        # usage-only output in newer releases, hiding the actionable message.
+        typer.echo("--format must be either 'json' or 'markdown'", err=True)
+        raise typer.Exit(code=2)
 
     try:
         report = build_coverage_census(
