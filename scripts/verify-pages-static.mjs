@@ -71,7 +71,6 @@ function assertHeaders(headers, label) {
     "Referrer-Policy: strict-origin-when-cross-origin",
     "X-Frame-Options: DENY",
     "Permissions-Policy:",
-    "Content-Security-Policy:",
     "Content-Security-Policy-Report-Only:",
     "https://:project.pages.dev/*",
     "https://:version.:project.pages.dev/*",
@@ -82,19 +81,15 @@ function assertHeaders(headers, label) {
   assert.doesNotMatch(headers, /^\s*Strict-Transport-Security:/im, `${label} must not add HSTS`);
   assert.match(
     headers,
-    /^\s*Content-Security-Policy:\s*[^\n]*script-src 'self'(?:;|\s*$)/im,
-    `${label} needs an enforcing self-script CSP`,
-  );
-  assert.match(
-    headers,
-    /^\s*Content-Security-Policy-Report-Only:\s*[^\n]*script-src 'self'(?:;|\s*$)/im,
-    `${label} needs a report-only CSP companion`,
+    /^\s*Content-Security-Policy-Report-Only:\s*default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'\s*$/im,
+    `${label} needs the complete report-only CSP policy`,
   );
   assert.doesNotMatch(
     headers,
-    /^\s*Content-Security-Policy:\s*[^\n]*script-src 'self' 'unsafe-inline'/im,
-    `${label} must not permit inline scripts in enforcing CSP`,
+    /^\s*Content-Security-Policy:/im,
+    `${label} must not ship enforcing CSP before provider/browser evidence`,
   );
+  assert.match(headers, /HOST-03 keeps enforcing CSP and HSTS staged in comments(?:\s+#)?\s+only/i);
   assert.doesNotMatch(headers, /_worker\.js|functions\//i, `${label} must not add a Worker`);
 }
 
