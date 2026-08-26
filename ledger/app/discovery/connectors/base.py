@@ -12,11 +12,13 @@ target's declared budgets at the boundary, and emits quarantined
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
+import os
 from pathlib import Path
+import stat
 from typing import Any, Mapping, Protocol, runtime_checkable
 
 from app.discovery.candidates import CandidateAssemblyError, assemble_candidate
+from app.discovery.fixture_io import FixtureInputError, read_json_object_at
 from app.scheduling.slots import ScheduleSlot
 
 
@@ -51,6 +53,87 @@ class DiscoveryConnector(Protocol):
     ) -> ConnectorObservation: ...
 
 
+# Bounded loading budget for the single ``connectors/static.json`` leaf.
+MAX_STATIC_FIXTURE_BYTES = 8 * 1024 * 1024
+MAX_STATIC_JSON_DEPTH = 64
+MAX_STATIC_JSON_NODES = 100_000
+# ``targets`` object shape caps, enforced for the whole file before assembly.
+MAX_STATIC_TARGET_ENTRIES = 512
+MAX_STATIC_CANDIDATES_PER_TARGET = 1_000
+MAX_STATIC_CANDIDATE_SPECS = 10_000
+
+_TARGET_ENTRY_KEYS = frozenset({"candidates", "reviewRequired"})
+
+
+def _fail(reason_code: str, detail: str) -> ConnectorError:
+    """Build a stable redacted :class:`ConnectorError` carrying only the code."""
+    return ConnectorError(reason_code, detail)
+
+
+def _supports_dir_descriptors() -> bool:
+    return hasattr(os, "O_NOFOLLOW") and hasattr(os, "O_DIRECTORY")
+
+
+def _require_descriptor(path: Path) -> int:
+    """Open the fixture root as a no-follow ``O_DIRECTORY`` descriptor.
+
+    ``lstat`` rejects a symlink or non-directory up front, and the subsequent
+    ``os.open`` with ``O_NOFOLLOW | O_DIRECTORY`` commits to the exact
+    directory inode at hand, so every later read is anchored there instead of
+    to whatever the path later names.
+    """
+
+    if not _supports_dir_descriptors():
+        raise _fail(
+            "STATIC_FIXTURE_UNREADABLE",
+            "no-follow directory-descriptor support is required",
+        )
+    try:
+        metadata = path.lstat()
+    except OSError:
+        raise _fail("STATIC_FIXTURE_UNREADABLE", "fixture root must exist")
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise _fail(
+            "STATIC_FIXTURE_UNREADABLE",
+            "fixture root must be a directory, not a link or file",
+        )
+    try:
+        return os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError:
+        raise _fail("STATIC_FIXTURE_UNREADABLE", "fixture root could not be opened")
+
+
+def _open_connectors(root_fd: int) -> int:
+    """Open the ``connectors`` subdirectory relative to the root, no-follow."""
+
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    try:
+        return os.open("connectors", flags, dir_fd=root_fd)
+    except OSError:
+        raise _fail("STATIC_FIXTURE_UNREADABLE", "connectors/ must not be a symlink")
+
+
+def _read_static(connectors_fd: int) -> dict[str, Any]:
+    """Read ``static.json`` relative to the ``connectors`` descriptor, bounded.
+
+    Maps any :class:`FixtureInputError` to a stable redacted
+    :class:`ConnectorError` carrying only the stable ``reason_code`` — never
+    raw OS/JSON/decoder text.
+    """
+
+    try:
+        return read_json_object_at(
+            connectors_fd,
+            "static.json",
+            max_bytes=MAX_STATIC_FIXTURE_BYTES,
+            max_depth=MAX_STATIC_JSON_DEPTH,
+            max_nodes=MAX_STATIC_JSON_NODES,
+        )
+    except FixtureInputError as exc:
+        raise _fail("STATIC_FIXTURE_UNREADABLE", exc.reason_code)
+
+
 class StaticFixtureConnector:
     """Deterministic connector that replays checked-in observation specs.
 
@@ -71,32 +154,74 @@ class StaticFixtureConnector:
     ) -> ConnectorObservation:
         _ = slot  # Slot identity participates in receipts, never in replay truth.
         revision_id = target["targetRevisionId"]
-        path = Path(fixture_root) / "connectors" / "static.json"
+
+        root = Path(fixture_root)
+        root_fd = _require_descriptor(root)
+        connectors_fd = None
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise ConnectorError("STATIC_FIXTURE_UNREADABLE", type(exc).__name__) from exc
+            connectors_fd = _open_connectors(root_fd)
+            payload = _read_static(connectors_fd)
+        finally:
+            if connectors_fd is not None:
+                try:
+                    os.close(connectors_fd)
+                except OSError:
+                    pass
+            try:
+                os.close(root_fd)
+            except OSError:
+                pass
+
         if type(payload) is not dict or set(payload) != {"targets"}:
-            raise ConnectorError("STATIC_FIXTURE_MALFORMED", "top level must be {'targets'}")
+            raise _fail("STATIC_FIXTURE_MALFORMED", "top level must be {'targets'}")
         entries = payload["targets"]
         if type(entries) is not dict:
-            raise ConnectorError("STATIC_FIXTURE_MALFORMED", "'targets' must be an object")
+            raise _fail("STATIC_FIXTURE_MALFORMED", "'targets' must be an object")
+
+        # Whole-file validation/count pass runs for the entire file before any
+        # assembly: every target entry is shape-validated and every candidate
+        # count is accumulated, fail fast, against all three caps.
+        if len(entries) > MAX_STATIC_TARGET_ENTRIES:
+            raise _fail(
+                "STATIC_FIXTURE_TOO_MANY_TARGETS",
+                f"more than {MAX_STATIC_TARGET_ENTRIES} target entries",
+            )
+        total_specs = 0
+        for rev, entry in entries.items():
+            if type(entry) is not dict or set(entry) != _TARGET_ENTRY_KEYS:
+                raise _fail(
+                    "STATIC_FIXTURE_MALFORMED",
+                    f"{rev}: entry must contain exactly 'candidates' and 'reviewRequired'",
+                )
+            if type(entry["reviewRequired"]) is not bool:
+                raise _fail(
+                    "STATIC_FIXTURE_MALFORMED",
+                    f"{rev}: 'reviewRequired' must be a boolean",
+                )
+            specs = entry["candidates"]
+            if type(specs) is not list:
+                raise _fail(
+                    "STATIC_FIXTURE_MALFORMED",
+                    f"{rev}: 'candidates' must be an array",
+                )
+            if len(specs) > MAX_STATIC_CANDIDATES_PER_TARGET:
+                raise _fail(
+                    "STATIC_FIXTURE_TOO_MANY_CANDIDATES",
+                    f"{rev}: more than {MAX_STATIC_CANDIDATES_PER_TARGET} candidates",
+                )
+            total_specs += len(specs)
+            if total_specs > MAX_STATIC_CANDIDATE_SPECS:
+                raise _fail(
+                    "STATIC_FIXTURE_TOO_MANY_CANDIDATES",
+                    f"more than {MAX_STATIC_CANDIDATE_SPECS} candidate specs in total",
+                )
+
         entry = entries.get(revision_id)
         if entry is None:
             raise ConnectorError("MISSING_FIXTURE_OBSERVATION", revision_id)
-        if type(entry) is not dict or set(entry) != {"candidates", "reviewRequired"}:
-            raise ConnectorError(
-                "STATIC_FIXTURE_MALFORMED",
-                f"{revision_id}: entry must contain exactly 'candidates' and 'reviewRequired'",
-            )
-        if type(entry["reviewRequired"]) is not bool:
-            raise ConnectorError("STATIC_FIXTURE_MALFORMED", "'reviewRequired' must be a boolean")
-        specs = entry["candidates"]
-        if type(specs) is not list:
-            raise ConnectorError("STATIC_FIXTURE_MALFORMED", "'candidates' must be an array")
         try:
             candidates = tuple(
-                assemble_candidate(revision_id, spec) for spec in specs
+                assemble_candidate(revision_id, spec) for spec in entry["candidates"]
             )
         except CandidateAssemblyError as exc:
             raise ConnectorError("CANDIDATE_ASSEMBLY_REJECTED", str(exc)) from exc
@@ -111,4 +236,10 @@ __all__ = [
     "ConnectorObservation",
     "DiscoveryConnector",
     "StaticFixtureConnector",
+    "MAX_STATIC_FIXTURE_BYTES",
+    "MAX_STATIC_JSON_DEPTH",
+    "MAX_STATIC_JSON_NODES",
+    "MAX_STATIC_TARGET_ENTRIES",
+    "MAX_STATIC_CANDIDATES_PER_TARGET",
+    "MAX_STATIC_CANDIDATE_SPECS",
 ]

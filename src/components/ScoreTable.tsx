@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Info, ArrowUp, ArrowDown, X } from "lucide-react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
@@ -27,6 +27,8 @@ import {
 
 interface ScoreTableProps {
   models: readonly DatasetModel[];
+  /** The immutable full cohort. `models` may be filtered and/or sorted. */
+  cohortModels: readonly DatasetModel[];
   benchmarks: readonly DatasetBenchmark[];
   sort: { benchmarkId: string | null; dir: "asc" | "desc" } | null;
   onSort: (benchmarkId: string) => void;
@@ -41,6 +43,7 @@ interface ScoreTableProps {
 
 export function ScoreTable({
   models,
+  cohortModels,
   benchmarks,
   sort,
   onSort,
@@ -56,20 +59,22 @@ export function ScoreTable({
   const statsByBench = useMemo(() => {
     const map: Record<string, ReturnType<typeof columnStats>> = {};
     for (const b of benchmarks) {
-      const values = models.map((m) => getValue(m.id, b.id));
+      const values = cohortModels.map((m) => getValue(m.id, b.id));
       map[b.id] = columnStats(values, b);
     }
     return map;
-  }, [models, benchmarks, getValue]);
+  }, [cohortModels, benchmarks, getValue]);
 
   const bestByBench = useMemo(() => {
     const map: Record<string, string | null> = {};
-    for (const b of benchmarks) map[b.id] = bestModelId(b.id, models, benchmarks, getValue);
+    for (const b of benchmarks) {
+      map[b.id] = bestModelId(b.id, cohortModels, benchmarks, getValue);
+    }
     return map;
-  }, [benchmarks, models, getValue]);
+  }, [benchmarks, cohortModels, getValue]);
 
   const modelName = (id: string | null) =>
-    id ? models.find((m) => m.id === id)?.name ?? id : null;
+    id ? cohortModels.find((m) => m.id === id)?.name ?? id : null;
 
   const groups = useMemo(
     () =>
@@ -93,11 +98,40 @@ export function ScoreTable({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportH, setViewportH] = useState(BODY_MAX_H);
 
+  // A new visible order, cohort, benchmark set, or dataset accessor
+  // represents a new table coordinate system. Do not leave the user at an
+  // old offset whose row identity no longer matches the viewport.
+  const modelIdentity = useMemo(
+    () => models.map((model) => model.id).join("\u001f"),
+    [models]
+  );
+  const cohortIdentity = useMemo(
+    () => cohortModels.map((model) => model.id).join("\u001f"),
+    [cohortModels]
+  );
+  const benchmarkIdentity = useMemo(
+    () => benchmarks.map((benchmark) => benchmark.id).join("\u001f"),
+    [benchmarks]
+  );
+
+  useEffect(() => {
+    if (scrollRef.current && scrollRef.current.scrollTop !== 0) {
+      scrollRef.current.scrollTop = 0;
+    }
+    setScrollTop(0);
+  }, [modelIdentity, cohortIdentity, benchmarkIdentity, getValue]);
+
   const totalRows = models.length;
+  const comparisonLimit = 6;
+  const comparisonLimitReached = selectedModels.length >= comparisonLimit;
   const bodyMaxH = Math.min(BODY_MAX_H, totalRows * ROW_H);
   const visibleH = Math.min(viewportH, bodyMaxH);
-  const firstIndex = Math.max(0, Math.floor(scrollTop / ROW_H) - ROW_BUFFER);
   const visibleCount = Math.ceil(visibleH / ROW_H) + ROW_BUFFER * 2;
+  const requestedFirstIndex = Math.max(0, Math.floor(scrollTop / ROW_H) - ROW_BUFFER);
+  const firstIndex = Math.min(
+    Math.max(0, totalRows - visibleCount),
+    requestedFirstIndex
+  );
   const lastIndex = Math.min(totalRows, firstIndex + visibleCount);
   const visibleModels = models.slice(firstIndex, lastIndex);
   const topPad = firstIndex * ROW_H;
@@ -111,6 +145,14 @@ export function ScoreTable({
 
   return (
     <div className="glass-strong overflow-hidden rounded-xl">
+      {comparisonLimitReached && (
+        <p
+          id="comparison-limit-help"
+          className="border-b border-white/10 px-3 py-2 text-xs text-muted-foreground"
+        >
+          Comparison limit reached: up to {comparisonLimit} models can be compared. Remove a selected model to choose another.
+        </p>
+      )}
       {sort?.benchmarkId && sortBench && (
         <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-xs">
           <span className="text-muted-foreground">Sorted by</span>
@@ -139,7 +181,10 @@ export function ScoreTable({
           className="overflow-y-auto scroll-thin"
           style={{ maxHeight: bodyMaxH || undefined }}
         >
-        <table className="w-full border-separate border-spacing-0 text-[12px]">
+        <table
+          className="w-full border-separate border-spacing-0 text-[12px]"
+          aria-rowcount={totalRows + 3}
+        >
           <caption className="sr-only">
             Overall ranks use every benchmark in the selected dataset snapshot. A model must have a
             score for all {rankCohortTotal} benchmarks to receive a rank; filters only change visible
@@ -214,6 +259,13 @@ export function ScoreTable({
                   return (
                     <th
                       key={b.id}
+                      aria-sort={
+                        active
+                          ? sort!.dir === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
                       className="sticky z-10 border-b border-white/10 p-0 align-bottom"
                       style={{
                         minWidth: 58,
@@ -346,7 +398,7 @@ export function ScoreTable({
                 <td colSpan={benchmarks.length + 2} style={{ padding: 0, border: "none" }} />
               </tr>
             )}
-            {visibleModels.map((m) => {
+            {visibleModels.map((m, visibleIndex) => {
               const rank = rankMap[m.id];
               const selected = selectedModels.includes(m.id);
               const isTop = rank?.rank === 1;
@@ -359,6 +411,8 @@ export function ScoreTable({
               return (
                 <tr
                   key={m.id}
+                  aria-rowindex={firstIndex + visibleIndex + 3}
+                  style={{ height: ROW_H }}
                   className={cn(
                     "transition-colors",
                     selected ? "bg-primary/10" : "hover:bg-white/[0.03]"
@@ -371,6 +425,10 @@ export function ScoreTable({
                       width: 34,
                       minWidth: 34,
                       padding: "0",
+                      height: ROW_H,
+                      maxHeight: ROW_H,
+                      overflow: "hidden",
+                      boxSizing: "border-box",
                     }}
                   >
                     <span aria-hidden="true">{rank?.rank ?? "—"}</span>
@@ -382,29 +440,46 @@ export function ScoreTable({
                       left: 34,
                       background: STICKY_BG,
                       padding: "4px 12px",
+                      height: ROW_H,
+                      maxHeight: ROW_H,
+                      overflow: "hidden",
+                      boxSizing: "border-box",
                       boxShadow: isTop
                         ? "inset 3px 0 0 0 rgba(251,191,36,0.7)"
                         : undefined,
                     }}
                   >
-                    <label className="flex cursor-pointer items-center gap-2">
+                    <label className="flex h-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden">
                       <input
                         type="checkbox"
                         checked={selected}
+                        disabled={comparisonLimitReached && !selected}
+                        aria-disabled={comparisonLimitReached && !selected}
+                        aria-describedby={
+                          comparisonLimitReached && !selected
+                            ? "comparison-limit-help"
+                            : undefined
+                        }
+                        aria-label={`Select ${m.name} for comparison`}
                         onChange={() => onToggleModelSelect(m.id)}
                         className="h-3.5 w-3.5 accent-primary"
                       />
-                      <span className="flex flex-col leading-tight">
+                      <span className="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight">
                         <span
+                          aria-hidden="true"
+                          title={m.name}
                           className={cn(
-                            "font-medium",
+                            "block truncate font-medium",
                             isTop ? "text-amber-200" : "text-foreground"
                           )}
                         >
                           {m.name}
                         </span>
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          {m.vendor} · {m.family}
+                        <span className="sr-only">{m.name}</span>
+                        <span className="flex min-w-0 items-center gap-1 truncate text-[10px] text-muted-foreground">
+                          <span className="truncate" title={`${m.vendor} · ${m.family}`}>
+                            {m.vendor} · {m.family}
+                          </span>
                           {m.openWeights && (
                             <span className="rounded bg-emerald-500/20 px-1 font-mono text-emerald-300">
                               OW
@@ -440,6 +515,8 @@ export function ScoreTable({
                               ? "inset 0 0 0 1px rgba(255,255,255,0.06)"
                               : undefined,
                           height: 30,
+                          maxHeight: ROW_H,
+                          overflow: "hidden",
                           padding: 0,
                         }}
                         title={

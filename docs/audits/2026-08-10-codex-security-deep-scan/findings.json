@@ -1,0 +1,2866 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/schemas/boundary.py:51 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "class ResultClaimInput(BaseModel):\\n    source_snapshot_id: UUID | None = None\\n    source_revision_decision_id: UUID | None = None\\n    official_source_id: str\\n    benchmark_id: str | None = None\\n    model_entity_id: str | None = None\\n    model_raw: StrictStr\\n    benchmark_raw: StrictStr\\n    score_raw: StrictStr\\n    metric_raw: StrictStr | None = None\\n    split_raw: StrictStr | None = None\\n    setting_raw: StrictStr | None = None\\n    evaluation_version_raw: StrictStr | None = None\\n    rank_raw: StrictStr | None = None\\n    date_raw: StrictStr | None = None",
+          "endLine": 65,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-7a38c4b0cb4c47cc-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "root_control",
+          "startLine": 51
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-7a38c4b0cb4c47cc",
+        "instance": "claims-list; claims-show; dry-run-sample; review-queue; claims-list-terminal-output; claims-show-terminal-output; ingestion-dry-run-terminal-output; review-queue-terminal-output; cli-raw-terminal-output; additionally source-control-sequences-terminal"
+      },
+      "findingId": "csf_f5754c0ddec0ba3a9dba769e",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:315421bae746e615ad9ae99dad4e1de7d37f1a6543778c6661918d78db09f99e"
+      },
+      "identity": {
+        "anchor": "terminal-control-injection-in-raw-claim-and-review-output"
+      },
+      "locations": [
+        {
+          "endLine": 69,
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "source",
+          "startLine": 51
+        },
+        {
+          "endLine": 746,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 739
+        },
+        {
+          "endLine": 768,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 749
+        },
+        {
+          "endLine": 800,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 793
+        },
+        {
+          "endLine": 122,
+          "path": "ledger/app/ingestion/json_lexemes.py",
+          "role": "concrete_implementation",
+          "startLine": 117
+        },
+        {
+          "endLine": 768,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 739
+        },
+        {
+          "endLine": 108,
+          "path": "ledger/app/ingestion/adapters/generic_json.py",
+          "role": "source",
+          "startLine": 78
+        },
+        {
+          "endLine": 657,
+          "path": "ledger/app/ingestion/admission.py",
+          "role": "root_control",
+          "startLine": 654
+        },
+        {
+          "endLine": 745,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 745
+        },
+        {
+          "endLine": 69,
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "evidence",
+          "startLine": 51
+        },
+        {
+          "endLine": 801,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 793
+        },
+        {
+          "endLine": 800,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 796
+        },
+        {
+          "endLine": 736,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 704
+        },
+        {
+          "endLine": 734,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 734
+        },
+        {
+          "endLine": 766,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 757
+        },
+        {
+          "endLine": 746,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 744
+        },
+        {
+          "endLine": 746,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 744
+        },
+        {
+          "endLine": 768,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 756
+        },
+        {
+          "endLine": 768,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 756
+        },
+        {
+          "endLine": 734,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 731
+        },
+        {
+          "endLine": 75,
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "source",
+          "startLine": 51
+        },
+        {
+          "endLine": 800,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 795
+        },
+        {
+          "endLine": 800,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 795
+        },
+        {
+          "endLine": 122,
+          "path": "ledger/app/ingestion/json_lexemes.py",
+          "role": "source",
+          "startLine": 117
+        },
+        {
+          "endLine": 69,
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "root_control",
+          "startLine": 51
+        },
+        {
+          "endLine": 800,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 739
+        },
+        {
+          "endLine": 106,
+          "path": "ledger/app/ingestion/adapters/generic_json.py",
+          "role": "source",
+          "startLine": 69
+        },
+        {
+          "endLine": 801,
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 793
+        },
+        {
+          "endLine": 734,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 731
+        },
+        {
+          "endLine": 75,
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "concrete_implementation",
+          "startLine": 51
+        },
+        {
+          "endLine": 261,
+          "path": "ledger/app/db/models.py",
+          "role": "evidence",
+          "startLine": 249
+        },
+        {
+          "endLine": 80,
+          "path": "ledger/app/ingestion/adapters/generic_json.py",
+          "role": "source",
+          "startLine": 66
+        },
+        {
+          "endLine": 122,
+          "path": "ledger/app/ingestion/json_lexemes.py",
+          "role": "root_control",
+          "startLine": 117
+        },
+        {
+          "endLine": 64,
+          "path": "ledger/app/schemas/boundary.py",
+          "role": "root_control",
+          "startLine": 57
+        },
+        {
+          "endLine": 764,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 757
+        },
+        {
+          "endLine": 128,
+          "path": "ledger/app/ingestion/json_lexemes.py",
+          "role": "source",
+          "startLine": 117
+        },
+        {
+          "endLine": 680,
+          "path": "ledger/app/ingestion/admission.py",
+          "role": "root_control",
+          "startLine": 656
+        },
+        {
+          "endLine": 768,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 731
+        }
+      ],
+      "occurrenceId": "occ_bf5fc2403e720e1aa29e0f91",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-7a38c4b0cb4c47cc",
+        "instance": "claims-list; claims-show; dry-run-sample; review-queue; claims-list-terminal-output; claims-show-terminal-output; ingestion-dry-run-terminal-output; review-queue-terminal-output; cli-raw-terminal-output; additionally source-control-sequences-terminal",
+        "source": "local_plugin"
+      },
+      "remediation": "Escape control characters and render terminal output through a safe representation; add ANSI and OSC fixtures for every raw claim field.",
+      "remediationTests": [
+        "Add a regression fixture covering Terminal control injection in raw claim and review output at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-7a38c4b0cb4c47cc-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "terminal-output-injection",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Admitted raw claim fields are emitted directly to terminal output without control-character escaping, permitting terminal escape/control injection for an operator viewing claims or review queues. Also: The claims-list CLI renders source-controlled raw claim fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Also: The claims-show CLI renders source-controlled raw claim fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Also: The dry-run sample CLI prints source-controlled model_raw, benchmark_raw, and score_raw fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Also: The review-queue CLI renders source-controlled raw claim fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Additional reducer evidence: Claims list output does not neutralize persisted source-controlled raw fields. Claims show output does not neutralize persisted source-controlled fields or evidence locations. Ingestion dry-run output interpolates source-controlled model and score strings without terminal/log neutralization. Review queue output does not neutralize persisted source-controlled fields. Additional reducer summary: CLI commands emit attacker-controlled raw source and evidence strings directly to the operator terminal without control or ANSI/newline neutralization. Additional manifestation: Raw model, benchmark, and score fields are  Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "terminal-output-injection",
+        "cwe": [
+          "CWE-116",
+          "CWE-150",
+          "CWE-117"
+        ]
+      },
+      "title": "Terminal control injection in raw claim and review output",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-7a38c4b0cb4c47cc-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/migrations/versions/0011_ingestion_run_hardening.py:21 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "def upgrade() -> None:\\n    if not is_postgresql():\\n        return\\n",
+          "endLine": 24,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-239046490bbf82a2-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "root_control",
+          "startLine": 21
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-239046490bbf82a2",
+        "instance": "sqlite-ingestion-run-finalization; SQLite terminal-history hardening gap; sqlite-run-finalization-authority"
+      },
+      "findingId": "csf_58191babfc1077827d0187ce",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:ed1dd6bfea7d76cad052304d014b03748c01906ada916450bdc6f77d0e885ed6"
+      },
+      "identity": {
+        "anchor": "mutable-sqlite-ingestion-run-terminal-history"
+      },
+      "locations": [
+        {
+          "endLine": 24,
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "root_control",
+          "startLine": 21
+        },
+        {
+          "endLine": 1255,
+          "path": "ledger/app/db/repositories.py",
+          "role": "sink",
+          "startLine": 1237
+        },
+        {
+          "endLine": 92,
+          "path": "ledger/migrations/versions/0003_snapshot_revision_identity.py",
+          "role": "concrete_implementation",
+          "startLine": 84
+        },
+        {
+          "endLine": 20,
+          "path": "ledger/app/config.py",
+          "role": "entrypoint",
+          "startLine": 17
+        },
+        {
+          "endLine": 92,
+          "path": "ledger/migrations/versions/0003_snapshot_revision_identity.py",
+          "role": "root_control",
+          "startLine": 84
+        },
+        {
+          "endLine": 1255,
+          "path": "ledger/app/db/repositories.py",
+          "role": "sink",
+          "startLine": 1237
+        },
+        {
+          "endLine": 57,
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "concrete_implementation",
+          "startLine": 25
+        },
+        {
+          "endLine": 5,
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "evidence",
+          "startLine": 1
+        },
+        {
+          "endLine": 23,
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "evidence",
+          "startLine": 21
+        },
+        {
+          "endLine": 23,
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "root_control",
+          "startLine": 21
+        },
+        {
+          "endLine": 671,
+          "path": "ledger/app/ingestion/runner.py",
+          "role": "sink",
+          "startLine": 663
+        },
+        {
+          "endLine": 92,
+          "path": "ledger/migrations/versions/0003_snapshot_revision_identity.py",
+          "role": "evidence",
+          "startLine": 84
+        },
+        {
+          "endLine": 93,
+          "path": "ledger/migrations/versions/0003_snapshot_revision_identity.py",
+          "role": "evidence",
+          "startLine": 84
+        },
+        {
+          "endLine": 51,
+          "path": "ledger/migrations/versions/0010_operational_persistence.py",
+          "role": "source",
+          "startLine": 29
+        },
+        {
+          "endLine": 23,
+          "path": "ledger/migrations/versions/0011_ingestion_run_hardening.py",
+          "role": "root_control",
+          "startLine": 21
+        },
+        {
+          "endLine": 933,
+          "path": "ledger/migrations/versions/0010_operational_persistence.py",
+          "role": "sink",
+          "startLine": 912
+        }
+      ],
+      "occurrenceId": "occ_ce5c3179ebcaa0a346f30b29",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-239046490bbf82a2",
+        "instance": "sqlite-ingestion-run-finalization; SQLite terminal-history hardening gap; sqlite-run-finalization-authority",
+        "source": "local_plugin"
+      },
+      "remediation": "Apply SQLite finalize-once and terminal-row immutability constraints and add repeated-finalization/direct-writer tests.",
+      "remediationTests": [
+        "Add a regression fixture covering Mutable SQLite ingestion-run terminal history at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-239046490bbf82a2-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "mutable-audit-history",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "SQLite ingestion-run terminal history remains mutable after creation because finalize-once and terminal-row immutability hardening is PostgreSQL-only; repeated application finalization or a SQLite writer can rewrite terminal status, evidence, counters, errors, or metadata. Additional reducer summary: Migration 0011 installs the one-time ingestion-run finalization trigger only on PostgreSQL; SQLite retains only a delete guard, while finish_ingestion_run accepts arbitrary counter keys via hasattr and can update identity/history fields. Additional reducer summary: SQLite does not receive the PostgreSQL ingestion-run finalization guard, leaving local terminal run history mutable. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "mutable-audit-history",
+        "cwe": [
+          "CWE-284",
+          "CWE-345",
+          "CWE-693",
+          "CWE-915"
+        ]
+      },
+      "title": "Mutable SQLite ingestion-run terminal history",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-239046490bbf82a2-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/discovery/manifest.py:144 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "    try:\\n        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent_fd)\\n    except OSError:\\n        _fail(f\"{label}: cannot read {name}\")\\n    try:\\n        with os.fdopen(descriptor, \"rb\", closefd=True) as handle:\\n            raw = handle.read()\\n    except OSError as exc:\\n        _fail(f\"{label}: cannot read {name}: {exc.strerror or exc}\")\\n    try:\\n        text = raw.decode(\"utf-8\")\\n    except UnicodeDecodeError as exc:\\n        _fail(f\"{label}: {name} is not valid UTF-8: {exc}\")\\n    try:\\n        payload = json.loads(text)",
+          "endLine": 158,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-683554f3bc312cea-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 144
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-683554f3bc312cea",
+        "instance": "StaticFixtureConnector static.json materialization; fixture-static-unbounded-body; discovery-manifest-resource-exhaustion; static-connector-resource-exhaustion; unbounded-discovery-fixture-json; discovery-fixture-unbounded-json\n\nAdditional reducer detail: static-fixture-reopen; A permitted fixture producer supplies a large static.json and discovery executes it.; additionally fixture-connector-unbounded-read; additionally fixture-json-unbounded-read; additionally fixture-json-unbounded-read; additionally discovery-candidate-fanout; additionally discovery-manifest-cardinality-and-read-budget\n\nAdditional reducer instance (candidate-eb233e7c97dc8061): fixture-input-unbounded"
+      },
+      "findingId": "csf_f8cd23ed6809346c3b0bed87",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:5873872050b7b54e5c346401d2f944eea56086f89716a90ba0e14f6b9c520069"
+      },
+      "identity": {
+        "anchor": "unbounded-discovery-fixture-materialization"
+      },
+      "locations": [
+        {
+          "endLine": 159,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "source",
+          "startLine": 144
+        },
+        {
+          "endLine": 231,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 227
+        },
+        {
+          "endLine": 76,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 74
+        },
+        {
+          "endLine": 76,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "source",
+          "startLine": 74
+        },
+        {
+          "endLine": 243,
+          "path": "ledger/app/discovery/controller.py",
+          "role": "sink",
+          "startLine": 238
+        },
+        {
+          "endLine": 100,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "concrete_implementation",
+          "startLine": 94
+        },
+        {
+          "endLine": 944,
+          "path": "ledger/app/schemas/coverage_contracts.py",
+          "role": "root_control",
+          "startLine": 923
+        },
+        {
+          "endLine": 245,
+          "path": "ledger/app/discovery/controller.py",
+          "role": "sink",
+          "startLine": 238
+        },
+        {
+          "endLine": 99,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "concrete_implementation",
+          "startLine": 74
+        },
+        {
+          "endLine": 78,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "entrypoint",
+          "startLine": 65
+        },
+        {
+          "endLine": 80,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 74
+        },
+        {
+          "endLine": 1010,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 987
+        },
+        {
+          "endLine": 1081,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint/wrapper",
+          "startLine": 1063
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 149
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 149
+        },
+        {
+          "endLine": 218,
+          "path": "ledger/app/discovery/controller.py",
+          "role": "entrypoint",
+          "startLine": 209
+        },
+        {
+          "endLine": 76,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "source",
+          "startLine": 73
+        },
+        {
+          "endLine": 105,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "root_control",
+          "startLine": 76
+        },
+        {
+          "endLine": 105,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 76
+        },
+        {
+          "endLine": 236,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 228
+        },
+        {
+          "endLine": 99,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 74
+        },
+        {
+          "endLine": 160,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 145
+        },
+        {
+          "endLine": 218,
+          "path": "ledger/app/discovery/controller.py",
+          "role": "entrypoint",
+          "startLine": 215
+        },
+        {
+          "endLine": 78,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "root_control",
+          "startLine": 74
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 145
+        },
+        {
+          "endLine": 1010,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 998
+        },
+        {
+          "endLine": 237,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 219
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "concrete_implementation",
+          "startLine": 135
+        },
+        {
+          "endLine": 1080,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 1080
+        },
+        {
+          "endLine": 76,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 76
+        },
+        {
+          "endLine": 149,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 149
+        },
+        {
+          "endLine": 158,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "concrete_implementation",
+          "startLine": 158
+        },
+        {
+          "endLine": 1093,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 1063
+        },
+        {
+          "endLine": 76,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "root_control",
+          "startLine": 54
+        },
+        {
+          "endLine": 155,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "concrete_implementation",
+          "startLine": 120
+        },
+        {
+          "endLine": 105,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "concrete_implementation",
+          "startLine": 94
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "source",
+          "startLine": 135
+        },
+        {
+          "endLine": 78,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 74
+        },
+        {
+          "endLine": 1100,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 1063
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 135
+        },
+        {
+          "endLine": 105,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 74
+        },
+        {
+          "endLine": 78,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 65
+        },
+        {
+          "endLine": 102,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "root_control",
+          "startLine": 74
+        },
+        {
+          "endLine": 219,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "entrypoint",
+          "startLine": 211
+        },
+        {
+          "endLine": 245,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "entrypoint",
+          "startLine": 228
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 92
+        },
+        {
+          "endLine": 150,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 135
+        },
+        {
+          "endLine": 76,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "concrete_implementation",
+          "startLine": 65
+        },
+        {
+          "endLine": 231,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "evidence",
+          "startLine": 228
+        },
+        {
+          "endLine": 243,
+          "path": "ledger/app/discovery/controller.py",
+          "role": "sink",
+          "startLine": 236
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "sink",
+          "startLine": 135
+        },
+        {
+          "endLine": 237,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "concrete_implementation",
+          "startLine": 219
+        },
+        {
+          "endLine": 255,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "concrete_implementation",
+          "startLine": 245
+        },
+        {
+          "endLine": 105,
+          "path": "ledger/app/discovery/connectors/base.py",
+          "role": "sink",
+          "startLine": 79
+        },
+        {
+          "endLine": 245,
+          "path": "ledger/app/discovery/controller.py",
+          "role": "sink",
+          "startLine": 235
+        },
+        {
+          "endLine": 255,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "entrypoint",
+          "startLine": 240
+        },
+        {
+          "endLine": 1008,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 998
+        },
+        {
+          "endLine": 163,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 144
+        }
+      ],
+      "occurrenceId": "occ_f90d7b2e7833150ed43bd91a",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-683554f3bc312cea",
+        "instance": "StaticFixtureConnector static.json materialization; fixture-static-unbounded-body; discovery-manifest-resource-exhaustion; static-connector-resource-exhaustion; unbounded-discovery-fixture-json; discovery-fixture-unbounded-json\n\nAdditional reducer detail: static-fixture-reopen; A permitted fixture producer supplies a large static.json and discovery executes it.; additionally fixture-connector-unbounded-read; additionally fixture-json-unbounded-read; additionally fixture-json-unbounded-read; additionally discovery-candidate-fanout; additionally discovery-manifest-cardinality-and-read-budget\n\nAdditional reducer instance (candidate-eb233e7c97dc8061): fixture-input-unbounded",
+        "source": "local_plugin"
+      },
+      "remediation": "Bound fixture bytes, decoded object size, file count, and enumeration before JSON decoding.",
+      "remediationTests": [
+        "Add a regression fixture covering Unbounded discovery fixture materialization at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-683554f3bc312cea-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "resource-exhaustion",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Discovery JSON inputs are read and decoded without byte, decoded-object, file-count, or enumeration limits, allowing operator-selected fixture data to consume excessive memory or work. The canonical issue explicitly includes StaticFixtureConnector's unbounded static.json read/parse, tuple materialization, and controller persistence path. Additional reducer evidence: The StaticFixtureConnector specifically reads connectors/static.json with no byte, candidate-count, or parsing budget before assembly. Additional reducer evidence: Caller-selected discovery manifest files are read and parsed without byte or structural resource budgets. Static discovery connector JSON and candidate materialization are unbounded. Discovery fixture loading materializes JSON and candidate collections without byte, nesting, file-count, or candidate-count limits despite the connector contract claiming bounded observations. Additional reducer summary: Discovery fixture JSON is fully read and parsed without an explicit byte bound before candidate assembly. Additional reducer summary: Discovery fixture JSON is buffered and parsed without file-size, target-count, or aggregate fixture limits. Additional reducer summary: Fixture JSON loading has no byte or structural resource bound. Additional reducer detail: The static fixture connector reopens fixture data by raw path and parses it without the descriptor-safe root and byte-boundary protections used by manifest loading. Additional reducer summary: Static discovery fixture input and candidate fan-out are unbounded Additional merged manifestation: Discovery  Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-400",
+          "CWE-770",
+          "CWE-59"
+        ]
+      },
+      "title": "Unbounded discovery fixture materialization",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-683554f3bc312cea-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:369 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "@recovery_app.command(\"checkpoint-postgresql\")\\ndef recovery_checkpoint_postgresql(\\n    trigger: Path = typer.Option(..., \"--trigger\"),\\n    primary_root: Path = typer.Option(..., \"--primary-root\"),\\n    primary_domain_id: str = typer.Option(..., \"--primary-domain-id\"),\\n    recovery_root: Path = typer.Option(..., \"--recovery-root\"),\\n    recovery_domain_id: str = typer.Option(..., \"--recovery-domain-id\"),\\n    inspection_target_id: str = typer.Option(..., \"--inspection-target-id\"),\\n    manifest_output: Path = typer.Option(..., \"--manifest-output\"),\\n) -> None:\\n    \"\"\"Checkpoint PostgreSQL through fixed PG16 tools and one fresh inspection DB.\\n\\n    Connection material is accepted only through\\n    ``LEDGER_RECOVERY_POSTGRESQL_SOURCE_URL`` and\\n    ``LEDGER_RECOVERY_POSTGRESQL_INSPECTION_URL``. The command does not create,",
+          "endLine": 383,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-81795c6198d3c69f-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 369
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-81795c6198d3c69f",
+        "instance": "recovery-postgresql-backup-materialization; additionally postgres-recovery-unbounded-materialization"
+      },
+      "findingId": "csf_be13837ec4b4fb3ea324d114",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a2b69fc0a57d0c0e307fde100d2ad5d85614cf338a084ed34b16dc8fa71097d3"
+      },
+      "identity": {
+        "anchor": "unbounded-postgresql-recovery-backup-materialization"
+      },
+      "locations": [
+        {
+          "endLine": 384,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 369
+        },
+        {
+          "endLine": 1959,
+          "path": "ledger/app/backup/postgresql_driver.py",
+          "role": "sink",
+          "startLine": 1928
+        },
+        {
+          "endLine": 723,
+          "path": "ledger/app/backup/service.py",
+          "role": "concrete_implementation",
+          "startLine": 673
+        },
+        {
+          "endLine": 600,
+          "path": "ledger/app/backup/postgresql_driver.py",
+          "role": "root_control",
+          "startLine": 506
+        },
+        {
+          "endLine": 1960,
+          "path": "ledger/app/backup/postgresql_driver.py",
+          "role": "sink",
+          "startLine": 1957
+        }
+      ],
+      "occurrenceId": "occ_848209a33f7f4be66b908614",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-81795c6198d3c69f",
+        "instance": "recovery-postgresql-backup-materialization; additionally postgres-recovery-unbounded-materialization",
+        "source": "local_plugin"
+      },
+      "remediation": "Stream or cap PostgreSQL backup bytes and inspection output; enforce archive, TOC, and database-size budgets.",
+      "remediationTests": [
+        "Add a regression fixture covering Unbounded PostgreSQL recovery backup materialization at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-81795c6198d3c69f-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "resource-exhaustion",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "PostgreSQL recovery backups retain complete pg_dump artifacts as bytes through inspection and storage without an archive-size bound or streaming path. Additional discovery summary: PostgreSQL recovery buffers tool output and later loads complete dump bytes without a bounded cumulative limit. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-400"
+        ]
+      },
+      "title": "Unbounded PostgreSQL recovery backup materialization",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-81795c6198d3c69f-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:303 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "@recovery_app.command(\"checkpoint-sqlite\")\\ndef recovery_checkpoint_sqlite(\\n    database_source: Path = typer.Option(\\n        ...,\\n        \"--database-source\",\\n        help=\"Explicit existing SQLite source; DATABASE_URL is never consulted\",",
+          "endLine": 308,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-470f866bceac68bb-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 303
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-470f866bceac68bb",
+        "instance": "recovery-sqlite-backup-materialization; additionally sqlite-recovery-unbounded-materialization"
+      },
+      "findingId": "csf_d5cd490f3017455ec4b2b552",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:0d210f8475f316d5eeb656a12554295b3bb2875359db7fc339f294a6f61f22dd"
+      },
+      "identity": {
+        "anchor": "unbounded-sqlite-recovery-backup-materialization"
+      },
+      "locations": [
+        {
+          "endLine": 308,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 303
+        },
+        {
+          "endLine": 321,
+          "path": "ledger/app/backup/sqlite_driver.py",
+          "role": "sink",
+          "startLine": 303
+        },
+        {
+          "endLine": 723,
+          "path": "ledger/app/backup/service.py",
+          "role": "concrete_implementation",
+          "startLine": 673
+        },
+        {
+          "endLine": 321,
+          "path": "ledger/app/backup/sqlite_driver.py",
+          "role": "source",
+          "startLine": 321
+        },
+        {
+          "endLine": 205,
+          "path": "ledger/app/backup/sqlite_driver.py",
+          "role": "root_control",
+          "startLine": 197
+        },
+        {
+          "endLine": 667,
+          "path": "ledger/app/backup/service.py",
+          "role": "sink",
+          "startLine": 630
+        }
+      ],
+      "occurrenceId": "occ_f0c26100c8808ff91d568e3b",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-470f866bceac68bb",
+        "instance": "recovery-sqlite-backup-materialization; additionally sqlite-recovery-unbounded-materialization",
+        "source": "local_plugin"
+      },
+      "remediation": "Stream or cap SQLite backup and inspection bytes before storage and test oversized fixtures.",
+      "remediationTests": [
+        "Add a regression fixture covering Unbounded SQLite recovery backup materialization at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-470f866bceac68bb-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "resource-exhaustion",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "SQLite recovery backups materialize complete database artifacts as bytes through inspection and storage without an archive-size bound or streaming path. Additional discovery summary: SQLite recovery loads complete database bytes and fetches complete table inspection results without a pre-read or cumulative memory bound. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-400"
+        ]
+      },
+      "title": "Unbounded SQLite recovery backup materialization",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-470f866bceac68bb-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/ingestion/runner.py:268 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "        if existing:\\n            # A matching database hash is not proof that its URI still\\n            # contains the recorded immutable bytes.  Do not reuse a\\n            # snapshot unless storage verifies the full digest.\\n            verification = storage.verify_snapshot(\\n                uri=existing.raw_content_uri,\\n                content_sha256=content_hash,\\n            )\\n            _require_verification_receipt(\\n                verification,\\n                uri=existing.raw_content_uri,\\n                content_hash=content_hash,\\n                byte_length=len(snap_input.raw_bytes),",
+          "endLine": 280,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-cba67eb3705947b9-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/ingestion/runner.py",
+          "role": "root_control",
+          "startLine": 268
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-cba67eb3705947b9",
+        "instance": "snapshot-local-full-file-before-integrity; additionally local-recovery-unbounded-materialization"
+      },
+      "findingId": "csf_763d72930ef8ff3289f350b6",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:0163e49c722781771814650282ae464f37358253fc4f30d40fe8f56b2df211e0"
+      },
+      "identity": {
+        "anchor": "unbounded-local-snapshot-materialization-before-integrity-verification"
+      },
+      "locations": [
+        {
+          "endLine": 280,
+          "path": "ledger/app/ingestion/runner.py",
+          "role": "entrypoint",
+          "startLine": 268
+        },
+        {
+          "endLine": 542,
+          "path": "ledger/app/storage/local.py",
+          "role": "sink",
+          "startLine": 537
+        },
+        {
+          "endLine": 496,
+          "path": "ledger/app/storage/local.py",
+          "role": "concrete_implementation",
+          "startLine": 487
+        },
+        {
+          "endLine": 745,
+          "path": "ledger/app/backup/service.py",
+          "role": "entrypoint",
+          "startLine": 728
+        },
+        {
+          "endLine": 542,
+          "path": "ledger/app/storage/local.py",
+          "role": "root_control",
+          "startLine": 487
+        },
+        {
+          "endLine": 1066,
+          "path": "ledger/app/backup/service.py",
+          "role": "sink",
+          "startLine": 1043
+        }
+      ],
+      "occurrenceId": "occ_7957646c4a3a09911211528b",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-cba67eb3705947b9",
+        "instance": "snapshot-local-full-file-before-integrity; additionally local-recovery-unbounded-materialization",
+        "source": "local_plugin"
+      },
+      "remediation": "Use bounded streaming reads for local snapshot verification and cap retained-object size before digesting.",
+      "remediationTests": [
+        "Add a regression fixture covering Unbounded local snapshot materialization before integrity verification at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-cba67eb3705947b9-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "resource-exhaustion",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Local snapshot verification reads a complete backing file into memory before digest verification or an effective bounded read. Additional discovery summary: Local immutable recovery objects are read as complete files and repeatedly materialized without a bounded cumulative checkpoint or decoded-memory limit. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-400"
+        ]
+      },
+      "title": "Unbounded local snapshot materialization before integrity verification",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-cba67eb3705947b9-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/migrations/versions/0002_governance_history.py:145 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "def _backfill_legacy_evidence() -> None:\\n    bind = op.get_bind()\\n    source_rows = bind.execute(sa.text(\"SELECT * FROM official_sources ORDER BY id\")).mappings().all()\\n    source_revisions: dict[str, str] = {}\\n\\n    for source in source_rows:\\n        definition = {field: _json_value(source[field], {}) if field == \"parser_config\" else source[field] for field in _SOURCE_FIELDS}\\n        definition[\"parser_config\"] = _json_value(definition[\"parser_config\"], {})\\n        for boolean_field in (\"machine_readable\", \"requires_auth\", \"supports_history\"):\\n            definition[boolean_field] = bool(definition[boolean_field])\\n        encoded_definition = _canonical_json(definition)",
+          "endLine": 155,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-6679ac678a8c0e31-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/migrations/versions/0002_governance_history.py",
+          "role": "root_control",
+          "startLine": 145
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-6679ac678a8c0e31",
+        "instance": "Legacy boolean coercion changes source revision identity"
+      },
+      "findingId": "csf_bc63b19684f7fd0a4239d428",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:dd171f14401209378fbbcb944b750e8cacfeb05f4846cc6e17afe7c76f13cd2f"
+      },
+      "identity": {
+        "anchor": "legacy-boolean-coercion-changes-source-revision-identity"
+      },
+      "locations": [
+        {
+          "endLine": 155,
+          "path": "ledger/migrations/versions/0002_governance_history.py",
+          "role": "root_control",
+          "startLine": 145
+        },
+        {
+          "endLine": 197,
+          "path": "ledger/migrations/versions/0002_governance_history.py",
+          "role": "sink",
+          "startLine": 160
+        }
+      ],
+      "occurrenceId": "occ_9a79a7336cde545d994ae4d0",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-6679ac678a8c0e31",
+        "instance": "Legacy boolean coercion changes source revision identity",
+        "source": "local_plugin"
+      },
+      "remediation": "Parse legacy booleans strictly and quarantine ambiguous textual values instead of coercing identity inputs.",
+      "remediationTests": [
+        "Add a regression fixture covering Legacy boolean coercion changes source revision identity at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-6679ac678a8c0e31-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "data-integrity",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Legacy evidence backfill converts boolean fields with Python bool(), treating textual false values as true and changing source revision identity. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "data-integrity",
+        "cwe": [
+          "CWE-20",
+          "CWE-345"
+        ]
+      },
+      "title": "Legacy boolean coercion changes source revision identity",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-6679ac678a8c0e31-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:971 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "def _fail_discovery(exc: BaseException) -> None:\\n    typer.echo(\\n        json.dumps(\\n            {\\n                \"availability\": \"candidate_only\",\\n                \"status\": \"failed_closed\",\\n                \"reasonCode\": \"DISCOVERY_INPUT_REJECTED\",\\n                \"detail\": str(exc),\\n            },\\n            sort_keys=True,\\n        ),\\n        err=True,\\n    )\\n    raise typer.Exit(code=2) from None\\n",
+          "endLine": 985,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-cf090648428f104b-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 971
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-cf090648428f104b",
+        "instance": "discovery-failure-detail"
+      },
+      "findingId": "csf_ecf43ce83d91cefb330998d6",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:ffbe149edd60e9497d036e9e5cf45dcde0415a44828e02d246fe2c968f7bec16"
+      },
+      "identity": {
+        "anchor": "raw-discovery-exception-disclosure-to-cli-output"
+      },
+      "locations": [
+        {
+          "endLine": 995,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 971
+        },
+        {
+          "endLine": 160,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "source",
+          "startLine": 151
+        },
+        {
+          "endLine": 204,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "root_control",
+          "startLine": 201
+        },
+        {
+          "endLine": 984,
+          "path": "ledger/app/cli.py",
+          "role": "sink",
+          "startLine": 978
+        },
+        {
+          "endLine": 160,
+          "path": "ledger/app/discovery/manifest.py",
+          "role": "evidence",
+          "startLine": 151
+        }
+      ],
+      "occurrenceId": "occ_2eb9113574659e19e25f6741",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-cf090648428f104b",
+        "instance": "discovery-failure-detail",
+        "source": "local_plugin"
+      },
+      "remediation": "Replace raw exception text with stable bounded reason codes and redact paths, filenames, and provider details.",
+      "remediationTests": [
+        "Add a regression fixture covering Raw discovery exception disclosure to CLI output at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-cf090648428f104b-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "sensitive-error-disclosure",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Discovery failures are marked failed_closed but serialize raw exception text into JSON stderr, which can disclose filesystem paths, filenames, parser details, or underlying OS messages. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "sensitive-error-disclosure",
+        "cwe": [
+          "CWE-209"
+        ]
+      },
+      "title": "Raw discovery exception disclosure to CLI output",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-cf090648428f104b-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:651 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "@app.command(\"seed-registry\")\\ndef seed_registry_cmd(\\n    benchmarks: Path = typer.Option(_default_registry_dir() / \"benchmarks.yaml\", exists=True),\\n    models: Path = typer.Option(_default_registry_dir() / \"models.yaml\", exists=True),\\n    sources: Path = typer.Option(_default_registry_dir() / \"official_sources.yaml\", exists=True),\\n) -> None:\\n    \"\"\"Reconcile curated registry YAML files through immutable source revisions.\"\"\"\\n    init_db()\\n    with get_session() as session:\\n        counts = seed_registry(\\n            session,\\n            benchmarks_path=benchmarks,\\n            models_path=models,\\n            sources_path=sources,\\n            retire_missing=True,",
+          "endLine": 665,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-f8f10e60a7e356e2-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 651
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-f8f10e60a7e356e2",
+        "instance": "registry-malformed-collection-silent-skip"
+      },
+      "findingId": "csf_99f038f70e2f1fab37c3eb7a",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:e1f1b014af652c5cbe5b3dd01886cccd01ccee2005fb62e8fe7bbde3198dd689"
+      },
+      "identity": {
+        "anchor": "silent-partial-registry-reconciliation"
+      },
+      "locations": [
+        {
+          "endLine": 667,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 651
+        },
+        {
+          "endLine": 89,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "root_control",
+          "startLine": 61
+        },
+        {
+          "endLine": 184,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "sink",
+          "startLine": 119
+        },
+        {
+          "endLine": 184,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "concrete_implementation",
+          "startLine": 119
+        }
+      ],
+      "occurrenceId": "occ_9aea26568c5ca71863bf2f20",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-f8f10e60a7e356e2",
+        "instance": "registry-malformed-collection-silent-skip",
+        "source": "local_plugin"
+      },
+      "remediation": "Reject malformed or wrong-type registry collections with an omission receipt and fail closed before publication preparation.",
+      "remediationTests": [
+        "Add a regression fixture covering Silent partial registry reconciliation at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-f8f10e60a7e356e2-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "partial-reconciliation",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Registry seeding fails closed for non-mapping documents but silently skips malformed or wrong-type models/benchmarks collections and rows, allowing a partial registry reconciliation to report success. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "partial-reconciliation",
+        "cwe": [
+          "CWE-20"
+        ]
+      },
+      "title": "Silent partial registry reconciliation",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-f8f10e60a7e356e2-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/scripts/seed_models_from_hf.py:45 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "    The file is a list of model candidate maps, each carrying at least ``id``.\\n    A malformed doc fails closed rather than generating a partial queue.",
+          "endLine": 46,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-06b9445a820c7f21-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "root_control",
+          "startLine": 45
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-06b9445a820c7f21",
+        "instance": "partial-review-queue"
+      },
+      "findingId": "csf_c6372da52e4c0af245af88b0",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a585d8012fde987d0078b5b528db21a1ad9c0b395d9398e7d9c6c5b139ed9fed"
+      },
+      "identity": {
+        "anchor": "malformed-review-candidates-silently-omitted"
+      },
+      "locations": [
+        {
+          "endLine": 46,
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "source",
+          "startLine": 45
+        },
+        {
+          "endLine": 66,
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "root_control",
+          "startLine": 64
+        },
+        {
+          "endLine": 172,
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "sink",
+          "startLine": 169
+        },
+        {
+          "endLine": 107,
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "concrete_implementation",
+          "startLine": 105
+        }
+      ],
+      "occurrenceId": "occ_42c2012e01b16257b2eef603",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-06b9445a820c7f21",
+        "instance": "partial-review-queue",
+        "source": "local_plugin"
+      },
+      "remediation": "Reject malformed or id-less review entries with an omission receipt and account for every input row.",
+      "remediationTests": [
+        "Add a regression fixture covering Malformed review candidates silently omitted at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-06b9445a820c7f21-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "input-omission",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The Hugging Face review-input parser silently drops malformed or id-less candidate entries instead of rejecting the input with an omission receipt. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "input-omission",
+        "cwe": [
+          "CWE-20"
+        ]
+      },
+      "title": "Malformed review candidates silently omitted",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-06b9445a820c7f21-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/scripts/mvp_acceptance.sh:14 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "LEDGER_CLI=\"benchmark-ledger\"\\nHERE=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\\nPROJECT=\"$(cd \"$HERE/..\" && pwd)\"\\ncd \"$PROJECT\"\\n\\nif ! command -v \"$LEDGER_CLI\" &>/dev/null; then\\n    if [ -x \"$PROJECT/.venv/bin/$LEDGER_CLI\" ]; then\\n        PATH=\"$PROJECT/.venv/bin:$PATH\"",
+          "endLine": 21,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-a2e60c8282577c40-source",
+          "label": "Source evidence for the candidate control",
+          "language": "shell",
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "root_control",
+          "startLine": 14
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-a2e60c8282577c40",
+        "instance": "path-hijack-acceptance-smoke; additionally mvp-acceptance-bare-ledger\n\nAdditional reducer instance: mvp-acceptance-cli-path-resolution"
+      },
+      "findingId": "csf_ec97e56661bcb001ac5fb4c5",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:9b89e73bf36cd40262edbadaacda7b11325c2328ed38aa14f0a7580775c0efcc"
+      },
+      "identity": {
+        "anchor": "path-hijacked-acceptance-smoke-executable"
+      },
+      "locations": [
+        {
+          "endLine": 21,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "entrypoint",
+          "startLine": 14
+        },
+        {
+          "endLine": 53,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "sink",
+          "startLine": 37
+        },
+        {
+          "endLine": 25,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "entrypoint",
+          "startLine": 14
+        },
+        {
+          "endLine": 53,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "sink",
+          "startLine": 36
+        },
+        {
+          "endLine": 25,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "entrypoint",
+          "startLine": 14
+        },
+        {
+          "endLine": 26,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "root_control",
+          "startLine": 19
+        },
+        {
+          "endLine": 57,
+          "path": "ledger/scripts/mvp_acceptance.sh",
+          "role": "sink",
+          "startLine": 36
+        }
+      ],
+      "occurrenceId": "occ_3498067ccad1626d6f469101",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-a2e60c8282577c40",
+        "instance": "path-hijack-acceptance-smoke; additionally mvp-acceptance-bare-ledger\n\nAdditional reducer instance: mvp-acceptance-cli-path-resolution",
+        "source": "local_plugin"
+      },
+      "remediation": "Resolve and invoke the repository virtualenv executable by absolute path and fail on mismatch.",
+      "remediationTests": [
+        "Add a regression fixture covering PATH-hijacked acceptance smoke executable at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-a2e60c8282577c40-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "path-hijacking",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The acceptance smoke script prefers any benchmark-ledger found earlier on PATH instead of requiring the repository virtualenv executable. Additional discovery summary: The MVP acceptance script prefers any benchmark-ledger executable found on PATH over the project virtual-environment binary. Additional reducer summary: The acceptance smoke script selects the first benchmark-ledger executable from PATH and invokes it repeatedly, so a PATH-preceding executable can impersonate the intended CLI. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "path-hijacking",
+        "cwe": [
+          "CWE-427",
+          "CWE-426"
+        ]
+      },
+      "title": "PATH-hijacked acceptance smoke executable",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-a2e60c8282577c40-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:1123 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "@aliases_app.command(\"add\")\\ndef aliases_add(\\n    entity_type: str = typer.Option(..., \"--entity-type\"),\\n    entity_id: str = typer.Option(..., \"--entity-id\"),\\n    alias: str = typer.Option(..., \"--alias\"),\\n) -> None:\\n    with get_session() as session:\\n        row = repo.add_alias(\\n            session,\\n            entity_type=entity_type,\\n            entity_id=entity_id,\\n            alias_text=alias,\\n            is_official_alias=False,\\n            alias_source=\"cli\",\\n        )",
+          "endLine": 1137,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-e19ad2a547f3e2ea-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 1123
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-e19ad2a547f3e2ea",
+        "instance": "alias-cli-polymorphic-target"
+      },
+      "findingId": "csf_5835db5a3da7e12dcfa020ee",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:45f01092f538a8d3dbd2b44556ab5acd16831d085e081b6fe492d7465f5b792f"
+      },
+      "identity": {
+        "anchor": "unvalidated-alias-target-can-poison-identity-matching"
+      },
+      "locations": [
+        {
+          "endLine": 1138,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 1123
+        },
+        {
+          "endLine": 203,
+          "path": "ledger/app/db/repositories.py",
+          "role": "root_control",
+          "startLine": 176
+        },
+        {
+          "endLine": 60,
+          "path": "ledger/app/matching/aliases.py",
+          "role": "sink",
+          "startLine": 38
+        },
+        {
+          "endLine": 390,
+          "path": "ledger/app/ingestion/runner.py",
+          "role": "evidence",
+          "startLine": 377
+        },
+        {
+          "endLine": 1123,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 1123
+        },
+        {
+          "endLine": 1130,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint/wrapper",
+          "startLine": 1130
+        },
+        {
+          "endLine": 106,
+          "path": "ledger/app/db/models.py",
+          "role": "root_control",
+          "startLine": 106
+        },
+        {
+          "endLine": 48,
+          "path": "ledger/app/matching/aliases.py",
+          "role": "sink",
+          "startLine": 48
+        },
+        {
+          "endLine": 194,
+          "path": "ledger/app/db/repositories.py",
+          "role": "concrete_implementation",
+          "startLine": 194
+        },
+        {
+          "endLine": 1158,
+          "path": "ledger/app/db/repositories.py",
+          "role": "evidence",
+          "startLine": 1158
+        }
+      ],
+      "occurrenceId": "occ_440e9d0139879284d2ccfa4f",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-e19ad2a547f3e2ea",
+        "instance": "alias-cli-polymorphic-target",
+        "source": "local_plugin"
+      },
+      "remediation": "Validate entity type and target existence before alias insertion and test poisoned aliases cannot affect official matching.",
+      "remediationTests": [
+        "Add a regression fixture covering Unvalidated alias target can poison identity matching at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-e19ad2a547f3e2ea-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "authorization-integrity",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The aliases add CLI path lacks explicit authorization and target existence/type validation, while matching trusts the polymorphic alias row during ingestion. Additional reducer summary: CLI alias insertion accepts arbitrary entity types and nonexistent entity IDs, while model resolution trusts the alias entity_id. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "authorization-integrity",
+        "cwe": [
+          "CWE-862",
+          "CWE-863",
+          "CWE-20"
+        ]
+      },
+      "title": "Unvalidated alias target can poison identity matching",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-e19ad2a547f3e2ea-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/scripts/seed_models_from_hf.py:137 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "        \"--output\",\\n        type=Path,\\n        required=True,\\n        help=\"New review queue file to write. Refuses to overwrite an existing file.\",\\n    )\\n    parser.add_argument(\\n        \"--registry-dir\",\\n        type=Path,\\n        default=Path(__file__).resolve().parent.parent / \"app\" / \"registry\",\\n        help=\"Registry directory to scan for existing (read-only) model IDs.\",\\n    )\\n    args = parser.parse_args()\\n\\n    try:\\n        candidates = _read_review_input(args.input)",
+          "endLine": 151,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-9238eeea5a2f2ab5-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "root_control",
+          "startLine": 137
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-9238eeea5a2f2ab5",
+        "instance": "review-file-registry-promotion"
+      },
+      "findingId": "csf_485ef45cc4d07c661fd41e28",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:209399fc8be988fe39274922a329b12f044d4c3d82e605a6f5e289c742ec503f"
+      },
+      "identity": {
+        "anchor": "review-only-model-output-promoted-through-registry-globbing"
+      },
+      "locations": [
+        {
+          "endLine": 172,
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "entrypoint",
+          "startLine": 137
+        },
+        {
+          "endLine": 125,
+          "path": "ledger/scripts/seed_models_from_hf.py",
+          "role": "source",
+          "startLine": 96
+        },
+        {
+          "endLine": 58,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "root_control",
+          "startLine": 45
+        },
+        {
+          "endLine": 173,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "sink",
+          "startLine": 162
+        },
+        {
+          "endLine": 8,
+          "path": "ledger/app/registry/models_hf_seed.yaml",
+          "role": "evidence",
+          "startLine": 1
+        }
+      ],
+      "occurrenceId": "occ_07221ff28767fb263bcf680a",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-9238eeea5a2f2ab5",
+        "instance": "review-file-registry-promotion",
+        "source": "local_plugin"
+      },
+      "remediation": "Quarantine review output, require explicit promotion, and consume only allowlisted authoritative registry files.",
+      "remediationTests": [
+        "Add a regression fixture covering Review-only model output promoted through registry globbing at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-9238eeea5a2f2ab5-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "supply-chain-integrity",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The HF model tool emits rows marked active into a supposedly review-only file, while registry seeding automatically globs every sibling models*.yaml file and treats it as authoritative input. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "supply-chain-integrity",
+        "cwe": [
+          "CWE-284",
+          "CWE-829"
+        ]
+      },
+      "title": "Review-only model output promoted through registry globbing",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-9238eeea5a2f2ab5-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:804 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "@review_app.command(\"queue\")\\ndef review_queue(limit: int = 50, cursor: Optional[str] = None) -> None:\\n    \"\"\"Print a bounded review-queue page with explicit continuation.\\n\\n    ``cursor`` is an opaque token returned as ``Next cursor`` on a prior page;\\n    pass it back to fetch the following page.  Output reasons and the queue\\n    review containment rules are unchanged.\\n    \"\"\"\\n    with get_session() as session:\\n        try:\\n            page = repo.list_review_queue_page(\\n                session,\\n                limit=limit,\\n                cursor=cursor,\\n            )",
+          "endLine": 818,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-6b85d5199f08de4c-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 804
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-6b85d5199f08de4c",
+        "instance": "Unbounded review queue pagination and malformed cursor crash"
+      },
+      "findingId": "csf_6e750a9da11148f60d9290a7",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a14948543f1763cf499ddcd3e689d65fda95e1ca0551df91830025c3f3be5452"
+      },
+      "identity": {
+        "anchor": "unbounded-review-queue-pagination-and-malformed-cursor-crash"
+      },
+      "locations": [
+        {
+          "endLine": 821,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 804
+        },
+        {
+          "endLine": 1359,
+          "path": "ledger/app/db/repositories.py",
+          "role": "source",
+          "startLine": 1342
+        },
+        {
+          "endLine": 1419,
+          "path": "ledger/app/db/repositories.py",
+          "role": "sink",
+          "startLine": 1414
+        },
+        {
+          "endLine": 817,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 804
+        },
+        {
+          "endLine": 1317,
+          "path": "ledger/app/db/repositories.py",
+          "role": "source",
+          "startLine": 1313
+        },
+        {
+          "endLine": 742,
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 739
+        },
+        {
+          "endLine": 1285,
+          "path": "ledger/app/db/repositories.py",
+          "role": "sink",
+          "startLine": 1276
+        },
+        {
+          "endLine": 1419,
+          "path": "ledger/app/db/repositories.py",
+          "role": "concrete_implementation",
+          "startLine": 1414
+        }
+      ],
+      "occurrenceId": "occ_c3d5343ebccc827966734b00",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-6b85d5199f08de4c",
+        "instance": "Unbounded review queue pagination and malformed cursor crash",
+        "source": "local_plugin"
+      },
+      "remediation": "Require an object cursor, bound page limits, and return stable CLI errors for malformed input.",
+      "remediationTests": [
+        "Add a regression fixture covering Unbounded review queue pagination and malformed cursor crash at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-6b85d5199f08de4c-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "resource-exhaustion",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Review queue cursor parsing calls .get() on any JSON value without first requiring an object, so a caller-supplied array/number can raise an uncaught AttributeError; positive page limits also have no upper bound. Additional discovery summary: CLI pagination limits are described or implemented as bounded but have no upper bound, allowing very large SQL result windows to be materialized in memory. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-20",
+          "CWE-400"
+        ]
+      },
+      "title": "Unbounded review queue pagination and malformed cursor crash",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-6b85d5199f08de4c-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> scripts/verify-bundle-budget.mjs:408 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "    const result = await verifyBundleBudget(options);\\n    console.log(\\n      `Bundle budget passed: eagerJs=${result.eagerJsBytes} totalJs=${result.totalJsBytes} ` +\\n        `(eager<=${result.budget.eagerBytes} total<=${result.budget.totalBytes}).\\n` +\\n        result.chunks\\n    );",
+          "endLine": 413,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-24a46a90e0a881bf-source",
+          "label": "Source evidence for the candidate control",
+          "language": "javascript",
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "root_control",
+          "startLine": 408
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-24a46a90e0a881bf",
+        "instance": "deleted-inputs-freshness; additionally source-symlink-freshness; additionally bundle-freshness-config-omission"
+      },
+      "findingId": "csf_d6b77d4d4d07fd613ed3366c",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:abbf4cf060609fb5683f0743d0711fe1211970bfe61b91a4a985b16d127ce33b"
+      },
+      "identity": {
+        "anchor": "bundle-freshness-gate-accepts-stale-output-after-deletion"
+      },
+      "locations": [
+        {
+          "endLine": 413,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "entrypoint",
+          "startLine": 408
+        },
+        {
+          "endLine": 310,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "source",
+          "startLine": 300
+        },
+        {
+          "endLine": 280,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "root_control",
+          "startLine": 251
+        },
+        {
+          "endLine": 365,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "sink",
+          "startLine": 357
+        },
+        {
+          "endLine": 281,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "root_control",
+          "startLine": 251
+        },
+        {
+          "endLine": 310,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "sink",
+          "startLine": 300
+        },
+        {
+          "endLine": 16,
+          "path": "package.json",
+          "role": "entrypoint/wrapper",
+          "startLine": 16
+        },
+        {
+          "endLine": 71,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "root_control",
+          "startLine": 62
+        },
+        {
+          "endLine": 309,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "sink",
+          "startLine": 300
+        },
+        {
+          "endLine": 281,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "concrete_implementation",
+          "startLine": 265
+        },
+        {
+          "endLine": 289,
+          "path": "scripts/verify-bundle-budget-node-tests.mjs",
+          "role": "evidence",
+          "startLine": 267
+        }
+      ],
+      "occurrenceId": "occ_f048ba2874ab8824eb4f3be6",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-24a46a90e0a881bf",
+        "instance": "deleted-inputs-freshness; additionally source-symlink-freshness; additionally bundle-freshness-config-omission",
+        "source": "local_plugin"
+      },
+      "remediation": "Include deleted/symlinked inputs and all build configuration in freshness accounting; require a fresh build.",
+      "remediationTests": [
+        "Add a regression fixture covering Bundle freshness gate accepts stale output after deletion at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-24a46a90e0a881bf-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "stale-artifact",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The bundle freshness gate walks only existing source files and can accept stale dist output after a source or public file is deleted. Additional discovery summary: Bundle freshness ignores symlink entries under src or public, so changes to a symlink target can leave stale dist output accepted. Additional discovery summary: Bundle freshness verification omits postcss, Tailwind, and TypeScript configuration inputs, so a dist artifact can remain accepted after changes to those build inputs. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "stale-artifact",
+        "cwe": [
+          "CWE-345",
+          "CWE-59",
+          "CWE-693"
+        ]
+      },
+      "title": "Bundle freshness gate accepts stale output after deletion",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-24a46a90e0a881bf-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> .github/workflows/verify.yml:59 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "          python-version: '3.11'",
+          "endLine": 59,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-d9270aad54480f65-source",
+          "label": "Source evidence for the candidate control",
+          "language": "text",
+          "path": ".github/workflows/verify.yml",
+          "role": "root_control",
+          "startLine": 59
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-d9270aad54480f65",
+        "instance": "CI Python dependency installation lacks artifact hashes"
+      },
+      "findingId": "csf_fafee30496e87dc314cf9795",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:8f844f95bedee03e5f36f1b9df97a080805ec619a0695a5eaf5fc041dcc120f5"
+      },
+      "identity": {
+        "anchor": "ci-python-dependency-installation-lacks-artifact-hashes"
+      },
+      "locations": [
+        {
+          "endLine": 59,
+          "path": ".github/workflows/verify.yml",
+          "role": "entrypoint",
+          "startLine": 59
+        },
+        {
+          "endLine": 10,
+          "path": "ledger/requirements-ci.lock",
+          "role": "source",
+          "startLine": 10
+        },
+        {
+          "endLine": 64,
+          "path": ".github/workflows/verify.yml",
+          "role": "sink",
+          "startLine": 64
+        }
+      ],
+      "occurrenceId": "occ_89e7e630115e0a63949e21bc",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-d9270aad54480f65",
+        "instance": "CI Python dependency installation lacks artifact hashes",
+        "source": "local_plugin"
+      },
+      "remediation": "Install from the hashed lock and verify artifact hashes or trusted package provenance before CI execution.",
+      "remediationTests": [
+        "Add a regression fixture covering CI Python dependency installation lacks artifact hashes at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-d9270aad54480f65-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "dependency-integrity",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "CI installs exact-version Python dependencies without artifact hash verification. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "dependency-integrity",
+        "cwe": [
+          "CWE-494"
+        ]
+      },
+      "title": "CI Python dependency installation lacks artifact hashes",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-d9270aad54480f65-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/registry/seed_loader.py:212 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "    source_entries, source_ids = _validated_source_entries(_load_yaml(sources_path))\\n    # Reject cross-file benchmark/model identity collisions before any durable\\n    # write so a contradictory registry cannot silently seed a \"first file\\n    # wins\" definition and drop the others. Selecting these files (and their\\n    # deterministic ordering) happens here, once, and is reused by the change\\n    # loop below.\\n    benchmark_files = _registry_files(benchmarks_path, \"benchmarks*.yaml\")\\n    model_files = _registry_files(models_path, \"models*.yaml\")\\n    _validate_entity_ids(benchmark_files, \"benchmarks\")\\n    _validate_entity_ids(model_files, \"models\")\\n    # Preserve all-or-nothing behavior for the complete seed operation, even\\n    # when a library caller catches an error and keeps using its outer session.\\n    with session.begin_nested():\\n        return _seed_registry_changes(",
+          "endLine": 225,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-2fa0fb0576c10fd6-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "root_control",
+          "startLine": 212
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-2fa0fb0576c10fd6",
+        "instance": "default models*.yaml registry overlay set"
+      },
+      "findingId": "csf_8dd6d75ab3044bcb9a8f83ef",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:b19a89de0eb5e32cc4a81176d3aab24ee54e2424656584182d6a41b60bd05dbf"
+      },
+      "identity": {
+        "anchor": "duplicate-model-ids-block-deterministic-registry-seeding"
+      },
+      "locations": [
+        {
+          "endLine": 225,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "entrypoint",
+          "startLine": 212
+        },
+        {
+          "endLine": 64,
+          "path": "ledger/app/registry/models.yaml",
+          "role": "source",
+          "startLine": 22
+        },
+        {
+          "endLine": 237,
+          "path": "ledger/app/registry/models_frontier.yaml",
+          "role": "source",
+          "startLine": 237
+        },
+        {
+          "endLine": 423,
+          "path": "ledger/app/registry/models_frontier.yaml",
+          "role": "source",
+          "startLine": 423
+        },
+        {
+          "endLine": 757,
+          "path": "ledger/app/registry/models_frontier.yaml",
+          "role": "source",
+          "startLine": 757
+        },
+        {
+          "endLine": 89,
+          "path": "ledger/app/registry/seed_loader.py",
+          "role": "concrete_implementation",
+          "startLine": 45
+        }
+      ],
+      "occurrenceId": "occ_2ddb38775b08ca60780469b0",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-2fa0fb0576c10fd6",
+        "instance": "default models*.yaml registry overlay set",
+        "source": "local_plugin"
+      },
+      "remediation": "Resolve duplicate model ownership and add pre-commit/CI uniqueness checks.",
+      "remediationTests": [
+        "Add a regression fixture covering Duplicate model IDs block deterministic registry seeding at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-2fa0fb0576c10fd6-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "availability-integrity",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The default registry seed and reseed path is unavailable because deterministic expansion of models*.yaml finds three duplicate model IDs across the checked-in manifests and fails before any durable write. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "availability-integrity",
+        "cwe": [
+          "CWE-20"
+        ]
+      },
+      "title": "Duplicate model IDs block deterministic registry seeding",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-2fa0fb0576c10fd6-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/cli.py:853 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "def review_map_model(\\n    claim_id: str,\\n    model_entity_id: str,\\n    actor: str = typer.Option(\"cli\", \"--actor\", help=\"Recorded decision actor\"),\\n) -> None:\\n    \"\"\"Append a manual model-identity decision without promoting the claim.\"\"\"\\n    try:\\n        with get_session() as session:\\n            decision = repo.append_manual_model_mapping(\\n                session,\\n                result_claim_id=claim_id,\\n                model_entity_id=model_entity_id,\\n                actor=actor,\\n            )",
+          "endLine": 866,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-7e5cc9b12f83f3ab-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/cli.py",
+          "role": "root_control",
+          "startLine": 853
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-7e5cc9b12f83f3ab",
+        "instance": "review_actor_attribution"
+      },
+      "findingId": "csf_dbd47cf5cbba4a7e414da683",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:c35f3fec3040b90b6a74163f948ab77307158c9d1db3931fd9476893c15a8dfe"
+      },
+      "identity": {
+        "anchor": "caller-controlled-review-actor-attribution"
+      },
+      "locations": [
+        {
+          "endLine": 866,
+          "path": "ledger/app/cli.py",
+          "role": "entrypoint",
+          "startLine": 853
+        },
+        {
+          "endLine": 1139,
+          "path": "ledger/app/db/repositories.py",
+          "role": "root_control",
+          "startLine": 1095
+        },
+        {
+          "endLine": 295,
+          "path": "ledger/app/db/models.py",
+          "role": "sink",
+          "startLine": 288
+        }
+      ],
+      "occurrenceId": "occ_d059a59adf0f369a1f16ab92",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-7e5cc9b12f83f3ab",
+        "instance": "review_actor_attribution",
+        "source": "local_plugin"
+      },
+      "remediation": "Bind actor identity to the invoking principal or trusted environment and reject arbitrary provenance strings.",
+      "remediationTests": [
+        "Add a regression fixture covering Caller-controlled review actor attribution at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-7e5cc9b12f83f3ab-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "audit-integrity",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "The review map-model command persists a caller-supplied --actor string as review-decision provenance without identity binding or authentication. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "audit-integrity",
+        "cwe": [
+          "CWE-345"
+        ]
+      },
+      "title": "Caller-controlled review actor attribution",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-7e5cc9b12f83f3ab-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> ledger/app/export/official_json.py:524 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "def analyze_official_feed_candidates(session: Session) -> FeedCandidateAnalysis:\\n    \"\"\"Account for every claim under the deterministic candidate policy.\\n\\n    This is an offline read model.  It does not choose a winner for a\\n    conflicting display cell and it does not write an assessment back to the\\n    ledger.  Callers that need a candidate feed must reject conflicts rather\\n    than treating this analysis as a partial export.\\n    \"\"\"\\n    with session.no_autoflush:\\n        claims = list(session.scalars(select(models.ResultClaim).order_by(models.ResultClaim.id)))\\n        eligible_by_cell: dict[str, list[_EligibleClaim]] = defaultdict(list)\\n        excluded_claims: list[dict[str, str]] = []\\n        for claim in claims:\\n            candidate, reason = _eligible_claim(session, claim)\\n            if candidate is None:",
+          "endLine": 538,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-e47c40ac9dbc4c4c-source",
+          "label": "Source evidence for the candidate control",
+          "language": "python",
+          "path": "ledger/app/export/official_json.py",
+          "role": "root_control",
+          "startLine": 524
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-e47c40ac9dbc4c4c",
+        "instance": "candidate-feed-db-amplification"
+      },
+      "findingId": "csf_1637ae892cde183ecaba427b",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a8504dc649977cc5d860286427d14adc33288d8506f7abc0d62f8f7895cac66e"
+      },
+      "identity": {
+        "anchor": "unbounded-official-candidate-report-database-amplification"
+      },
+      "locations": [
+        {
+          "endLine": 538,
+          "path": "ledger/app/export/official_json.py",
+          "role": "entrypoint/wrapper",
+          "startLine": 524
+        },
+        {
+          "endLine": 371,
+          "path": "ledger/app/reporting/legacy_inventory.py",
+          "role": "entrypoint/wrapper",
+          "startLine": 341
+        },
+        {
+          "endLine": 412,
+          "path": "ledger/app/export/official_json.py",
+          "role": "sink",
+          "startLine": 366
+        },
+        {
+          "endLine": 415,
+          "path": "ledger/app/reporting/legacy_inventory.py",
+          "role": "sink",
+          "startLine": 396
+        }
+      ],
+      "occurrenceId": "occ_6ca7ddd69179ebb14ce2db0b",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-e47c40ac9dbc4c4c",
+        "instance": "candidate-feed-db-amplification",
+        "source": "local_plugin"
+      },
+      "remediation": "Page/batch claims, bound report cardinality and per-claim queries, and add large-ledger tests.",
+      "remediationTests": [
+        "Add a regression fixture covering Unbounded official candidate report database amplification at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-e47c40ac9dbc4c4c-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "resource-exhaustion",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Official candidate and legacy inventory reports materialize all claims and perform repeated per-claim database queries without a cardinality or paging guard. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-400"
+        ]
+      },
+      "title": "Unbounded official candidate report database amplification",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-e47c40ac9dbc4c4c-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "candidate-controlled input -> .github/workflows/verify.yml:160 -> affected security-relevant consumer",
+        "reachability": "The attacker or operator must satisfy the boundary and preconditions recorded in the validated candidate context; impact is limited to the affected local, CLI, CI, ingestion, registry, or release path.",
+        "severityRationale": "Medium reflects a concrete source-level integrity, availability, audit, or release consequence with constrained reachability and no proven public endpoint."
+      },
+      "codeEvidence": [
+        {
+          "code": "      - name: Build\\n        run: npm run build\\n      - name: Verify static Pages artifact\\n        run: npm run verify:pages-static\\n      - name: Verify bundle budget\\n        run: npm run verify:bundle-budget",
+          "endLine": 165,
+          "explanation": "The cited implementation is the candidate's source boundary; the downstream consumer relies on it to preserve the stated security invariant.",
+          "id": "candidate-bb0a35c45224fd4b-source",
+          "label": "Source evidence for the candidate control",
+          "language": "text",
+          "path": ".github/workflows/verify.yml",
+          "role": "root_control",
+          "startLine": 160
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "rationale": "Direct source locations support the control gap and consequence, but no live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised."
+      },
+      "extensions": {
+        "candidateId": "candidate-bb0a35c45224fd4b",
+        "instance": "build_artifact_provenance_unbound"
+      },
+      "findingId": "csf_26bde360141a34726824c06d",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a5bf6ff6cf5d62defb31e232af8fadeb6907f4f6763297aa34673e48dd754298"
+      },
+      "identity": {
+        "anchor": "published-build-artifact-is-not-bound-to-source-provenance"
+      },
+      "locations": [
+        {
+          "endLine": 165,
+          "path": ".github/workflows/verify.yml",
+          "role": "entrypoint",
+          "startLine": 160
+        },
+        {
+          "endLine": 365,
+          "path": "scripts/verify-bundle-budget.mjs",
+          "role": "root_control",
+          "startLine": 300
+        },
+        {
+          "endLine": 108,
+          "path": "scripts/verify-pages-static.mjs",
+          "role": "root_control",
+          "startLine": 91
+        }
+      ],
+      "occurrenceId": "occ_b1a4ecb0ed03cca1530f2f95",
+      "preventiveControls": [
+        "Keep the boundary-specific invariant in the contract and review checklist.",
+        "Require provenance and runtime/deployment evidence before promoting dormant or conditional paths."
+      ],
+      "provenance": {
+        "candidateId": "candidate-bb0a35c45224fd4b",
+        "instance": "build_artifact_provenance_unbound",
+        "source": "local_plugin"
+      },
+      "remediation": "Bind dist to a source digest and authorized signed manifest and verify that binding in CI and Pages publication.",
+      "remediationTests": [
+        "Add a regression fixture covering Published build artifact is not bound to source provenance at the cited source boundary.",
+        "Run the relevant ledger, CI, or build path with adversarial input and verify fail-closed behavior."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "candidate-bb0a35c45224fd4b-source"
+        ],
+        "summary": "A source- or operator-controlled value reaches a security-relevant consumer without the required bound, authorization, provenance, or immutable-state check."
+      },
+      "ruleId": "artifact-provenance",
+      "severity": {
+        "changeConditions": "Confirm the affected execution mode and preserve the source-to-sink proof in a regression test before remediation.",
+        "level": "medium",
+        "rationale": "The source evidence supports a concrete integrity, availability, audit, or release consequence at a constrained local, CLI, CI, ingestion, registry, or build boundary."
+      },
+      "summary": "Build checks validate shape, freshness, containment, and size but do not bind the published dist artifact to a source digest or authorized signed manifest. Validated as a reportable source-level finding; no live external state was assumed.",
+      "taxonomy": {
+        "category": "artifact-provenance",
+        "cwe": [
+          "CWE-345"
+        ]
+      },
+      "title": "Published build artifact is not bound to source provenance",
+      "validation": {
+        "evidenceRefs": [
+          "candidate-bb0a35c45224fd4b-source"
+        ],
+        "method": "centralized static source validation over the canonical candidate, exact locations, ordered worker evidence, and parent threat model.",
+        "remainingUncertainty": "No live exploit, authenticated deployment, live database, GitHub setting, or Cloudflare state was exercised.",
+        "summary": "Direct source evidence supports the control gap and stated consequence; runtime and external-state limitations remain explicit."
+      }
+    }
+  ],
+  "scanId": "55e2b883-85b9-4eb3-8124-6c158bd96b13",
+  "schemaVersion": "1.0"
+}

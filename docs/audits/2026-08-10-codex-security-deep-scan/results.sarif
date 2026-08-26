@@ -1,0 +1,3733 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "55e2b883-85b9-4eb3-8124-6c158bd96b13"
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "Remote source content is attacker-influenced if an approved source is compromised or serves malicious bytes; impact is ingestion-worker availability rather than frontend data integrity. The related BigCodeBench manifestation requires a crafted high-expansion Parquet artifact and runtime measurement. Remote source content is attacker-controlled once a source revision is admitted. Accepted or locally supplied Parquet source processed by the ingestion path. Current default SafeFetch transport is disabled and the repository treats live ingestion as dormant, so reachability is conditional on an approved transport/adapter activation. The current fixture/test path can still invoke the resolver locally. The supplied discovery also identifies the BigCodeBench adapter as a concrete reachable manifestation of the Parquet resolver boundary. Future certified remote Parquet path; current transport is disabled. Additional reducer context: A raw snapshot byte bound does not constrain decompressed size or Python object cardinality; a crafted accepted Parquet artifact could exhaust memory or CPU. The resolver is run-scoped and closed, which limits lifetime but not peak allocation or decompression wo"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is a documentation/procedure supply-chain candidate; no external URL was opened or fetched during discovery. Additional discovery context: A compromised upstream or repository process could inject code into the application build. The path is a documented/process-controlled supply-chain boundary and requires validation of whether the plan is still used. Additional discovery context: Documentation-only supply-chain candidate. Validate whether the procedure is still used, whether the checked-in vendored files are independently reviewed, and whether immutable archive verification exists outside this plan."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Local contributor/operator supply-chain candidate; the documentation recommends a disposable environment and this does not directly alter the production runtime. Additional reducer context: CI uses hash-locked installation, but maintainers following README/CONTRIBUTING can execute unreviewed dependency versions or build hooks. Additional discovery context: This is a supply-chain reproducibility candidate; the CI workflow has a separate lock-verification control. Additional discovery context: The repository contains a reviewed lockfile and lock verification script; this candidate applies to installation or deployment paths that follow the README command rather than the locked CI path. Additional discovery context: This is a developer/operator supply-chain candidate, not evidence that a dependency is currently compromised."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "CI-only candidate. The workflow grants contents: read and declares no production credentials, which limits impact but does not make the package provenance deterministic. Additional reducer context: Actions and the PostgreSQL image are pinned, but this system package installation remains a mutable privileged supply-chain input. Additional context: Candidate supply-chain integrity issue (CWE-494). Reachability depends on the GitHub-hosted runner image missing the preinstalled binaries and on compromise or malicious package publication in the configured apt supply chain; no CI run was executed. Additional discovery context: This is a CI supply-chain candidate on pull-request verification runners; the job uses the installed client immediately afterward, but no exact package version, repository snapshot, or digest is asserted. Additional discovery context: The workflow has read-only GitHub permissions and no production credentials; runner/apt signature behavior remains external. Additional discovery context: The workflow grants contents:read and does not provide production credentials, limiting potential impact to the verification runner and build integrity. Additional discovery context"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The default transport is disabled and a real runner transport is not present, so exploitability requires the future NETWORK_FETCH path or an injected transport that does not independently enforce peer pinning. The related transport-contract candidate identifies the same missing binding from DNS preflight to the connected peer and TLS endpoint. Current policy has no production-eligible source and the default transport is disabled, limiting present reachability. Enabled custom network transport used for an ingestion route. The ordinary runtime currently disables the default transport, so this remains conditional on an enabled or injected network transport. Requires deployment of a non-disabled transport; the current repository default does not provide one. Additional reducer context: The current DisabledNetworkTransport fails closed and explicitly says a runner-specific peer-pinning transport is required. Treat this as deferred until a real transport is introduced; validate the actual transport and egress controls before reporting it as exploitable. Additional reducer context: Treat as a future/explicit-network candidate, not proof that the current default makes outbound requests. Va"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "A forged direct INSERT was not executed; observed impact is potentially falsified persisted notification/recovery evidence, not demonstrated outbound delivery. Additional reducer context: Direct database insertion boundary; application validators require a recovery predecessor, but trigger behavior permits a null predecessor branch. Additional reducer context (candidate-56d3854323e4bbf8): Requires access to the privileged ingestion database role or an equivalent direct-write path; static evidence only. The affected row is operational evidence, but its integrity can affect recovery/notification accounting and downstream trust."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The seam is dormant: loadOfficialData still parses the tracked unavailable artifact, and no v2 artifact or authorization wiring exists. Deferred before REL-05 activation; current runtime does not accept an external Official artifact. Deferred future-activation candidate. The parser is deliberately dormant during containment and loadOfficialData does not call it. This candidate becomes reachable when the planned v2 publication path is enabled and must be resolved by the parent against the governed release-process boundary. Additional discovery context: This cannot activate Official data while availability remains unavailable and arrays are empty, but a standalone build can carry stale or tampered containment metadata unless verification is a mandatory release prerequisite. Additional discovery context: Validate whether any future governed Official artifact can reach runtime without the CI gate or whether deployment always guarantees the exact verified bytes."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "No enabled transport implementation exists in the reviewed repository; an external runner may enforce limits independently. Latent transport-contract weakness; current default composition fails closed. The default transport is disabled and the real peer-pinning transport is an unimplemented runner dependency, so this candidate is conditional on a future or injected transport implementation. The missing pre-buffer limit is nevertheless at the central network trust boundary. Additional reducer context: The default transport is disabled and the observed impact is resource consumption in a custom/enabled transport; the limit still protects downstream parsing after materialization. The default DisabledNetworkTransport currently fails closed, but this remains a future runner-specific transport boundary; any enabled transport must enforce the bound while reading. Additional reducer context: The default runtime transport is disabled, so reachability currently requires an enabled custom transport. A remote response larger than the certified limit can nevertheless be allocated before rejection. Additional reducer context: The default network transport is disabled and the normal runtime requi"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Requires local ability to swap the fixture root or connector path during execution; no network-facing discovery caller was established. Operational discovery is designed read-only but its resulting candidates are persisted as operational read-model data. Local fixture-root attacker with write access during discovery execution. This is a local/operator-triggered or shared-fixture attack, not an anonymous public route. It matters if fixture roots are writable by another account/process or are used as a future discovery input boundary. The new evidence distinguishes the controller wrapper, manifest validation, and connector sink while preserving the local fixture-only reachability and persisted-candidate impact. Requires local fixture-root mutation or a planted symlink; discovery output is candidate/quarantine data and does not itself authorize capture or publication. Requires local fixture-root mutation or a planted symlink; no publication authority is granted by this path. Additional reducer evidence: The fixture connector feeds candidate assembly and persistence; the root is intended to be a closed fixture-only trust boundary. Exploitability depends on another actor being able to m"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The current public/_headers contains the expected directives; no malicious fixture or deployed-header check was run. Additional reducer detail: The verifier is a release control rather than a request-time boundary; validation should reproduce a false-positive header fixture and compare it with the generated/deployed header semantics. Additional discovery context: This is a build/release control candidate. Validate against an actual Pages parser or response from the deployed artifact before assigning impact."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "No current attacker-controlled XSS flow was established; this is a defense-in-depth and future-reachability candidate, with no live header verification performed. Edge/CDN headers outside the repository were not inspected. This is a client-side destination-control candidate, not a server-side SSRF path. It requires a malicious or compromised governed artifact; no server-side fetch was found. Additional reducer evidence: The repository comment makes this a deliberate pre-domain posture, but it remains a concrete production defense-in-depth gap for a public static application. Additional reducer context: This is a deployment configuration weakness; current verification explicitly accepts the report-only header. Additional discovery context: The repository deliberately defers enforcing CSP pending real domain/browser/deployment evidence, and current callers may not expose a direct injection source. Additional discovery context: Shipped static URLs are repository-controlled HTTPS values, and Official artifact source URLs use stricter validation; reachability is conditional on catalog integrity or future untrusted input. Additional discovery context: Configuration-level evidence only; l"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Current adapters use fixed keys and colors; no attacker-controlled flow was established. Later validation should exercise the exported component directly. Dormant/deferred generic-component hazard. Before chart configuration or color data can come from an Official/remote artifact, constrain CSS identifiers and color grammar or construct styles without HTML injection. Additional reducer context: Current adapters use React-generated IDs, fixed config keys, and fixed palette colors; an attacker-controlled path into these values was not established. Additional merged context: No current untrusted caller was confirmed; validate whether the vendored component is reachable with remote or artifact-controlled ChartConfig. Additional discovery context: Conditional candidate; no external dataset value was evidenced reaching this vendored chart sink. Additional discovery context: Current application call sites use static palette values, so this remains a latent trust-boundary candidate unless an attacker-controlled or tampered ChartConfig reaches the exported helper. Additional discovery context: Conditional frontend CSS injection candidate; no untrusted ChartConfig source was identified and n"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Test/tooling candidate; current safe-fetch default remains disabled but future helper changes could bypass the lexical gate. Test/control-coverage candidate; current helper scripts are retired stubs. No assigned symlink was present; this is a conditional test coverage gap. Conditional test coverage gap; no current alternate archive directory was observed. Additional reducer context: Policy/test-control candidate; validate whether all runnable Python is guaranteed to live under the two roots and whether another static or runtime gate closes alias and root-level coverage. Additional discovery context: No concrete bypass file was observed and current tracked helpers are documented as retired or stubbed. This is a security-test coverage candidate requiring validation, not an established product runtime path."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Separate instances affect benchmark statistics/best-model maps and model rank/category-leader maps. Additional discovery context: Demo-only candidate; current catalog contains no colliding identifier, but a tracked catalog change could corrupt lead counts or presentation. Additional discovery context: Future Official v2 path; current loadOfficialData imports only the unavailable containment artifact, so this is not active today. Additional discovery context: Conditional frontend data-integrity candidate; no runtime exploit path was validated."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Separate receipt instance from source-approval envelope; parent validation should determine whether this is only a test contract or an authority used by runtime."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Distinct resource-exhaustion instances are unbounded collections and unbounded identifier/string lengths. Deferred before accepting externally supplied Official artifacts; no active runtime caller. Additional reducer context: The v2 published parser is currently dormant because loadOfficialData only loads the unavailable containment artifact, so current production reachability is deferred. The missing bound remains a release-boundary availability risk when Official mode is enabled or when a governed artifact is maliciously oversized. Additional reducer context: Deferred future-artifact candidate; current runtime loads only the unavailable v1 artifact, and existing tracked artifacts are small. Additional discovery context: Future governed Official v2 path; an oversized authorized artifact could consume browser CPU/memory, but no current production caller loads published v2 data."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "A separate local-storage instance uses full-file read before digest verification at ledger/app/storage/local.py:487-496 and 537-542. Additional reducer evidence: Fetch admission bounds source artifacts, but object storage reads also serve existing and artifact objects and need an independent read bound. The storage client/provider is injected and external storage is not activated by default; this remains a deferred R2 integration risk unless that boundary is enabled. Additional reducer context: Reachability depends on the external snapshot-storage capability; local content-addressed storage is the default. Additional discovery context: Requires an oversized or malicious local snapshot/provider response and a reachable storage implementation; validate provider and caller limits. Additional discovery context: The injected R2 client/provider is an application-only boundary and normal source admission caps fetched bytes, but a malicious or compromised provider response can cause memory exhaustion before digest/metadata checks fail."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Dormant until REL-05; distinct validators may make different publication decisions for the same artifact. Additional discovery context: The parser is dormant: loadOfficialData currently loads only the unavailable artifact and no v2 authorization caller or artifact was observed. Impact is Official metadata contract integrity if the future governed path is activated."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Local operator filesystem threat; existing checks reduce but do not eliminate ancestor/path races. Additional reducer evidence: This is a source-integrity and provenance boundary for recovery artifacts. Exploitability depends on another actor being able to mutate the selected SQLite path during backup. Additional reducer context: Local filesystem race affecting recovery evidence placement and target isolation. Requires a local actor able to replace or race the target parent during restore. Requires local control of the restore target's parent path. Additional reducer context: CLI callers perform additional path admission, but direct library callers supplying paths remain conditional on attacker control of an ancestor directory or a race during path traversal. This is an operator-invoked recovery route with a user-selected fresh target; the source artifact is trusted recovery data, so path redirection can leak or misplace it. Additional reducer context: The recovery CLI is an operator or administrator path. Validate attacker control over the target path and the exact filesystem boundary that the command is expected to enforce. Additional reducer context: Reachable through explicit l"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Custom transport or caller-controlled fetch metadata in an ingestion execution. Attacker or corrupted source definition able to supply parser_config marker values."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Accepted CSV source reaching generic or FrontierMath extraction. The source byte limit is the only visible input bound at these parser and evidence paths. Additional reducer context: The risk is amplified when many claims resolve against the same CSV and when the source is enabled through the explicit network runtime. Parent validation should determine whether source-specific contracts or operational limits reduce reachability. Additional reducer context: Static_csv is not in the current blocked source types, but only raw bytes are bounded and no row, cell, column, or output budget is enforced. Additional reducer context (dedup-0028): This is deferred to the enabled remote ingestion runner; validation should provide a byte-limit-compliant CSV with many rows/columns and measure memory/latency before considering severity. Additional discovery context: The wire artifact is capped at 64 MiB but row count and field sizes remain unbounded; the generic CSV route is present in active registry entries even though malformed contract bindings may later fail closed. Additional discovery context: The source is expected to be governed, but remote content is attacker-controlled once a future cert"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Source or fixture routed through the GitHub YAML adapter. Future certified remote YAML path; current transport is disabled. The raw source byte cap does not constrain YAML expansion, aliases, nesting, or row count. Additional discovery context: Potentially availability-only. The adapter emits yaml_path evidence while certified locator types are limited to json_path_v1, json_script_path_v1, csv_cell_v1, and parquet_cell_v1; claim persistence may therefore reject the output after extraction. The adapter is present in the active registry, but normal production reachability still requires the immutable source-contract admission path and an enabled runner transport."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Accepted JSON source with many claims or deeply nested structure. The source admission byte cap limits transfer size but not JSON expansion, container structure, row count, or repeated decoding. Additional reducer context: This requires an enabled network source or another path that admits attacker-controlled artifact bytes. Parent validation should account for the actual source policy and worker memory limits. Additional reducer context: Static_json is not in the current blocked source types, but raw response bytes are the main cap and no JSON depth, node, row, or output budget is enforced. Additional reducer context: Conditional on a certified remote source or fixture reaching this adapter; the current default transport is disabled, but a future private runner is explicitly expected to supply transport. Additional discovery context: A source response within the certified byte limit can still cause excessive memory or CPU use. The default runtime currently disables live transport and source admission requires a certified immutable revision; the path becomes reachable when a static JSON source is certified and a runner transport is enabled. Additional discovery context: This route "
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is dormant: loadOfficialData() currently loads only the tracked unavailable artifact, and the published parser requires a separately supplied release authorization. Treat as a pre-REL-05 hardening candidate rather than a current anonymous SSRF finding; client navigation is not a server-side request."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Future certified remote HTML path; current transport is disabled. The source byte cap does not bound DOM size, traversal, table/row/cell count, or parser CPU. Additional discovery context: The adapter is used for untrusted source content; a large or parser-pathological HTML document can consume excessive CPU or memory during ingestion. source_admission_reason currently quarantines html_table sources before this adapter runs; this remains a latent re-enablement risk for any future certified HTML route. Additional discovery context: This adapter is not the central typed evidence contract and appears legacy/fixture-oriented, so reachability into certified ingestion is conditional. If re-enabled for admitted sources, attacker-controlled HTML could cause parser resource exhaustion. Additional discovery context: The repository\u2019s source policy currently blocks some HTML source types and network is disabled by default; this remains a reachable local/future-adapter parser path that needs explicit limits or isolation before activation."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The ordinary containment runtime currently disables network fetch, so live exploitation requires a future certified source runner or an equivalent local execution path. The gap remains in the source-admission execution boundary that the threat model reserves for governed ingestion. Future certified remote artifact path; current transport is disabled. The source is a certified remote artifact in the future ingestion path; current transport is disabled. Deferred future-activation candidate; no live transport is enabled. The source byte cap bounds transfer size but not script count, HTML parser work, collected content, decoded result count, or repeated validation work. Additional merged context: Current production routes are policy-contained; confirm whether any future admitted structured source can supply a large bounded body and whether downstream quotas make the resource exhaustion materially reachable. Additional merged context: Deferred/reachability-dependent candidate for the future network-enabled ingestion path; the 64 MiB cap limits bytes but does not bound rows, claims, or per-claim work. Additional reducer context: Distinct CSV and HTML parser routes share the missing struc"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Disclosure depends on attacker-influenced parser/provider errors or local filesystem failures. Additional reducer context: The path is reachable from ingestion failure handling and is most relevant once an admitted source or injected integration can raise an exception whose text contains attacker-controlled or secret-bearing data. Parent validation should confirm which concrete adapters/providers preserve such details. Additional discovery context: Conditional confidentiality/logging candidate; impact depends on an exception implementation or provider exposing sensitive details, but the sinks are active ingestion and CLI paths. Additional reducer context: Ledger operational-error disclosure candidate; SafeFetchError is reduced to stable codes, but generic adapter/parser/database/provider exceptions are handled separately. Additional merged context: The contained default runtime disables live transport and current contracts forbid source credentials, but injected/future adapters and runtime integrations are explicitly part of the composition boundary. The issue is information exposure through durable local ledger receipts and terminal/log capture. Additional reducer context: Validat"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Additional reducer context: The current published-source path is separately constrained and rel=noreferrer limits referrer leakage; validation should determine whether any reachable caller can supply sensitive query or fragment data. Additional discovery context: The Official parser separately rejects search and hash components, so this candidate is limited to manual/alternate data and requires a secret-bearing URL to be supplied. Additional discovery context: The official artifact parser has a stricter query/hash-free URL check, but the exported component and Demo dataset path do not preserve that invariant. Additional discovery context: Current benchmark JSON URLs have no query or fragment and Official parsing is stricter; validate whether future Demo or fixture data can be attacker-influenced."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The official parser is currently dormant because loadOfficialData() loads an unavailable artifact; requires a separately supplied authorized v2 artifact. Additional reducer context: Reachability is dormant until a governed v2 Official artifact is enabled; current Official loading is unavailable/empty. Additional discovery context: This can misrepresent official metrics whose domain is not 0..scaleMax or whose values should remain raw. Additional discovery context: The same score may therefore appear as a small raw integer on /100 surfaces while being represented as a percentage in chart surfaces."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Requires a separately supplied authorized v2 artifact; no published artifact is active. Additional reducer context: Reachability is dormant until Official publication is enabled; current Official loading is unavailable/empty. Additional reducer context: Deferred future-artifact candidate; current runtime loads only the unavailable v1 artifact and no v2 authorization was present. Additional discovery context: A malformed published score can affect raw rankings while being omitted from normalized charts. Additional discovery context: Impact is primarily integrity/misleading-public-data unless an attacker can influence an Official artifact; validate the full artifact admission and benchmark scale contract."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Requires a local actor able to swap the source while the staged copy is in progress. Requires a local actor able to swap the migration source during the read window; deterministic drift checks do not prove race resistance. Additional merged context: Requires local filesystem mutation during migration and is platform-dependent; validate whether earlier inspection or operating-system policy makes special files unreachable."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Requires a local actor able to replace the checkpoint source during the validation/open window."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Requires an operator-supplied local recovery path with a planted ancestor symlink. Additional reducer evidence: The helper documentation claims symlink-parent containment, but the admission check does not pin every ancestor inode through the later write. The default runtime is offline/inert and reachability depends on an activated runner or local filesystem attacker controlling the configured storage root. Additional reducer context: The restore-root is operator-supplied. Validate missing-root and ancestor-symlink cases, including whether the command is available to a lower-trust actor. Additional merged context: Static symlink cases are covered, but concurrent ancestor replacement is not; validate each caller's path binding and platform-specific descriptor semantics. Additional discovery context: Live checkpoint/restore path; requires a local actor able to rename or replace the admitted root's parent between preflight and use. Additional discovery context: Attacker control of configuration is not established; this remains a conditional local containment candidate. Additional discovery context: Requires local filesystem control of the configured path or its ancestors before runtime"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "No current external reference was found; the candidate concerns the build verification boundary. Additional reducer detail: This is a conditional release-integrity candidate, not proof that the current build contains an external executable reference; later validation must inspect actual build inputs and deployment policy. Additional merged context: Current source HTML references local modules and the Official artifact is unavailable; validate whether any build/plugin can introduce executable external URLs and whether an enforcing deployment CSP exists. Additional discovery context: No current external script was observed; this is a release/build-boundary candidate if an upstream or contributor-controlled build adds one."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is distinct from object-store root handling because it affects receipt/manifest evidence output. Additional discovery context: Requires local control of or a race against an ancestor in the requested recovery output path."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The intended control is descriptor-relative publication, but the two-parent acquisition and later path-based verification leave a directory-swap window."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The staging directory is mode 0700, but that protects against other users, not a same-UID local actor or a compromised cooperating process. Additional reducer context: Local migration/backup path; final publication is descriptor-relative and hardened, but earlier staging-directory creation and SQLite staging reopen the destination parent by path. Additional discovery context: This is most relevant to automation or a compromised local operator account with control over the backup path. Additional discovery context: Impact depends on attacker control of the backup-dir path or concurrent filesystem manipulation."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Deferred future-activation candidate; current SafeFetch transport and Official publication are disabled."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Deferred future-activation candidate; current transport remains disabled. Additional reducer context: The default DisabledNetworkTransport prevents real requests, so this candidate requires an enabled or injected transport implementation and a DNS/connection race or mismatch. Additional reducer context: The default network transport is disabled and the implementation comments defer peer proof to a future runner. This is a contract-level hazard if network ingestion is enabled. Additional reducer context: The default DisabledNetworkTransport blocks ordinary live fetching. This candidate applies when an explicit custom transport and network capability are enabled. Additional discovery context: Conditional/deferred: the ordinary runtime composition uses DisabledNetworkTransport, and source contracts separately describe peer proof, but this interface does not enforce or carry that proof. Additional reducer detail: Candidate is repository-context risk in the dormant/future network acquisition boundary; validation should determine whether any enabled transport can connect to a peer different from the checked address. Additional discovery context: Conditional candidate: the default transpo"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Local/operator-controlled input; impact is conditional on an untrusted registry path."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Impact depends on whether a less-trusted local actor or compromised automation can invoke seed-registry with chosen paths. Additional discovery context: Live governance write path if another actor can add files to the selected registry directory; intentional overlay behavior makes directory ownership decisive. Additional discovery context: Requires an operator or lower-trust caller to control the selected path or its directory; validation should determine the exact CLI authorization and publication reachability."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is a deferred semantic-integrity candidate, not a claim that the current fail-closed typed-admission gate is bypassed. It matters because the adapter is registered and an active github_yaml registry route exists."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is an integrity/provenance candidate for source-controlled CSV content; the parent should verify which certified source policies and production paths can reach csv_cell_v1."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The connection is read-only and normal legacy table names are fixed, so exploitability depends on an attacker-controlled or already-modified SQLite schema reaching this verification path. Additional reducer context: This operates on an operator-supplied or disposable SQLite copy. Validate whether crafted schema names are reachable through supported inputs and whether the behavior is denial-only or can affect protected data. Additional context: A crafted local SQLite input would be required. Upstream schema-status checks may reject unknown or oddly named tables before this path, so validation should establish whether a reachable accepted database can supply a name containing a quote; otherwise suppress as unreachable. Additional discovery context: Source-level SQL-injection candidate in local migration verification; no hostile SQLite file was executed."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The shared source byte cap does not bound the number of decoded objects or generated claims."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The bundled Demo dataset does not currently contain this mixed metadata; reachability requires an alternate caller/provider input or future data wiring."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The source registry currently marks imo_answerbench_github inactive and central admission may block unsupported evidence, so this is a dormant/future-activation integrity candidate."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This requires manual invocation from a different working directory when the hard-coded workspace path is absent. Additional discovery context: Operator/developer-only workflow hazard with no direct attacker-controlled argument; included for review because it can mutate an unintended repository or working tree."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Live provider settings were not verified; candidate is conditional on the recorded branch-protection state remaining current. Additional discovery context: GitHub provider state was not checked live in this read-only worker pass. Additional discovery context: Live GitHub settings require separate verification. Official mode is currently disabled, limiting immediate publication impact, but this is a governance control candidate for future release activation. Additional discovery context: Historical live-state evidence only; network/provider verification was not permitted. Validate current GitHub branch protection and CODEOWNERS enforcement before treating this as an active finding. Additional discovery context: Governance candidate requiring live GitHub verification; local files alone cannot prove branch-protection state."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is a local CLI/file-input denial-of-service candidate; no remote route was established. Additional discovery context: Local reporting CLI path; SafeLoader prevents object construction but does not itself prevent alias recursion. Existing malformed-YAML tests do not cover aliases. Additional discovery context: Local operator-supplied path; no public web or authentication boundary was observed. Validate whether untrusted automation can invoke this command."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Reachability depends on an attacker-controlled or substituted recovery artifact entering the recovery domain. Additional discovery context: Deferred candidate: exploitability depends on who can write or cause publication of a PostgreSQL checkpoint archive and on the restore database role's privileges."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Conditional supply-chain/build-host candidate; validate CI PATH provenance and whether the workflow establishes a trusted uv installation before this script. Additional discovery context: Developer/CI tooling rather than application runtime; exploitability depends on PATH directory trust. Additional discovery context: The script checks the reported uv version, but does not constrain the binary path, hash, or environment; current workflow context and runner integrity affect reachability. Additional discovery context: Requires CI or another privileged automation context where PATH or an earlier PATH directory is attacker-controlled. No repository-controlled PATH mutation was observed. Additional reducer context: Requires attacker influence over the execution environment and execution of this developer/CI verification script. The risk is supply-chain/tooling integrity rather than a public application route."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Conditional authorization/policy-integrity candidate; the header policy is operator/configuration controlled and no active request-header sink was established."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Conditional/deferred external-storage candidate; activation requires the future external storage composition and no tests or live provider were exercised. Additional discovery context: Future injected/provider path; provider activation is not currently live. Additional discovery context: The normal ingestion path bounds fetched artifacts, but R2SnapshotStorage is an injected external-storage implementation and can be asked to read a provider-controlled object or malformed response."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Conditional local recovery-integrity candidate; no dynamic execution was performed and the repository's higher-level migration/recovery paths add additional containment. Additional context: A same-host concurrent filesystem attacker and a caller-selected new restore path are required. The write is descriptor-anchored only after path resolution; validation should determine whether the recovery threat model treats the restore parent as attacker-influenced. Additional merged context: This is an operator-local fresh-target recovery boundary. The target leaf is protected against a pre-existing symlink, but that does not protect symlinked ancestors or parent swaps. Additional reducer context: Conditional operator/local filesystem attack; validate whether restore roots are attacker-influenced and whether all parent components are required to be no-follow. Additional discovery context: Live local restore path; requires a local actor controlling the target parent. Additional discovery context: Live local recovery path; initial symlink tests do not cover a post-check rename/replace race. Additional discovery context: CLI-level containment checks reduce exposure, but direct driver callers sti"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Conditional API-boundary issue; reachability depends on an enabled caller constructing plans directly rather than using build_fetch_plan. Additional discovery context: The intended contract describes FetchPlan as admission-bound, but SafeFetchClient.fetch accepts any exact FetchPlan instance and does not require construction through build_fetch_plan or carry a SourceAdmission to compare source identity, revision decision, URL allowlists, byte limits, redirect limits, or MIME policy. Its per-request public-DNS and HTTPS checks still block private addresses and unsafe URL syntax, but a direct caller can authorize an arbitrary public host outside the certified source/final URL allowlist. The current runner uses build_fetch_plan and the ordinary runtime refuses all network transport, so this is a future/custom-runtime trust-boundary candidate rather than a currently reachable production path."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is a build/release integrity candidate; impact depends on who can influence the built dist tree or the release packaging step. Additional reducer context: Conditional CI/build-integrity candidate; validate the Pages/archive uploader behavior and whether the fresh build output is guaranteed symlink-free. Additional discovery context: A deployment uploader that dereferences symlinks could publish external bytes. This requires a build-artifact producer able to place symlinks under dist. Additional discovery context: This affects CI/deployment evidence when build artifacts or copied public files can contain symlinks; validate whether Pages packaging dereferences or rejects them. Additional discovery context: A symlink inside a checked directory can be accepted while its filesystem target is outside the intended dist or public root. Additional discovery context: Source-level build-artifact containment candidate; no symlinked build output was created or tested. Additional discovery context: The candidate is most relevant when a dependency, build hook, or untrusted build input can create symlinks; validate with a symlinked asset/manifest fixture and realpath containment. Additional d"
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Helper-level candidate; normal CLI callers apply root and parent admission, so reachability outside that workflow is unestablished. Additional discovery context: Impact depends on an attacker being able to control or race path ancestors in the recovery command's execution context. Additional reducer context (dedup-0028): This is a local operator-controlled recovery destination and is therefore deferred/medium at most unless an untrusted runner controls the filesystem or a protected-root boundary is relied on; validation should exercise ancestor replacement between admission and first storage operation."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Direct database-writer boundary; normal application ingestion resolves and validates source admission, but database permissions and writers were not verified."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Runtime roles are NOLOGIN group roles and downstream callers may validate before insert; validate actual role membership, trigger coverage, and whether all durable consumers revalidate."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Provider cache behavior and a governed withdrawal route were not verified; validate whether release tooling pins immutable paths and purges/revokes stale content."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Upstream database/object-store limits may impose practical bounds; validate actual artifact size limits and whether pg_restore itself bounds TOC output."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The retention is documented as deliberate and requires a separately audited GC policy; validate quota/GC availability and whether an attacker can induce repeated post-store failures."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Requires a direct operational-table writer and depends on SQLite JSON1 duplicate-key behavior; compare with PostgreSQL JSONB and downstream revalidation."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Validate whether terminal run history is relied on for governance, monitoring, or incident evidence and whether application-layer checks are sufficient against direct role use."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Deferred/conditional because the assigned contract schema does not prove the runtime validator lacks an independent cap; validate the consuming implementation and enforce one canonical upper bound."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Conditional candidate for concurrent PostgreSQL transactions and a certified source revision. No concurrency validation was performed; the parent owns validation and attack-path analysis."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Library/long-lived-process path rather than ordinary one-command CLI use; test fixtures reset globals and current CLI generally uses one target per process. Additional discovery context: Reachability depends on multiple database URLs or concurrent library callers in one process."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Build-boundary candidate; current default Vite output may not create nested chunks."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "A malformed or unexpected source snapshot can cause adapter availability failures; impact is primarily integrity/availability rather than code execution."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The verifier is CI/repository tooling and the inputs are repository-controlled artifacts; a maliciously enlarged tracked file could cause disproportionate CI memory or CPU use."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is dated repository evidence only; current provider state was not rechecked and the parent must validate it separately."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The same documents state deployment and Official publication are disabled or unauthorized; this is a pre-activation governance candidate."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Impact depends on an attacker controlling the operator input tree or racing the local filesystem."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "The value is normally operator/configuration controlled, so reachability depends on an attacker influencing recovery configuration or a privileged local operator workflow; parent validation should confirm pg_restore's exact --dbname parsing semantics."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Assigned files do not establish whether an upstream platform supplies HSTS or redirects HTTP."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Reachability depends on a caller supplying mismatched manifest and fixture-root objects."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Reachability depends on worker or operator-controlled operational payloads being accepted through the repository methods."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is a local operator tool and requires attacker influence over the output path or its parent directories."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Source-level PostgreSQL integrity-control candidate; no database session or exploit path was executed."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Source-level PostgreSQL operational-integrity candidate; no database session or exploit path was executed."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Current Python semantic validators reject unsafe URL forms, so this is a contract/interoperability candidate and not a proven current runtime bypass. Additional discovery context: Future-gated/dormant Official path; validate actual artifact producer, frontend loader, and any dereference or link-rendering behavior before assigning impact."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is primarily a future release-governance and supply-chain candidate because no deployment job is present in the reviewed workflow."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is distinct from header parsing: it covers metadata and 404/robots behavior and needs response/parser validation before impact is assigned."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Validation must confirm fork/branch event token scope and whether any deployment, package, or repository secrets are present; this is distinct from the Python job because the Node dependency/build execution path differs."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Validation must confirm whether fork PRs can read any repository-sensitive state or ambient credentials; no production secrets or write permission are evident in the workflow."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Impact is conditional on a consumer outside the assigned schema/runbook files dereferencing the locator; the runbook states receipts do not themselves change runtime locators. Additional discovery context: Impact is conditional on an excluded runtime consumer; no dereference was observed in the assigned checkpoint schema/runbook evidence."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Whether CI chains these scripts is a separate validation question; this candidate records the local build control gap."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "No external invocation path was observed; validate whether production composition can bypass the governed artifact loader."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "This is conditional/dormant because the current frontend has no published Official artifact or external artifact ingestion path. An otherwise digest-authorized but incorrect artifact could present a misleading evidence trail."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Runtime reachability or consumer proof remains unresolved."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Runtime reachability or consumer proof remains unresolved."
+              }
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "codexSecurityCoverageCompleteness": "partial",
+        "codexSecuritySchemaVersion": "1.0",
+        "codexSecurityTargetKind": "git_worktree"
+      },
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/seed_loader.py"
+                },
+                "region": {
+                  "endLine": 58,
+                  "startLine": 45
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 172,
+                  "startLine": 137
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 125,
+                  "startLine": 96
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/seed_loader.py"
+                },
+                "region": {
+                  "endLine": 173,
+                  "startLine": 162
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/models_hf_seed.yaml"
+                },
+                "region": {
+                  "endLine": 8,
+                  "startLine": 1
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-9238eeea5a2f2ab5-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 151,
+                  "startLine": 137
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The HF model tool emits rows marked active into a supposedly review-only file, while registry seeding automatically globs every sibling models*.yaml file and treats it as authoritative input. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:209399fc8be988fe39274922a329b12f044d4c3d82e605a6f5e289c742ec503f"
+          },
+          "properties": {
+            "candidateId": "candidate-9238eeea5a2f2ab5",
+            "category": "supply-chain-integrity",
+            "confidence": "medium",
+            "findingId": "csf_485ef45cc4d07c661fd41e28",
+            "occurrenceId": "occ_07221ff28767fb263bcf680a",
+            "severity": "medium"
+          },
+          "ruleId": "supply-chain-integrity",
+          "ruleIndex": 13
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/seed_loader.py"
+                },
+                "region": {
+                  "endLine": 225,
+                  "startLine": 212
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/models.yaml"
+                },
+                "region": {
+                  "endLine": 64,
+                  "startLine": 22
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/models_frontier.yaml"
+                },
+                "region": {
+                  "endLine": 237,
+                  "startLine": 237
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/models_frontier.yaml"
+                },
+                "region": {
+                  "endLine": 423,
+                  "startLine": 423
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/models_frontier.yaml"
+                },
+                "region": {
+                  "endLine": 757,
+                  "startLine": 757
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/seed_loader.py"
+                },
+                "region": {
+                  "endLine": 89,
+                  "startLine": 45
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The default registry seed and reseed path is unavailable because deterministic expansion of models*.yaml finds three duplicate model IDs across the checked-in manifests and fails before any durable write. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:b19a89de0eb5e32cc4a81176d3aab24ee54e2424656584182d6a41b60bd05dbf"
+          },
+          "properties": {
+            "candidateId": "candidate-2fa0fb0576c10fd6",
+            "category": "availability-integrity",
+            "confidence": "medium",
+            "findingId": "csf_8dd6d75ab3044bcb9a8f83ef",
+            "occurrenceId": "occ_2ddb38775b08ca60780469b0",
+            "severity": "medium"
+          },
+          "ruleId": "availability-integrity",
+          "ruleIndex": 3
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 204,
+                  "startLine": 201
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 995,
+                  "startLine": 971
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 160,
+                  "startLine": 151
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 984,
+                  "startLine": 978
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-cf090648428f104b-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 985,
+                  "startLine": 971
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Discovery failures are marked failed_closed but serialize raw exception text into JSON stderr, which can disclose filesystem paths, filenames, parser details, or underlying OS messages. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:ffbe149edd60e9497d036e9e5cf45dcde0415a44828e02d246fe2c968f7bec16"
+          },
+          "properties": {
+            "candidateId": "candidate-cf090648428f104b",
+            "category": "sensitive-error-disclosure",
+            "confidence": "medium",
+            "findingId": "csf_ecf43ce83d91cefb330998d6",
+            "occurrenceId": "occ_2eb9113574659e19e25f6741",
+            "severity": "medium"
+          },
+          "ruleId": "sensitive-error-disclosure",
+          "ruleIndex": 11
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/mvp_acceptance.sh"
+                },
+                "region": {
+                  "endLine": 26,
+                  "startLine": 19
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/mvp_acceptance.sh"
+                },
+                "region": {
+                  "endLine": 21,
+                  "startLine": 14
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/mvp_acceptance.sh"
+                },
+                "region": {
+                  "endLine": 53,
+                  "startLine": 37
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/mvp_acceptance.sh"
+                },
+                "region": {
+                  "endLine": 25,
+                  "startLine": 14
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/mvp_acceptance.sh"
+                },
+                "region": {
+                  "endLine": 53,
+                  "startLine": 36
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/mvp_acceptance.sh"
+                },
+                "region": {
+                  "endLine": 57,
+                  "startLine": 36
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The acceptance smoke script prefers any benchmark-ledger found earlier on PATH instead of requiring the repository virtualenv executable. Additional discovery summary: The MVP acceptance script prefers any benchmark-ledger executable found on PATH over the project virtual-environment binary. Additional reducer summary: The acceptance smoke script selects the first benchmark-ledger executable from PATH and invokes it repeatedly, so a PATH-preceding executable can impersonate the intended CLI. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:9b89e73bf36cd40262edbadaacda7b11325c2328ed38aa14f0a7580775c0efcc"
+          },
+          "properties": {
+            "candidateId": "candidate-a2e60c8282577c40",
+            "category": "path-hijacking",
+            "confidence": "medium",
+            "findingId": "csf_ec97e56661bcb001ac5fb4c5",
+            "occurrenceId": "occ_3498067ccad1626d6f469101",
+            "severity": "medium"
+          },
+          "ruleId": "path-hijacking",
+          "ruleIndex": 9
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 66,
+                  "startLine": 64
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 46,
+                  "startLine": 45
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 172,
+                  "startLine": 169
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/scripts/seed_models_from_hf.py"
+                },
+                "region": {
+                  "endLine": 107,
+                  "startLine": 105
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The Hugging Face review-input parser silently drops malformed or id-less candidate entries instead of rejecting the input with an omission receipt. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a585d8012fde987d0078b5b528db21a1ad9c0b395d9398e7d9c6c5b139ed9fed"
+          },
+          "properties": {
+            "candidateId": "candidate-06b9445a820c7f21",
+            "category": "input-omission",
+            "confidence": "medium",
+            "findingId": "csf_c6372da52e4c0af245af88b0",
+            "occurrenceId": "occ_42c2012e01b16257b2eef603",
+            "severity": "medium"
+          },
+          "ruleId": "input-omission",
+          "ruleIndex": 6
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 203,
+                  "startLine": 176
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1138,
+                  "startLine": 1123
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/matching/aliases.py"
+                },
+                "region": {
+                  "endLine": 60,
+                  "startLine": 38
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/runner.py"
+                },
+                "region": {
+                  "endLine": 390,
+                  "startLine": 377
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1123,
+                  "startLine": 1123
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1130,
+                  "startLine": 1130
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/models.py"
+                },
+                "region": {
+                  "endLine": 106,
+                  "startLine": 106
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/matching/aliases.py"
+                },
+                "region": {
+                  "endLine": 48,
+                  "startLine": 48
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 194,
+                  "startLine": 194
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1158,
+                  "startLine": 1158
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-e19ad2a547f3e2ea-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1137,
+                  "startLine": 1123
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The aliases add CLI path lacks explicit authorization and target existence/type validation, while matching trusts the polymorphic alias row during ingestion. Additional reducer summary: CLI alias insertion accepts arbitrary entity types and nonexistent entity IDs, while model resolution trusts the alias entity_id. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:45f01092f538a8d3dbd2b44556ab5acd16831d085e081b6fe492d7465f5b792f"
+          },
+          "properties": {
+            "candidateId": "candidate-e19ad2a547f3e2ea",
+            "category": "authorization-integrity",
+            "confidence": "medium",
+            "findingId": "csf_5835db5a3da7e12dcfa020ee",
+            "occurrenceId": "occ_440e9d0139879284d2ccfa4f",
+            "severity": "medium"
+          },
+          "ruleId": "authorization-integrity",
+          "ruleIndex": 2
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/export/official_json.py"
+                },
+                "region": {
+                  "endLine": 538,
+                  "startLine": 524
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/reporting/legacy_inventory.py"
+                },
+                "region": {
+                  "endLine": 371,
+                  "startLine": 341
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/export/official_json.py"
+                },
+                "region": {
+                  "endLine": 412,
+                  "startLine": 366
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/reporting/legacy_inventory.py"
+                },
+                "region": {
+                  "endLine": 415,
+                  "startLine": 396
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Official candidate and legacy inventory reports materialize all claims and perform repeated per-claim database queries without a cardinality or paging guard. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a8504dc649977cc5d860286427d14adc33288d8506f7abc0d62f8f7895cac66e"
+          },
+          "properties": {
+            "candidateId": "candidate-e47c40ac9dbc4c4c",
+            "category": "resource-exhaustion",
+            "confidence": "medium",
+            "findingId": "csf_1637ae892cde183ecaba427b",
+            "occurrenceId": "occ_6ca7ddd69179ebb14ce2db0b",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion",
+          "ruleIndex": 10
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/storage/local.py"
+                },
+                "region": {
+                  "endLine": 542,
+                  "startLine": 487
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/runner.py"
+                },
+                "region": {
+                  "endLine": 280,
+                  "startLine": 268
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/storage/local.py"
+                },
+                "region": {
+                  "endLine": 542,
+                  "startLine": 537
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/storage/local.py"
+                },
+                "region": {
+                  "endLine": 496,
+                  "startLine": 487
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/service.py"
+                },
+                "region": {
+                  "endLine": 745,
+                  "startLine": 728
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/service.py"
+                },
+                "region": {
+                  "endLine": 1066,
+                  "startLine": 1043
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Local snapshot verification reads a complete backing file into memory before digest verification or an effective bounded read. Additional discovery summary: Local immutable recovery objects are read as complete files and repeatedly materialized without a bounded cumulative checkpoint or decoded-memory limit. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:0163e49c722781771814650282ae464f37358253fc4f30d40fe8f56b2df211e0"
+          },
+          "properties": {
+            "candidateId": "candidate-cba67eb3705947b9",
+            "category": "resource-exhaustion",
+            "confidence": "medium",
+            "findingId": "csf_763d72930ef8ff3289f350b6",
+            "occurrenceId": "occ_7957646c4a3a09911211528b",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion",
+          "ruleIndex": 10
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/postgresql_driver.py"
+                },
+                "region": {
+                  "endLine": 600,
+                  "startLine": 506
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 384,
+                  "startLine": 369
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/postgresql_driver.py"
+                },
+                "region": {
+                  "endLine": 1959,
+                  "startLine": 1928
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/service.py"
+                },
+                "region": {
+                  "endLine": 723,
+                  "startLine": 673
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/postgresql_driver.py"
+                },
+                "region": {
+                  "endLine": 1960,
+                  "startLine": 1957
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-81795c6198d3c69f-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 383,
+                  "startLine": 369
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "PostgreSQL recovery backups retain complete pg_dump artifacts as bytes through inspection and storage without an archive-size bound or streaming path. Additional discovery summary: PostgreSQL recovery buffers tool output and later loads complete dump bytes without a bounded cumulative limit. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a2b69fc0a57d0c0e307fde100d2ad5d85614cf338a084ed34b16dc8fa71097d3"
+          },
+          "properties": {
+            "candidateId": "candidate-81795c6198d3c69f",
+            "category": "resource-exhaustion",
+            "confidence": "medium",
+            "findingId": "csf_be13837ec4b4fb3ea324d114",
+            "occurrenceId": "occ_848209a33f7f4be66b908614",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion",
+          "ruleIndex": 10
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/verify.yml"
+                },
+                "region": {
+                  "endLine": 59,
+                  "startLine": 59
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/requirements-ci.lock"
+                },
+                "region": {
+                  "endLine": 10,
+                  "startLine": 10
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/verify.yml"
+                },
+                "region": {
+                  "endLine": 64,
+                  "startLine": 64
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "CI installs exact-version Python dependencies without artifact hash verification. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:8f844f95bedee03e5f36f1b9df97a080805ec619a0695a5eaf5fc041dcc120f5"
+          },
+          "properties": {
+            "candidateId": "candidate-d9270aad54480f65",
+            "category": "dependency-integrity",
+            "confidence": "medium",
+            "findingId": "csf_fafee30496e87dc314cf9795",
+            "occurrenceId": "occ_89e7e630115e0a63949e21bc",
+            "severity": "medium"
+          },
+          "ruleId": "dependency-integrity",
+          "ruleIndex": 5
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0002_governance_history.py"
+                },
+                "region": {
+                  "endLine": 155,
+                  "startLine": 145
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0002_governance_history.py"
+                },
+                "region": {
+                  "endLine": 197,
+                  "startLine": 160
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Legacy evidence backfill converts boolean fields with Python bool(), treating textual false values as true and changing source revision identity. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:dd171f14401209378fbbcb944b750e8cacfeb05f4846cc6e17afe7c76f13cd2f"
+          },
+          "properties": {
+            "candidateId": "candidate-6679ac678a8c0e31",
+            "category": "data-integrity",
+            "confidence": "medium",
+            "findingId": "csf_bc63b19684f7fd0a4239d428",
+            "occurrenceId": "occ_9a79a7336cde545d994ae4d0",
+            "severity": "medium"
+          },
+          "ruleId": "data-integrity",
+          "ruleIndex": 4
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/seed_loader.py"
+                },
+                "region": {
+                  "endLine": 89,
+                  "startLine": 61
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 667,
+                  "startLine": 651
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/registry/seed_loader.py"
+                },
+                "region": {
+                  "endLine": 184,
+                  "startLine": 119
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-f8f10e60a7e356e2-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 665,
+                  "startLine": 651
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Registry seeding fails closed for non-mapping documents but silently skips malformed or wrong-type models/benchmarks collections and rows, allowing a partial registry reconciliation to report success. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:e1f1b014af652c5cbe5b3dd01886cccd01ccee2005fb62e8fe7bbde3198dd689"
+          },
+          "properties": {
+            "candidateId": "candidate-f8f10e60a7e356e2",
+            "category": "partial-reconciliation",
+            "confidence": "medium",
+            "findingId": "csf_99f038f70e2f1fab37c3eb7a",
+            "occurrenceId": "occ_9aea26568c5ca71863bf2f20",
+            "severity": "medium"
+          },
+          "ruleId": "partial-reconciliation",
+          "ruleIndex": 8
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 365,
+                  "startLine": 300
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/verify.yml"
+                },
+                "region": {
+                  "endLine": 165,
+                  "startLine": 160
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-pages-static.mjs"
+                },
+                "region": {
+                  "endLine": 108,
+                  "startLine": 91
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Build checks validate shape, freshness, containment, and size but do not bind the published dist artifact to a source digest or authorized signed manifest. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a5bf6ff6cf5d62defb31e232af8fadeb6907f4f6763297aa34673e48dd754298"
+          },
+          "properties": {
+            "candidateId": "candidate-bb0a35c45224fd4b",
+            "category": "artifact-provenance",
+            "confidence": "medium",
+            "findingId": "csf_26bde360141a34726824c06d",
+            "occurrenceId": "occ_b1a4ecb0ed03cca1530f2f95",
+            "severity": "medium"
+          },
+          "ruleId": "artifact-provenance",
+          "ruleIndex": 0
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/admission.py"
+                },
+                "region": {
+                  "endLine": 657,
+                  "startLine": 654
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/schemas/boundary.py"
+                },
+                "region": {
+                  "endLine": 69,
+                  "startLine": 51
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 746,
+                  "startLine": 739
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 768,
+                  "startLine": 749
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 800,
+                  "startLine": 793
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/json_lexemes.py"
+                },
+                "region": {
+                  "endLine": 122,
+                  "startLine": 117
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 768,
+                  "startLine": 739
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/adapters/generic_json.py"
+                },
+                "region": {
+                  "endLine": 108,
+                  "startLine": 78
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 745,
+                  "startLine": 745
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 801,
+                  "startLine": 793
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 800,
+                  "startLine": 796
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 736,
+                  "startLine": 704
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 734,
+                  "startLine": 734
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 766,
+                  "startLine": 757
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 746,
+                  "startLine": 744
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 768,
+                  "startLine": 756
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 734,
+                  "startLine": 731
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/schemas/boundary.py"
+                },
+                "region": {
+                  "endLine": 75,
+                  "startLine": 51
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 800,
+                  "startLine": 795
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 800,
+                  "startLine": 739
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/adapters/generic_json.py"
+                },
+                "region": {
+                  "endLine": 106,
+                  "startLine": 69
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/models.py"
+                },
+                "region": {
+                  "endLine": 261,
+                  "startLine": 249
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/adapters/generic_json.py"
+                },
+                "region": {
+                  "endLine": 80,
+                  "startLine": 66
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/schemas/boundary.py"
+                },
+                "region": {
+                  "endLine": 64,
+                  "startLine": 57
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 764,
+                  "startLine": 757
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/json_lexemes.py"
+                },
+                "region": {
+                  "endLine": 128,
+                  "startLine": 117
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/admission.py"
+                },
+                "region": {
+                  "endLine": 680,
+                  "startLine": 656
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 768,
+                  "startLine": 731
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-7a38c4b0cb4c47cc-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/schemas/boundary.py"
+                },
+                "region": {
+                  "endLine": 65,
+                  "startLine": 51
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Admitted raw claim fields are emitted directly to terminal output without control-character escaping, permitting terminal escape/control injection for an operator viewing claims or review queues. Also: The claims-list CLI renders source-controlled raw claim fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Also: The claims-show CLI renders source-controlled raw claim fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Also: The dry-run sample CLI prints source-controlled model_raw, benchmark_raw, and score_raw fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Also: The review-queue CLI renders source-controlled raw claim fields directly to the terminal without control-character neutralization, allowing terminal escape-sequence injection. Additional reducer evidence: Claims list output does not neutralize persisted source-controlled raw fields. Claims show output does not neutralize persisted source-controlled fields or evidence locations. Ingestion dry-run output interpolates source-controlled model and score strings without terminal/log neutralization. Review queue output does not neutralize persisted source-controlled fields. Additional reducer summary: CLI commands emit attacker-controlled raw source and evidence strings directly to the operator terminal without control or ANSI/newline neutralization. Additional manifestation: Raw model, benchmark, and score fields are  Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:315421bae746e615ad9ae99dad4e1de7d37f1a6543778c6661918d78db09f99e"
+          },
+          "properties": {
+            "candidateId": "candidate-7a38c4b0cb4c47cc",
+            "category": "terminal-output-injection",
+            "confidence": "medium",
+            "findingId": "csf_f5754c0ddec0ba3a9dba769e",
+            "occurrenceId": "occ_bf5fc2403e720e1aa29e0f91",
+            "severity": "medium"
+          },
+          "ruleId": "terminal-output-injection",
+          "ruleIndex": 14
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 742,
+                  "startLine": 739
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 821,
+                  "startLine": 804
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1359,
+                  "startLine": 1342
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1419,
+                  "startLine": 1414
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 817,
+                  "startLine": 804
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1317,
+                  "startLine": 1313
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1285,
+                  "startLine": 1276
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-6b85d5199f08de4c-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 818,
+                  "startLine": 804
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Review queue cursor parsing calls .get() on any JSON value without first requiring an object, so a caller-supplied array/number can raise an uncaught AttributeError; positive page limits also have no upper bound. Additional discovery summary: CLI pagination limits are described or implemented as bounded but have no upper bound, allowing very large SQL result windows to be materialized in memory. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a14948543f1763cf499ddcd3e689d65fda95e1ca0551df91830025c3f3be5452"
+          },
+          "properties": {
+            "candidateId": "candidate-6b85d5199f08de4c",
+            "category": "resource-exhaustion",
+            "confidence": "medium",
+            "findingId": "csf_6e750a9da11148f60d9290a7",
+            "occurrenceId": "occ_c3d5343ebccc827966734b00",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion",
+          "ruleIndex": 10
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0011_ingestion_run_hardening.py"
+                },
+                "region": {
+                  "endLine": 24,
+                  "startLine": 21
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1255,
+                  "startLine": 1237
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0003_snapshot_revision_identity.py"
+                },
+                "region": {
+                  "endLine": 92,
+                  "startLine": 84
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/config.py"
+                },
+                "region": {
+                  "endLine": 20,
+                  "startLine": 17
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0011_ingestion_run_hardening.py"
+                },
+                "region": {
+                  "endLine": 57,
+                  "startLine": 25
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0011_ingestion_run_hardening.py"
+                },
+                "region": {
+                  "endLine": 5,
+                  "startLine": 1
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0011_ingestion_run_hardening.py"
+                },
+                "region": {
+                  "endLine": 23,
+                  "startLine": 21
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/ingestion/runner.py"
+                },
+                "region": {
+                  "endLine": 671,
+                  "startLine": 663
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0003_snapshot_revision_identity.py"
+                },
+                "region": {
+                  "endLine": 93,
+                  "startLine": 84
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0010_operational_persistence.py"
+                },
+                "region": {
+                  "endLine": 51,
+                  "startLine": 29
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/migrations/versions/0010_operational_persistence.py"
+                },
+                "region": {
+                  "endLine": 933,
+                  "startLine": 912
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "SQLite ingestion-run terminal history remains mutable after creation because finalize-once and terminal-row immutability hardening is PostgreSQL-only; repeated application finalization or a SQLite writer can rewrite terminal status, evidence, counters, errors, or metadata. Additional reducer summary: Migration 0011 installs the one-time ingestion-run finalization trigger only on PostgreSQL; SQLite retains only a delete guard, while finish_ingestion_run accepts arbitrary counter keys via hasattr and can update identity/history fields. Additional reducer summary: SQLite does not receive the PostgreSQL ingestion-run finalization guard, leaving local terminal run history mutable. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:ed1dd6bfea7d76cad052304d014b03748c01906ada916450bdc6f77d0e885ed6"
+          },
+          "properties": {
+            "candidateId": "candidate-239046490bbf82a2",
+            "category": "mutable-audit-history",
+            "confidence": "medium",
+            "findingId": "csf_58191babfc1077827d0187ce",
+            "occurrenceId": "occ_ce5c3179ebcaa0a346f30b29",
+            "severity": "medium"
+          },
+          "ruleId": "mutable-audit-history",
+          "ruleIndex": 7
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/repositories.py"
+                },
+                "region": {
+                  "endLine": 1139,
+                  "startLine": 1095
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 866,
+                  "startLine": 853
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/db/models.py"
+                },
+                "region": {
+                  "endLine": 295,
+                  "startLine": 288
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The review map-model command persists a caller-supplied --actor string as review-decision provenance without identity binding or authentication. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:c35f3fec3040b90b6a74163f948ab77307158c9d1db3931fd9476893c15a8dfe"
+          },
+          "properties": {
+            "candidateId": "candidate-7e5cc9b12f83f3ab",
+            "category": "audit-integrity",
+            "confidence": "medium",
+            "findingId": "csf_dbd47cf5cbba4a7e414da683",
+            "occurrenceId": "occ_d059a59adf0f369a1f16ab92",
+            "severity": "medium"
+          },
+          "ruleId": "audit-integrity",
+          "ruleIndex": 1
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 280,
+                  "startLine": 251
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 413,
+                  "startLine": 408
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 310,
+                  "startLine": 300
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 365,
+                  "startLine": 357
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 281,
+                  "startLine": 251
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json"
+                },
+                "region": {
+                  "endLine": 16,
+                  "startLine": 16
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 71,
+                  "startLine": 62
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 309,
+                  "startLine": 300
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget.mjs"
+                },
+                "region": {
+                  "endLine": 281,
+                  "startLine": 265
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "scripts/verify-bundle-budget-node-tests.mjs"
+                },
+                "region": {
+                  "endLine": 289,
+                  "startLine": 267
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The bundle freshness gate walks only existing source files and can accept stale dist output after a source or public file is deleted. Additional discovery summary: Bundle freshness ignores symlink entries under src or public, so changes to a symlink target can leave stale dist output accepted. Additional discovery summary: Bundle freshness verification omits postcss, Tailwind, and TypeScript configuration inputs, so a dist artifact can remain accepted after changes to those build inputs. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:abbf4cf060609fb5683f0743d0711fe1211970bfe61b91a4a985b16d127ce33b"
+          },
+          "properties": {
+            "candidateId": "candidate-24a46a90e0a881bf",
+            "category": "stale-artifact",
+            "confidence": "medium",
+            "findingId": "csf_d6b77d4d4d07fd613ed3366c",
+            "occurrenceId": "occ_f048ba2874ab8824eb4f3be6",
+            "severity": "medium"
+          },
+          "ruleId": "stale-artifact",
+          "ruleIndex": 12
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/sqlite_driver.py"
+                },
+                "region": {
+                  "endLine": 205,
+                  "startLine": 197
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 308,
+                  "startLine": 303
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/sqlite_driver.py"
+                },
+                "region": {
+                  "endLine": 321,
+                  "startLine": 303
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/service.py"
+                },
+                "region": {
+                  "endLine": 723,
+                  "startLine": 673
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/sqlite_driver.py"
+                },
+                "region": {
+                  "endLine": 321,
+                  "startLine": 321
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/backup/service.py"
+                },
+                "region": {
+                  "endLine": 667,
+                  "startLine": 630
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "SQLite recovery backups materialize complete database artifacts as bytes through inspection and storage without an archive-size bound or streaming path. Additional discovery summary: SQLite recovery loads complete database bytes and fetches complete table inspection results without a pre-read or cumulative memory bound. Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:0d210f8475f316d5eeb656a12554295b3bb2875359db7fc339f294a6f61f22dd"
+          },
+          "properties": {
+            "candidateId": "candidate-470f866bceac68bb",
+            "category": "resource-exhaustion",
+            "confidence": "medium",
+            "findingId": "csf_d5cd490f3017455ec4b2b552",
+            "occurrenceId": "occ_f0c26100c8808ff91d568e3b",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion",
+          "ruleIndex": 10
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 231,
+                  "startLine": 227
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 159,
+                  "startLine": 144
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 76,
+                  "startLine": 74
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/controller.py"
+                },
+                "region": {
+                  "endLine": 243,
+                  "startLine": 238
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 100,
+                  "startLine": 94
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/schemas/coverage_contracts.py"
+                },
+                "region": {
+                  "endLine": 944,
+                  "startLine": 923
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/controller.py"
+                },
+                "region": {
+                  "endLine": 245,
+                  "startLine": 238
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 99,
+                  "startLine": 74
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 78,
+                  "startLine": 65
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 80,
+                  "startLine": 74
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1010,
+                  "startLine": 987
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1081,
+                  "startLine": 1063
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 163,
+                  "startLine": 149
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/controller.py"
+                },
+                "region": {
+                  "endLine": 218,
+                  "startLine": 209
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 76,
+                  "startLine": 73
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 105,
+                  "startLine": 76
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 236,
+                  "startLine": 228
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 160,
+                  "startLine": 145
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/controller.py"
+                },
+                "region": {
+                  "endLine": 218,
+                  "startLine": 215
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 78,
+                  "startLine": 74
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 163,
+                  "startLine": 145
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1010,
+                  "startLine": 998
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 237,
+                  "startLine": 219
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 163,
+                  "startLine": 135
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1080,
+                  "startLine": 1080
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 76,
+                  "startLine": 76
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 149,
+                  "startLine": 149
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 158,
+                  "startLine": 158
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1093,
+                  "startLine": 1063
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 76,
+                  "startLine": 54
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 155,
+                  "startLine": 120
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 105,
+                  "startLine": 94
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1100,
+                  "startLine": 1063
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 105,
+                  "startLine": 74
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 102,
+                  "startLine": 74
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 219,
+                  "startLine": 211
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 245,
+                  "startLine": 228
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 163,
+                  "startLine": 92
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 150,
+                  "startLine": 135
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 76,
+                  "startLine": 65
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 231,
+                  "startLine": 228
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/controller.py"
+                },
+                "region": {
+                  "endLine": 243,
+                  "startLine": 236
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 255,
+                  "startLine": 245
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/connectors/base.py"
+                },
+                "region": {
+                  "endLine": 105,
+                  "startLine": 79
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/controller.py"
+                },
+                "region": {
+                  "endLine": 245,
+                  "startLine": 235
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 255,
+                  "startLine": 240
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/cli.py"
+                },
+                "region": {
+                  "endLine": 1008,
+                  "startLine": 998
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 163,
+                  "startLine": 144
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:candidate-683554f3bc312cea-source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "ledger/app/discovery/manifest.py"
+                },
+                "region": {
+                  "endLine": 158,
+                  "startLine": 144
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Discovery JSON inputs are read and decoded without byte, decoded-object, file-count, or enumeration limits, allowing operator-selected fixture data to consume excessive memory or work. The canonical issue explicitly includes StaticFixtureConnector's unbounded static.json read/parse, tuple materialization, and controller persistence path. Additional reducer evidence: The StaticFixtureConnector specifically reads connectors/static.json with no byte, candidate-count, or parsing budget before assembly. Additional reducer evidence: Caller-selected discovery manifest files are read and parsed without byte or structural resource budgets. Static discovery connector JSON and candidate materialization are unbounded. Discovery fixture loading materializes JSON and candidate collections without byte, nesting, file-count, or candidate-count limits despite the connector contract claiming bounded observations. Additional reducer summary: Discovery fixture JSON is fully read and parsed without an explicit byte bound before candidate assembly. Additional reducer summary: Discovery fixture JSON is buffered and parsed without file-size, target-count, or aggregate fixture limits. Additional reducer summary: Fixture JSON loading has no byte or structural resource bound. Additional reducer detail: The static fixture connector reopens fixture data by raw path and parses it without the descriptor-safe root and byte-boundary protections used by manifest loading. Additional reducer summary: Static discovery fixture input and candidate fan-out are unbounded Additional merged manifestation: Discovery  Validated as a reportable source-level finding; no live external state was assumed."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:5873872050b7b54e5c346401d2f944eea56086f89716a90ba0e14f6b9c520069"
+          },
+          "properties": {
+            "candidateId": "candidate-683554f3bc312cea",
+            "category": "resource-exhaustion",
+            "confidence": "medium",
+            "findingId": "csf_f8cd23ed6809346c3b0bed87",
+            "occurrenceId": "occ_f90d7b2e7833150ed43bd91a",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion",
+          "ruleIndex": 10
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [
+            {
+              "id": "artifact-provenance",
+              "name": "artifact-provenance",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "artifact-provenance"
+              }
+            },
+            {
+              "id": "audit-integrity",
+              "name": "audit-integrity",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "audit-integrity"
+              }
+            },
+            {
+              "id": "authorization-integrity",
+              "name": "authorization-integrity",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "authorization-integrity"
+              }
+            },
+            {
+              "id": "availability-integrity",
+              "name": "availability-integrity",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "availability-integrity"
+              }
+            },
+            {
+              "id": "data-integrity",
+              "name": "data-integrity",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "data-integrity"
+              }
+            },
+            {
+              "id": "dependency-integrity",
+              "name": "dependency-integrity",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "dependency-integrity"
+              }
+            },
+            {
+              "id": "input-omission",
+              "name": "input-omission",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "input-omission"
+              }
+            },
+            {
+              "id": "mutable-audit-history",
+              "name": "mutable-audit-history",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "mutable-audit-history"
+              }
+            },
+            {
+              "id": "partial-reconciliation",
+              "name": "partial-reconciliation",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "partial-reconciliation"
+              }
+            },
+            {
+              "id": "path-hijacking",
+              "name": "path-hijacking",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "path-hijacking"
+              }
+            },
+            {
+              "id": "resource-exhaustion",
+              "name": "resource-exhaustion",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "resource-exhaustion"
+              }
+            },
+            {
+              "id": "sensitive-error-disclosure",
+              "name": "sensitive-error-disclosure",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "sensitive-error-disclosure"
+              }
+            },
+            {
+              "id": "stale-artifact",
+              "name": "stale-artifact",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "stale-artifact"
+              }
+            },
+            {
+              "id": "supply-chain-integrity",
+              "name": "supply-chain-integrity",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "supply-chain-integrity"
+              }
+            },
+            {
+              "id": "terminal-output-injection",
+              "name": "terminal-output-injection",
+              "properties": {
+                "tags": [
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "terminal-output-injection"
+              }
+            }
+          ],
+          "version": "0.1.18"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

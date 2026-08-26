@@ -50,8 +50,8 @@ export function ModelComparison({ models, benchmarks, allModels, onOpenModel }: 
   );
 
   const leaders = useMemo(
-    () => categoryLeader(models, benchmarks, getValue),
-    [models, benchmarks, getValue]
+    () => categoryLeader(allModels, benchmarks, getValue),
+    [allModels, benchmarks, getValue]
   );
   const leadsByModel = useMemo(() => {
     const map: Record<string, number> = {};
@@ -107,6 +107,8 @@ export function ModelComparison({ models, benchmarks, allModels, onOpenModel }: 
                   <button
                     type="button"
                     onClick={() => toggleSeries(s.modelId)}
+                    aria-pressed={!off}
+                    aria-label={`${off ? "Show" : "Hide"} ${s.name} on capability radar`}
                     className={cn(
                       "flex items-center gap-2 rounded-md px-1.5 py-0.5 text-sm transition-opacity focus:outline-none focus:ring-2 focus:ring-ring",
                       off && "opacity-40"
@@ -135,7 +137,7 @@ export function ModelComparison({ models, benchmarks, allModels, onOpenModel }: 
         <CardHeader>
           <CardTitle className="text-base">By category</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Per-category averages across selected models. Click a legend entry to isolate a model.
+            Per-category averages across selected models. Legends identify each series; use the radar controls above to hide or show a model.
           </p>
         </CardHeader>
         <CardContent>

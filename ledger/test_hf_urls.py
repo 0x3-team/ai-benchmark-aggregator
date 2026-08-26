@@ -1,20 +1,29 @@
-import httpx
-import time
+#!/usr/bin/env python3
+"""Retired direct-network helper - governed offline stub.
 
-urls = [
-    "https://datasets-server.huggingface.co/first-rows?dataset=gaia-benchmark/results_public&config=2023&split=train",
-    "https://datasets-server.huggingface.co/first-rows?dataset=open-llm-leaderboard/results&config=default&split=train",
-]
+This entrypoint historically performed an unbound outbound HTTP GET. It is
+retired and replaced by the governed SafeFetch seam
+(``ledger/app/ingestion/safe_fetch.py``), which defaults to a disabled network
+transport. This file is kept as a tracked, runnable no-network stub so the
+history of the retired helper is preserved through git without retaining a
+runnable raw-network copy anywhere on disk. It exits immediately with a clear
+message; it never opens a socket.
+"""
 
-for url in urls:
-    print(f"Fetching {url}")
-    start = time.time()
-    try:
-        resp = httpx.get(url, headers={"User-Agent": "benchmark-ledger/0.1"}, follow_redirects=True, timeout=10.0)
-        print(f"Status: {resp.status_code}, time: {time.time() - start:.2f}s")
-        if resp.status_code == 200:
-            print(f"Content length: {len(resp.content)}")
-        else:
-            print(f"Error content: {resp.text[:200]}")
-    except Exception as e:
-        print(f"Error: {e}, time: {time.time() - start:.2f}s")
+from __future__ import annotations
+
+import sys
+
+
+def main() -> int:
+    print(
+        "This helper is retired. Data access goes through the governed SafeFetch "
+        "seam (ledger/app/ingestion/safe_fetch.py); this stub performs no network "
+        "I/O by design.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

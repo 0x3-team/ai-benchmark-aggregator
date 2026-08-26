@@ -29,7 +29,10 @@ from app.ingestion.json_lexemes import (
     source_score_lexeme,
     source_text,
 )
-from app.ingestion.parquet_cells import read_parquet_record
+from app.ingestion.parquet_cells import (
+    ParquetEvidenceResolver,
+    read_parquet_record,
+)
 from app.ingestion.policy import source_admission_reason
 from app.matching.aliases import MatchResolution
 from app.schemas.boundary import OfficialSource, ResultClaimInput, SourceFetchResult, SourceSnapshotInput
@@ -530,7 +533,12 @@ def _csv_record(raw_bytes: bytes, locator: dict[str, Any]) -> tuple[dict[str, An
     return rows[row_index], None
 
 
-def _evidence_record(raw_bytes: bytes, locator: object) -> tuple[dict[str, Any] | None, str | None]:
+def _evidence_record(
+    raw_bytes: bytes,
+    locator: object,
+    *,
+    parquet_resolver: ParquetEvidenceResolver | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
     if not isinstance(locator, dict):
         return None, "EVIDENCE_LOCATOR_INVALID"
     locator_type = locator.get("type")
@@ -545,6 +553,7 @@ def _evidence_record(raw_bytes: bytes, locator: object) -> tuple[dict[str, Any] 
             raw_bytes,
             row_group=locator.get("row_group"),
             row_index=locator.get("row_index"),
+            resolver=parquet_resolver,
         )
     return None, "EVIDENCE_LOCATOR_UNSUPPORTED"
 
@@ -621,6 +630,7 @@ def resolve_claim_admission(
     raw_bytes: bytes,
     model_match: MatchResolution,
     benchmark_match: MatchResolution,
+    parquet_resolver: ParquetEvidenceResolver | None = None,
 ) -> ClaimAdmission:
     """Resolve a candidate claim without mutating its raw source fields."""
     if not source_admission.verdict.accepted:
@@ -658,7 +668,7 @@ def resolve_claim_admission(
             "EVIDENCE_LOCATOR_CONTRACT_MISMATCH",
             "claim locator does not match the exact source-revision evidence contract",
         )
-    record, record_error = _evidence_record(raw_bytes, locator)
+    record, record_error = _evidence_record(raw_bytes, locator, parquet_resolver=parquet_resolver)
     if record_error:
         return _claim_reject(record_error, "claim evidence locator could not resolve one source record")
     assert record is not None

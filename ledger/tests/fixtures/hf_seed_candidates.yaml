@@ -1,0 +1,18 @@
+# Committed, already-exported candidate snapshot for the offline review-only
+# HF seed tool. This is intentionally tiny and hand-maintained; it stands in
+# for a reviewed Hugging Face export. It must never be fetched at runtime.
+models:
+  - id: acme/novel-bench-7b
+    canonical_name: NovelBench-7B
+    display_name: NovelBench 7B
+    entity_type: chat_model
+    provider: acme
+    downloads: 120000
+    likes: 400
+  - id: "reviewsco/quicklink-gpt-like"
+    canonical_name: Quicklink
+    display_name: Quicklink
+    entity_type: chat_model
+    provider: reviewsco
+    downloads: 51000
+    likes: 210

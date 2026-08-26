@@ -1,6 +1,9 @@
 import { CATEGORIES, CATEGORY_LABELS } from "@/types";
-import { radarAverages } from "@/lib/aggregate";
-import { columnStats } from "@/lib/color";
+import {
+  isNormalizableBenchmark,
+  normalizeForPresentation,
+  radarAverages,
+} from "@/lib/aggregate";
 import type {
   DatasetModel,
   DatasetBenchmark,
@@ -19,9 +22,13 @@ export type BenchmarkRow = {
 
 export type CatalogShareRow = { category: string; count: number };
 
-export type OverallGauge = { pct: number; coveragePct: number };
+export type OverallGauge = { pct: number | null; coveragePct: number };
 
-export type ModelProfileRow = { benchmark: string; modelPct?: number; fieldAvgPct: number };
+export type ModelProfileRow = {
+  benchmark: string;
+  modelPct?: number;
+  fieldAvgPct: number | null;
+};
 
 export type BenchmarkSpreadRow = { rank: number; modelName: string; pct: number };
 
@@ -32,8 +39,24 @@ export type SankeyChartData = {
 
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 
-function normalizePct(value: number, scaleMax: number): number {
-  return scaleMax > 0 ? round1((value / scaleMax) * 100) : 0;
+function normalizePct(
+  benchmark: DatasetBenchmark,
+  value: number
+): number | null {
+  const normalized = normalizeForPresentation(benchmark, value);
+  return normalized == null ? null : round1(normalized * 100);
+}
+
+function averageNormalizedPct(
+  values: readonly (number | null)[],
+  benchmark: DatasetBenchmark
+): number | null {
+  const normalized = values
+    .map((value) => (value == null ? null : normalizePct(benchmark, value)))
+    .filter((value): value is number => value != null);
+  return normalized.length === 0
+    ? null
+    : round1(normalized.reduce((sum, value) => sum + value, 0) / normalized.length);
 }
 
 function setSeries(
@@ -94,7 +117,9 @@ export function buildBenchmarkRows(
     models.forEach((m, i) => {
       const v = getValue(m.id, bench.id);
       if (v != null) {
-        setSeries(row as Record<string, unknown>, i, normalizePct(v, bench.scaleMax));
+        const pct = normalizePct(bench, v);
+        if (pct == null) return;
+        setSeries(row as Record<string, unknown>, i, pct);
         hasValue = true;
       }
     });
@@ -107,23 +132,23 @@ export function buildFieldAverageByCategory(
   allModels: readonly DatasetModel[],
   benchmarks: readonly DatasetBenchmark[],
   getValue: GetValue
-): { category: string; fieldPct: number }[] {
+): { category: string; fieldPct: number | null }[] {
   return CATEGORIES.map((cat) => {
     const catBenches = benchmarks.filter((b) => b.category === cat);
-    if (catBenches.length === 0) return { category: cat, fieldPct: 0 };
+    if (catBenches.length === 0) return { category: cat, fieldPct: null };
     let sum = 0;
     let count = 0;
     for (const bench of catBenches) {
       const values = allModels.map((m) => getValue(m.id, bench.id));
-      const stats = columnStats(values, bench);
-      if (stats.avg != null) {
-        sum += normalizePct(stats.avg, bench.scaleMax);
+      const avg = averageNormalizedPct(values, bench);
+      if (avg != null) {
+        sum += avg;
         count += 1;
       }
     }
     return {
       category: cat,
-      fieldPct: count > 0 ? round1(sum / count) : 0,
+      fieldPct: count > 0 ? round1(sum / count) : null,
     };
   });
 }
@@ -143,19 +168,19 @@ export function buildModelProfileRows(
   benchmarks: readonly DatasetBenchmark[],
   getValue: GetValue
 ): ModelProfileRow[] {
-  return benchmarks.map((bench) => {
+  return benchmarks.flatMap((bench) => {
     const row: ModelProfileRow = {
       benchmark: bench.name,
-      fieldAvgPct: 0,
+      fieldAvgPct: null,
     };
     const v = getValue(modelId, bench.id);
     if (v != null) {
-      row.modelPct = normalizePct(v, bench.scaleMax);
+      const modelPct = normalizePct(bench, v);
+      if (modelPct != null) row.modelPct = modelPct;
     }
     const values = allModels.map((m) => getValue(m.id, bench.id));
-    const stats = columnStats(values, bench);
-    row.fieldAvgPct = stats.avg != null ? normalizePct(stats.avg, bench.scaleMax) : 0;
-    return row;
+    row.fieldAvgPct = averageNormalizedPct(values, bench);
+    return row.modelPct != null || row.fieldAvgPct != null ? [row] : [];
   });
 }
 
@@ -168,7 +193,8 @@ export function buildBenchmarkSpreadRows(
   for (const m of models) {
     const v = getValue(m.id, benchmark.id);
     if (v != null) {
-      present.push({ modelName: m.name, pct: normalizePct(v, benchmark.scaleMax) });
+      const pct = normalizePct(benchmark, v);
+      if (pct != null) present.push({ modelName: m.name, pct });
     }
   }
   present.sort((a, b) => b.pct - a.pct);
@@ -184,13 +210,12 @@ export function buildSankeyData(
   benchmarks: readonly DatasetBenchmark[],
   getValue: GetValue
 ): SankeyChartData {
-  // Collect non-empty benchmarks, grouped by category
+  // Collect benchmarks with at least one valid normalized point, grouped by category.
   const usedCats = new Set<string>();
   const nonEmptyBenches: DatasetBenchmark[] = [];
   for (const bench of benchmarks) {
     const values = allModels.map((m) => getValue(m.id, bench.id));
-    const stats = columnStats(values, bench);
-    if (stats.count > 0) {
+    if (values.some((value) => value != null && normalizePct(bench, value) != null)) {
       nonEmptyBenches.push(bench);
       usedCats.add(bench.category);
     }
@@ -222,16 +247,18 @@ export function buildSankeyData(
 
   // Build links: category → benchmark, value = SOTA normalized %
   const links: SankeyChartData["links"] = [];
-  for (const bench of nonEmptyBenches) {
+  for (const [benchIndex, bench] of nonEmptyBenches.entries()) {
     const values = allModels.map((m) => getValue(m.id, bench.id));
-    const stats = columnStats(values, bench);
-    if (stats.best == null) continue;
+    const normalized = values
+      .map((value) => (value == null ? null : normalizePct(bench, value)))
+      .filter((value): value is number => value != null);
+    if (normalized.length === 0) continue;
     const catLabel = CATEGORY_LABELS[bench.category];
     const sourceIdx = catNodeIndex.get(catLabel);
-    const benchName = benchNames[nonEmptyBenches.indexOf(bench)];
+    const benchName = benchNames[benchIndex];
     const targetIdx = benchNodeIndex.get(benchName);
     if (sourceIdx == null || targetIdx == null) continue;
-    const pct = normalizePct(stats.best, bench.scaleMax);
+    const pct = Math.max(...normalized);
     links.push({
       source: sourceIdx,
       target: targetIdx,
@@ -249,15 +276,20 @@ export function buildOverallGauge(
 ): OverallGauge {
   let sum = 0;
   let present = 0;
+  const normalizableCount = benchmarks.filter(isNormalizableBenchmark).length;
   for (const bench of benchmarks) {
     const v = getValue(modelId, bench.id);
     if (v != null) {
-      sum += normalizePct(v, bench.scaleMax);
-      present += 1;
+      const pct = normalizePct(bench, v);
+      if (pct != null) {
+        sum += pct;
+        present += 1;
+      }
     }
   }
   return {
-    pct: present > 0 ? round1(sum / present) : 0,
-    coveragePct: benchmarks.length > 0 ? Math.round((present / benchmarks.length) * 100) : 0,
+    pct: present > 0 ? round1(sum / present) : null,
+    coveragePct:
+      normalizableCount > 0 ? Math.round((present / normalizableCount) * 100) : 0,
   };
 }

@@ -1,5 +1,5 @@
 name: Feature Request
-about: Propose a new benchmark source, adapter, UI feature, or workflow
+description: Propose a new benchmark source, adapter, UI feature, or workflow
 title: "[Feature] "
 labels: ["enhancement"]
 assignees: []
@@ -49,11 +49,11 @@ body:
       label: Acceptance Criteria
       description: What must be true for this to be "done"?
       placeholder: |
-        - Source added to official_sources.yaml with correct parser_config
-        - Adapter extracts claims with source_snapshot_id + evidence_location
+        - Proposed source/revision and governance scope are documented
+        - Adapter extracts raw values with source_snapshot_id + evidence_location
         - Fixture test added in ledger/tests/
-        - Ingest + verify + export passes CI
-        - Frontend shows benchmark in Official mode
+        - Read-only validation passes in CI
+        - Official publication remains separately gated and unavailable
 
   - type: checkboxes
     id: checklist

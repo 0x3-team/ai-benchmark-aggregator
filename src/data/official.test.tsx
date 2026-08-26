@@ -16,7 +16,7 @@ import {
   type OfficialLoadResult,
   type OfficialReleaseAuthorization,
 } from "./official";
-import { fixtureModel, fixtureBenchmark, fixtureScore, fixtureDataset } from "./testFixtures";
+import { fixtureDataset } from "./testFixtures";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -45,6 +45,13 @@ interface PublishedArtifactFixture {
   scores: Record<string, unknown>[];
   [key: string]: unknown;
 }
+
+type MalformedPublishedArtifactFixture = Omit<
+  PublishedArtifactFixture,
+  "releaseApproval"
+> & {
+  releaseApproval?: PublishedArtifactFixture["releaseApproval"];
+};
 
 function demoFixture(): DatasetInput {
   return fixtureDataset();
@@ -326,7 +333,7 @@ describe("future governed v2 Official artifact parser", () => {
     );
     expectUnavailable(
       await parsedPublishedFixture((artifact) => {
-        delete artifact.releaseApproval;
+        delete (artifact as MalformedPublishedArtifactFixture).releaseApproval;
       })
     );
   });
@@ -436,6 +443,51 @@ describe("future governed v2 Official artifact parser", () => {
       const result = await parsedPublishedFixture(mutate);
       expect(result.availability, label).toBe("unavailable");
     }
+  });
+
+  it("admits only public canonical HTTPS URLs for governed benchmark and source links", async () => {
+    const unsafeUrls = [
+      "https://official.example.test/benchmarks?token=secret",
+      "https://official.example.test/benchmarks?api_key=secret",
+      "https://official.example.test/benchmarks?X-Amz-Signature=secret",
+      "https://official.example.test/benchmarks?view=full",
+      "https://user:password@official.example.test/benchmarks",
+      "https://official.example.test/benchmarks#results",
+    ];
+
+    const targets: Array<[
+      string,
+      (artifact: PublishedArtifactFixture, url: string) => void
+    ]> = [
+      [
+        "benchmark source",
+        (artifact, url) => {
+          artifact.benchmarks[0].sourceUrl = url;
+        },
+      ],
+      [
+        "source manifest",
+        (artifact, url) => {
+          artifact.sourceManifest[0].sourceUrl = url;
+          (artifact.scores[0].provenance as Record<string, unknown>).sourceUrl = url;
+        },
+      ],
+    ];
+
+    for (const [target, mutate] of targets) {
+      for (const unsafeUrl of unsafeUrls) {
+        const result = await parsedPublishedFixture((artifact) => mutate(artifact, unsafeUrl));
+        expect(result.availability, `${target}: ${unsafeUrl}`).toBe("unavailable");
+      }
+    }
+
+    const validUrl = "https://official.example.test/benchmarks/public";
+    const valid = await parsedPublishedFixture((artifact) => {
+      artifact.benchmarks[0].sourceUrl = validUrl;
+      artifact.sourceManifest[0].sourceUrl = validUrl;
+      (artifact.scores[0].provenance as Record<string, unknown>).sourceUrl = validUrl;
+    });
+    expect(valid.availability).toBe("published");
   });
 
   it("keeps the containment loader separate from the dormant published parser", () => {

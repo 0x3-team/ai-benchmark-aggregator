@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import stat
 from typing import Optional
+import unicodedata
 
 import typer
 
@@ -49,6 +50,7 @@ from app.db.migrate import (
 )
 from app.db import repositories as repo
 from app.ingestion.runner import IngestionBlockedError, run_ingestion
+from app.ingestion.safe_fetch import SafeFetchError
 from app.registry.seed_loader import seed_registry
 from app.recovery_io import (
     RecoveryFileError,
@@ -57,6 +59,7 @@ from app.recovery_io import (
     reserve_new_recovery_output,
 )
 from app.reporting.legacy_inventory import (
+    LegacyInventoryError,
     build_legacy_inventory_report,
     canonical_legacy_inventory_json,
 )
@@ -66,6 +69,57 @@ from app.reporting.coverage_census import (
     canonical_coverage_json,
     render_coverage_markdown,
 )
+
+
+def _terminal_render(value: object) -> str:
+    """Render one durable value for the terminal without leaking control bytes.
+
+    Only the *terminal projection* changes; durable values are never rewritten.
+    ``str(value)`` is taken first so dicts/lists render through their repr
+    (which still contains the raw characters), then:
+
+    - literal backslash renders visibly as ``\\\\`` (two characters),
+    - LF/CR/TAB/BS/FF render as the short visible escapes ``\\n``/``\\r``/
+      ``\\t``/``\\b``/``\\f`` (a source embedded newline is text, not layout),
+    - every other Unicode ``Cc`` or ``Cf`` code point (ESC, BEL, DEL, C1
+      CSI/OSC, bidi controls, …) renders as a lowercase visible escape:
+      ``\\xNN`` when <= 0xff, ``\\uNNNN`` when <= 0xffff, ``\\UNNNNNNNN``
+      otherwise.
+
+    Ordinary printable Unicode passes through unchanged.
+    """
+    text = str(value)
+    out: list[str] = []
+    for ch in text:
+        code = ord(ch)
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ch == "\b":
+            out.append("\\b")
+        elif ch == "\f":
+            out.append("\\f")
+        elif _is_control_or_format(code):
+            if code <= 0xFF:
+                out.append(f"\\x{code:02x}")
+            elif code <= 0xFFFF:
+                out.append(f"\\u{code:04x}")
+            else:
+                out.append(f"\\U{code:08x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _is_control_or_format(code: int) -> bool:
+    """True for Unicode Cc (control) and Cf (format) categories."""
+    return unicodedata.category(chr(code)) in ("Cc", "Cf")
+
 
 app = typer.Typer(name="benchmark-ledger", help="Official benchmark result capture ledger", no_args_is_help=True)
 claims_app = typer.Typer(help="Inspect result claims")
@@ -678,24 +732,24 @@ def ingest_cmd(
     """Run ingestion for selected sources."""
     if not all_sources and not source and not benchmark:
         raise typer.BadParameter("Provide --all, --source, or --benchmark")
-    if dry_run:
-        # A preview is not permission to initialize or migrate a database.
-        # `inspect_database` uses SQLite read-only mode and refuses a missing,
-        # invalid, or non-current target before the ORM can open it.
-        try:
-            database_status = inspect_database(get_settings().database_url)
-        except DatabaseMigrationError as exc:
-            typer.echo(f"Dry-run blocked: {exc}", err=True)
-            raise typer.Exit(code=2) from exc
-        if database_status.kind != "current":
-            typer.echo(
-                "Dry-run blocked: an existing, integrity-clean current ledger database is required; "
-                "dry-run will not initialize or migrate one.",
-                err=True,
-            )
-            raise typer.Exit(code=2)
-    else:
-        init_db()
+
+    # Ingestion never initializes or migrates its target.  Inspecting first is
+    # deliberately read-only so a refused source or unavailable fetch cannot
+    # leave a newly created ledger behind.
+    try:
+        database_status = inspect_database(get_settings().database_url)
+    except DatabaseMigrationError as exc:
+        label = "Dry-run blocked" if dry_run else "Ingestion blocked"
+        typer.echo(f"{label}: {_terminal_render(exc)}", err=True)
+        raise typer.Exit(code=2) from exc
+    if database_status.kind != "current":
+        label = "Dry-run blocked" if dry_run else "Ingestion blocked"
+        typer.echo(
+            f"{label}: an existing, integrity-clean current ledger database is required; "
+            f"{'dry-run' if dry_run else 'ingest'} will not initialize or migrate one.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
     try:
         with get_session() as session:
             summary = run_ingestion(
@@ -707,9 +761,15 @@ def ingest_cmd(
                 fixture_path=fixture,
             )
     except IngestionBlockedError as exc:
-        typer.echo(f"Ingestion blocked: {exc}", err=True)
+        typer.echo(f"Ingestion blocked: {_terminal_render(exc)}", err=True)
         raise typer.Exit(code=2) from exc
-    terminal = "Ingestion complete." if summary.status == "completed" else f"Ingestion {summary.status}."
+    except SafeFetchError as exc:
+        # SafeFetchError details are intentionally not operator output: the
+        # stable code is enough to diagnose the bounded failure and cannot
+        # echo a URL, provider response, or credential-like value.
+        typer.echo(f"Ingestion blocked: safe fetch failed closed ({_terminal_render(exc.code)})", err=True)
+        raise typer.Exit(code=2) from None
+    terminal = "Ingestion complete." if summary.status == "completed" else f"Ingestion {_terminal_render(summary.status)}."
     typer.echo(terminal + (" (dry-run)" if dry_run else ""))
     typer.echo(f"Sources checked: {summary.sources_checked}")
     typer.echo(f"Snapshots created: {summary.snapshots_created}")
@@ -720,11 +780,14 @@ def ingest_cmd(
     typer.echo(f"Claims needing review: {summary.claims_needing_review}")
     typer.echo(f"Errors: {len(summary.errors)}")
     for e in summary.errors:
-        typer.echo(f"  - {e}")
+        typer.echo(f"  - {_terminal_render(e)}")
     if dry_run and summary.dry_run_claims:
         typer.echo(f"Sample claims ({min(5, len(summary.dry_run_claims))}):")
         for c in summary.dry_run_claims[:5]:
-            typer.echo(f"  {c['model_raw']} | {c['score_raw']} | {c['capture_status']}")
+            typer.echo(
+                f"  {_terminal_render(c['model_raw'])} | {_terminal_render(c['score_raw'])} "
+                f"| {_terminal_render(c['capture_status'])}"
+            )
     if summary.status != "completed":
         raise typer.Exit(code=1)
 
@@ -735,7 +798,9 @@ def claims_list(benchmark: Optional[str] = typer.Option(None, "--benchmark"), li
         rows = repo.list_claims(session, benchmark_id=benchmark, limit=limit)
         for c in rows:
             typer.echo(
-                f"{c.id} | {c.benchmark_id or c.benchmark_raw} | {c.model_raw} | {c.score_raw} | {c.capture_status}"
+                f"{_terminal_render(c.id)} | {_terminal_render(c.benchmark_id or c.benchmark_raw)} "
+                f"| {_terminal_render(c.model_raw)} | {_terminal_render(c.score_raw)} "
+                f"| {_terminal_render(c.capture_status)}"
             )
 
 
@@ -746,19 +811,19 @@ def claims_show(claim_id: str) -> None:
         if not c:
             raise typer.Exit(code=1)
         projection = repo.get_claim_review_projection(session, c)
-        typer.echo(f"id: {c.id}")
-        typer.echo(f"model_raw: {c.model_raw}")
-        typer.echo(f"captured_model_entity_id: {c.model_entity_id}")
-        typer.echo(f"effective_model_entity_id: {projection.model_entity_id}")
+        typer.echo(f"id: {_terminal_render(c.id)}")
+        typer.echo(f"model_raw: {_terminal_render(c.model_raw)}")
+        typer.echo(f"captured_model_entity_id: {_terminal_render(c.model_entity_id)}")
+        typer.echo(f"effective_model_entity_id: {_terminal_render(projection.model_entity_id)}")
         if projection.chain_error:
-            typer.echo(f"review_chain_error: {projection.chain_error}")
-        typer.echo(f"benchmark_raw: {c.benchmark_raw}")
-        typer.echo(f"benchmark_id: {c.benchmark_id}")
-        typer.echo(f"score_raw: {c.score_raw}")
-        typer.echo(f"capture_status: {c.capture_status}")
-        typer.echo(f"evidence_location: {c.evidence_location}")
-        typer.echo(f"source_snapshot_id: {c.source_snapshot_id}")
-        typer.echo(f"official_source_id: {c.official_source_id}")
+            typer.echo(f"review_chain_error: {_terminal_render(projection.chain_error)}")
+        typer.echo(f"benchmark_raw: {_terminal_render(c.benchmark_raw)}")
+        typer.echo(f"benchmark_id: {_terminal_render(c.benchmark_id)}")
+        typer.echo(f"score_raw: {_terminal_render(c.score_raw)}")
+        typer.echo(f"capture_status: {_terminal_render(c.capture_status)}")
+        typer.echo(f"evidence_location: {_terminal_render(c.evidence_location)}")
+        typer.echo(f"source_snapshot_id: {_terminal_render(c.source_snapshot_id)}")
+        typer.echo(f"official_source_id: {_terminal_render(c.official_source_id)}")
 
 
 @snapshots_app.command("list")
@@ -769,31 +834,68 @@ def snapshots_list(source: str = typer.Option(..., "--source")) -> None:
             typer.echo(f"{s.id} | {s.content_hash[:12]} | {s.captured_at} | {s.raw_content_uri}")
 
 
+def _render_review_queue_item_reason(c, projection) -> list[str]:
+    """Build the raw review-reason list for one claim; preserves prior reasons.
+
+    Returns *unrendered* strings; the single terminal render happens once in
+    ``_render_review_queue_item`` so an escaped value is never re-escaped.
+    """
+    reason = []
+    if projection.chain_error:
+        reason.append(f"review chain invalid: {projection.chain_error}")
+    elif projection.model_entity_id is None:
+        reason.append("model_entity_id is null")
+    elif c.model_entity_id is None:
+        reason.append("model identity resolved by append-only review decision")
+    if c.capture_status == "needs_review":
+        reason.append("capture_status=needs_review")
+    return reason
+
+
+def _render_review_queue_item(c, projection) -> None:
+    reason = _render_review_queue_item_reason(c, projection)
+    typer.echo(f"Claim ID: {_terminal_render(c.id)}")
+    typer.echo(f"Benchmark: {_terminal_render(c.benchmark_raw)}")
+    typer.echo(f"Model raw: {_terminal_render(c.model_raw)}")
+    typer.echo(f"Score raw: {_terminal_render(c.score_raw)}")
+    typer.echo(f"Reason: {_terminal_render(', '.join(reason)) or 'unspecified'}")
+    typer.echo(f"Evidence: {_terminal_render(c.evidence_location)}")
+    typer.echo("---")
+
+
 @review_app.command("queue")
-def review_queue(limit: int = 50) -> None:
+def review_queue(limit: int = 50, cursor: Optional[str] = None) -> None:
+    """Print a bounded review-queue page with explicit continuation.
+
+    ``cursor`` is an opaque token returned as ``Next cursor`` on a prior page;
+    pass it back to fetch the following page.  Output reasons and the queue
+    review containment rules are unchanged.
+    """
     with get_session() as session:
-        rows = repo.list_review_queue(session, limit=limit)
-        if not rows:
+        try:
+            page = repo.list_review_queue_page(
+                session,
+                limit=limit,
+                cursor=cursor,
+            )
+        except ValueError as exc:
+            typer.echo(f"Invalid review queue cursor: {_terminal_render(exc)}", err=True)
+            raise typer.Exit(code=2) from exc
+        if not page.items and not page.next_cursor:
+            # A truly empty queue (no claims at all).  This is distinct from a
+            # bounded page that happens to hold zero eligible items while more
+            # rows remain — that case falls through to the continuation line.
             typer.echo("Review queue empty.")
             return
-        for c in rows:
-            reason = []
-            projection = repo.get_claim_review_projection(session, c)
-            if projection.chain_error:
-                reason.append(f"review chain invalid: {projection.chain_error}")
-            elif projection.model_entity_id is None:
-                reason.append("model_entity_id is null")
-            elif c.model_entity_id is None:
-                reason.append("model identity resolved by append-only review decision")
-            if c.capture_status == "needs_review":
-                reason.append("capture_status=needs_review")
-            typer.echo(f"Claim ID: {c.id}")
-            typer.echo(f"Benchmark: {c.benchmark_raw}")
-            typer.echo(f"Model raw: {c.model_raw}")
-            typer.echo(f"Score raw: {c.score_raw}")
-            typer.echo(f"Reason: {', '.join(reason) or 'unspecified'}")
-            typer.echo(f"Evidence: {c.evidence_location}")
-            typer.echo("---")
+        for item in page.items:
+            _render_review_queue_item(item.claim, item.projection)
+        if page.next_cursor:
+            typer.echo(f"Scanned: {page.scanned} | Next cursor: {_terminal_render(page.next_cursor)}")
+            typer.echo(
+                "Continuation available; pass the cursor above as --cursor to fetch the next page."
+            )
+        elif page.exhausted:
+            typer.echo("Scanned: {page.scanned} | Review queue exhausted (no more claims).".format(page=page))
 
 
 @review_app.command("show")
@@ -812,13 +914,67 @@ def review_auto_verify() -> None:
     raise typer.Exit(code=2)
 
 
+#: Hard bound for the persisted actor string: ClaimReviewDecision.actor is
+#: String(128), so an overlong principal must fail closed rather than truncate.
+_ACTOR_MAX_BYTES = 128
+
+
+def _os_principal() -> str:
+    """Resolve the trusted invoking OS principal for audit provenance.
+
+    Returns a canonical value ``posix:euid=<decimal>;name=<name>`` built from
+    the numeric effective UID and the passwd database record for that exact
+    UID.  The passwd lookup is performed lazily inside this helper so the full
+    CLI stays importable on a platform without ``pwd``; only map-model fails
+    closed.  ``USER``/``LOGNAME``/``getpass`` are never consulted.  The passwd
+    record's ``pw_uid`` must exactly equal the requested effective UID, the
+    name must be nonempty and free of control/format characters, and the
+    canonical value must fit the persisted ``String(128)`` field.  Any failure
+    raises one stable ``LookupError`` so the caller fails closed before a DB
+    session or write.
+    """
+    if not hasattr(os, "geteuid"):
+        raise LookupError("no trusted local principal available on this platform")
+    euid = os.geteuid()
+    try:
+        import pwd
+    except ImportError:
+        raise LookupError("no trusted local principal available on this platform") from None
+    try:
+        record = pwd.getpwuid(euid)
+    except KeyError:
+        raise LookupError(f"no passwd entry for effective uid {euid}") from None
+    if record.pw_uid != euid:
+        raise LookupError(
+            f"passwd record uid mismatch for effective uid {euid}"
+        ) from None
+    name = record.pw_name
+    if not isinstance(name, str) or not name:
+        raise LookupError("passwd principal name is empty") from None
+    if any(_is_control_or_format(ord(ch)) for ch in name):
+        raise LookupError("passwd principal name contains control or format characters") from None
+    actor = f"posix:euid={euid};name={name}"
+    if len(actor.encode("utf-8")) > _ACTOR_MAX_BYTES:
+        raise LookupError("passwd principal exceeds the persisted actor field bound") from None
+    return actor
+
+
 @review_app.command("map-model")
 def review_map_model(
     claim_id: str,
     model_entity_id: str,
-    actor: str = typer.Option("cli", "--actor", help="Recorded decision actor"),
 ) -> None:
-    """Append a manual model-identity decision without promoting the claim."""
+    """Append a manual model-identity decision without promoting the claim.
+
+    The persisted actor is bound to the invoking OS principal (never a
+    caller-supplied value), so audit provenance cannot be forged via --actor
+    or environment variables.
+    """
+    try:
+        actor = _os_principal()
+    except LookupError as exc:
+        typer.echo(f"Review mapping blocked: {_terminal_render(exc)}", err=True)
+        raise typer.Exit(code=2) from exc
     try:
         with get_session() as session:
             decision = repo.append_manual_model_mapping(
@@ -829,11 +985,13 @@ def review_map_model(
             )
             decision_id = decision.id
     except (ValueError, repo.ClaimReviewChainError) as exc:
-        typer.echo(f"Review mapping blocked: {exc}", err=True)
+        typer.echo(f"Review mapping blocked: {_terminal_render(exc)}", err=True)
         raise typer.Exit(code=2) from exc
     typer.echo(
-        f"Recorded manual model mapping {claim_id} -> {model_entity_id} "
-        f"as review decision {decision_id}; captured claim and validation status are unchanged."
+        f"Recorded manual model mapping {_terminal_render(claim_id)} -> "
+        f"{_terminal_render(model_entity_id)} "
+        f"as review decision {_terminal_render(decision_id)}; "
+        "captured claim and validation status are unchanged."
     )
 
 @review_app.command("mark-human-verified")
@@ -867,7 +1025,13 @@ def reports_legacy_inventory() -> None:
         )
         raise typer.Exit(code=2)
     with get_session() as session:
-        report = build_legacy_inventory_report(session)
+        try:
+            report = build_legacy_inventory_report(session)
+        except LegacyInventoryError:
+            # One fixed terminal-safe refusal, exit 2.  Never interpolate the
+            # exception (its text can carry raw DB/cap/input detail).
+            typer.echo("Legacy inventory refused: report exceeds the bounded resource limits.", err=True)
+            raise typer.Exit(code=2)
     typer.echo(canonical_legacy_inventory_json(report))
 
 
@@ -932,13 +1096,19 @@ def coverage_status(
 
 
 def _fail_discovery(exc: BaseException) -> None:
+    # Never surface raw exception text: the fixture/parser/database boundary is
+    # operator-controlled input, and a malformed manifest or hostile fixture can
+    # embed private paths, filenames, provider details, secrets, or terminal
+    # control bytes in an exception message. Emit exactly one bounded JSON
+    # object with a stable generic detail so stderr stays parseable and free of
+    # raw bytes. Exit 2 preserves the existing fail-closed contract.
     typer.echo(
         json.dumps(
             {
                 "availability": "candidate_only",
                 "status": "failed_closed",
                 "reasonCode": "DISCOVERY_INPUT_REJECTED",
-                "detail": str(exc),
+                "detail": "Discovery input was rejected.",
             },
             sort_keys=True,
         ),

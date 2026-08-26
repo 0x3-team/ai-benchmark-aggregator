@@ -162,7 +162,7 @@ describe("chartData builders", () => {
     expect(buildRadarRows([], [bench1], ds.getValue)).toHaveLength(9);
     expect(buildBenchmarkRows([], [bench1], ds.getValue)).toHaveLength(0);
     const gauge = buildOverallGauge("m1", [], ds.getValue);
-    expect(gauge.pct).toBe(0);
+    expect(gauge.pct).toBeNull();
     expect(gauge.coveragePct).toBe(0);
   });
 
@@ -208,7 +208,6 @@ describe("chartData builders", () => {
   });
 
   it("catalog share sums to total benchmark count", () => {
-    const ds = makeDataset();
     const rows = buildCatalogShare([bench1, bench2, bench3]);
     const total = rows.reduce((sum, r) => sum + r.count, 0);
     expect(total).toBe(3);
@@ -243,5 +242,85 @@ describe("chartData builders", () => {
     // pct = avg(88.5, 70, 90) = 82.8...
     // bench3 scaleMax=10, value=9 → 90%
     expect(gauge.pct).toBe(Math.round((88.5 + 70 + 90) / 3 * 10) / 10);
+  });
+
+  it("uses a nonzero bounded minimum and lower-is-better direction for chart percentages", () => {
+    const lower: Benchmark = {
+      ...bench1,
+      id: "latency",
+      name: "Latency",
+      higherIsBetter: false,
+      normalization: { kind: "bounded", min: 10, max: 20 },
+    };
+    const ds = createDatasetAccess({
+      models: [model1, model2],
+      benchmarks: [lower],
+      scores: [
+        { modelId: model1.id, benchmarkId: lower.id, value: 12, date: "2026-01-01" },
+        { modelId: model2.id, benchmarkId: lower.id, value: 18, date: "2026-01-01" },
+      ],
+    });
+
+    expect(buildBenchmarkRows([model1, model2], [lower], ds.getValue)).toEqual([
+      { benchmarkId: "latency", name: "Latency", category: "knowledge", s0: 80, s1: 20 },
+    ]);
+    expect(buildBenchmarkSpreadRows(lower, [model1, model2], ds.getValue)).toEqual([
+      { rank: 1, modelName: "Model One", pct: 80 },
+      { rank: 2, modelName: "Model Two", pct: 20 },
+    ]);
+    expect(buildOverallGauge(model1.id, [lower], ds.getValue)).toMatchObject({
+      pct: 80,
+      coveragePct: 100,
+    });
+  });
+
+  it("omits raw-only and out-of-domain chart points while retaining raw table values", () => {
+    const rawOnly: Benchmark = {
+      ...bench1,
+      id: "rating",
+      name: "Rating",
+      normalization: { kind: "raw_only", reason: "rating_metric" },
+    };
+    const bounded: Benchmark = {
+      ...bench1,
+      id: "bounded",
+      name: "Bounded",
+      normalization: { kind: "bounded", min: 10, max: 20 },
+    };
+    const ds = createDatasetAccess({
+      models: [model1],
+      benchmarks: [rawOnly, bounded],
+      scores: [
+        { modelId: model1.id, benchmarkId: rawOnly.id, value: 900, date: "2026-01-01" },
+        { modelId: model1.id, benchmarkId: bounded.id, value: 25, date: "2026-01-01" },
+      ],
+    });
+
+    expect(ds.getValue(model1.id, rawOnly.id)).toBe(900);
+    expect(buildBenchmarkRows([model1], [rawOnly, bounded], ds.getValue)).toEqual([]);
+    expect(buildBenchmarkSpreadRows(rawOnly, [model1], ds.getValue)).toEqual([]);
+    expect(buildOverallGauge(model1.id, [rawOnly, bounded], ds.getValue)).toEqual({
+      pct: null,
+      coveragePct: 0,
+    });
+    expect(buildFieldAverageByCategory([model1], [rawOnly, bounded], ds.getValue).find(
+      (row) => row.category === "knowledge"
+    )).toEqual({ category: "knowledge", fieldPct: null });
+  });
+
+  it("uses null for empty category, field, profile, and overall aggregates", () => {
+    const empty: Benchmark = {
+      ...bench1,
+      id: "empty",
+      name: "Empty",
+      normalization: { kind: "raw_only", reason: "uncertain_domain" },
+    };
+    const ds = createDatasetAccess({ models: [model1], benchmarks: [empty], scores: [] });
+
+    expect(buildRadarRows([model1], [empty], ds.getValue).find((row) => row.category === "knowledge")).toEqual({
+      category: "knowledge",
+    });
+    expect(buildModelProfileRows(model1.id, [model1], [empty], ds.getValue)).toEqual([]);
+    expect(buildOverallGauge(model1.id, [empty], ds.getValue)).toEqual({ pct: null, coveragePct: 0 });
   });
 });

@@ -1,18 +1,29 @@
-import httpx
-from bs4 import BeautifulSoup
+#!/usr/bin/env python3
+"""Retired direct-network helper - governed offline stub.
 
-for name, url in [
-    ("bfcl", "https://gorilla.cs.berkeley.edu/leaderboard.html"),
-    ("humaneval", "https://evalplus.github.io/leaderboard.html"),
-]:
-    print(f"=== {name} ===")
-    try:
-        resp = httpx.get(url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True, timeout=10.0)
-        soup = BeautifulSoup(resp.content, "lxml")
-        tables = soup.find_all("table")
-        print(f"Found {len(tables)} tables")
-        for i, table in enumerate(tables):
-            print(f"Table {i} HTML:")
-            print(str(table)[:1000])
-    except Exception as e:
-        print(e)
+This entrypoint historically performed an unbound outbound HTTP GET. It is
+retired and replaced by the governed SafeFetch seam
+(``ledger/app/ingestion/safe_fetch.py``), which defaults to a disabled network
+transport. This file is kept as a tracked, runnable no-network stub so the
+history of the retired helper is preserved through git without retaining a
+runnable raw-network copy anywhere on disk. It exits immediately with a clear
+message; it never opens a socket.
+"""
+
+from __future__ import annotations
+
+import sys
+
+
+def main() -> int:
+    print(
+        "This helper is retired. Data access goes through the governed SafeFetch "
+        "seam (ledger/app/ingestion/safe_fetch.py); this stub performs no network "
+        "I/O by design.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

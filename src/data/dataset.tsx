@@ -82,21 +82,31 @@ function immutableBenchmarks(
   benchmarks: readonly Benchmark[]
 ): readonly DatasetBenchmark[] {
   return Object.freeze(
-    benchmarks.map((benchmark): DatasetBenchmark => Object.freeze({ ...benchmark }))
+    benchmarks.map((benchmark): DatasetBenchmark =>
+      Object.freeze({
+        ...benchmark,
+        normalization: benchmark.normalization
+          ? Object.freeze({ ...benchmark.normalization })
+          : benchmark.normalization,
+      })
+    )
   );
 }
 
 function immutableScores(scores: readonly Score[]): readonly Score[] {
-  return scores.map((score) =>
-    score.evidenceLocation || score.officialProvenance
-      ? Object.freeze({
-          ...score,
-          evidenceLocation: score.evidenceLocation
-            ? Object.freeze({ ...score.evidenceLocation })
-            : score.evidenceLocation,
-          officialProvenance: immutableOfficialProvenance(score.officialProvenance),
-        })
-      : score
+  // Always clone and freeze the score row, including plain Demo rows.  Keeping
+  // an input object by reference would let a caller mutate the private index
+  // after construction and silently change later getValue results.
+  return Object.freeze(
+    scores.map((score) =>
+      Object.freeze({
+        ...score,
+        evidenceLocation: score.evidenceLocation
+          ? Object.freeze({ ...score.evidenceLocation })
+          : score.evidenceLocation,
+        officialProvenance: immutableOfficialProvenance(score.officialProvenance),
+      })
+    )
   );
 }
 

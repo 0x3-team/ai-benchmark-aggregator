@@ -57,7 +57,7 @@ def test_coverage_cli_emits_complete_blocked_json_without_creating_missing_db(tm
         "benchmarkUniqueIdCount": 42,
         "sourceRowCount": 53,
         "sourceUniqueIdCount": 53,
-        "modelRowCount": 1189,
+        "modelRowCount": 1186,
         "modelUniqueIdCount": 1186,
     }.items() <= payload["manifest"]["denominators"].items()
     assert payload["universe"]["approvalStatus"] == "draft_unapproved"

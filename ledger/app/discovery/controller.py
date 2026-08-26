@@ -52,6 +52,12 @@ _RUN_OUTCOMES = {
     "failed",
 }
 
+# Hard ceiling on quarantined candidates persisted across a single discovery
+# cycle.  The controller fails the whole cycle (and the caller rolls back the
+# transaction) before any disputed candidate is written, so a runaway or
+# malicious observation can never flood the operational tables.
+MAX_CANDIDATES_PER_CYCLE = 10_000
+
 
 @dataclass(frozen=True, slots=True)
 class TargetRunRecord:
@@ -186,6 +192,7 @@ def run_discovery_cycle(
 
     targets_by_revision = {target["targetRevisionId"]: target for target in manifest.targets}
     records: list[TargetRunRecord] = []
+    candidate_total = 0
     for disposition in dispositions:
         target = targets_by_revision[disposition.target_revision_id]
         base = {
@@ -233,6 +240,13 @@ def run_discovery_cycle(
             continue
 
         assert observation is not None
+        proposed = candidate_total + len(observation.candidates)
+        if proposed > MAX_CANDIDATES_PER_CYCLE:
+            raise DiscoveryControllerError(
+                f"candidate count {proposed} exceeds per-cycle cap "
+                f"{MAX_CANDIDATES_PER_CYCLE}"
+            )
+        candidate_total = proposed
         candidate_ids: list[str] = []
         new_candidate_ids: list[str] = []
         for payload in observation.candidates:
@@ -303,6 +317,7 @@ def run_discovery_cycle(
 __all__ = [
     "CycleRunReport",
     "DiscoveryControllerError",
+    "MAX_CANDIDATES_PER_CYCLE",
     "TargetRunRecord",
     "build_fixture_connectors",
     "run_discovery_cycle",

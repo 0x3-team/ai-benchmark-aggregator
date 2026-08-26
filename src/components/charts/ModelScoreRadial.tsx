@@ -15,7 +15,7 @@ interface ModelScoreRadialProps {
 export function ModelScoreRadial({ modelId, benchmarks }: ModelScoreRadialProps) {
   const { getValue } = useDataset();
   const gauge = buildOverallGauge(modelId, benchmarks, getValue);
-  const data = [{ name: "overall", value: gauge.pct }];
+  const data = gauge.pct == null ? [] : [{ name: "overall", value: gauge.pct }];
   const config = singleSeriesConfig("overall", "Overall average", "#8b5cf6");
 
   return (
@@ -31,7 +31,9 @@ export function ModelScoreRadial({ modelId, benchmarks }: ModelScoreRadialProps)
         <Tooltip variant="frosted-glass" />
       </EvilRadialChart>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end pb-8">
-        <span className="text-2xl font-bold">{gauge.pct.toFixed(0)}%</span>
+        <span className="text-2xl font-bold">
+          {gauge.pct == null ? "—" : `${gauge.pct.toFixed(0)}%`}
+        </span>
         <span className="text-[10px] text-muted-foreground">
           coverage {gauge.coveragePct.toFixed(0)}%
         </span>

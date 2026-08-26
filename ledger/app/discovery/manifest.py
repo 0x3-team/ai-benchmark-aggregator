@@ -18,12 +18,17 @@ environment access and reads nothing outside the fixture root.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
+import os
 from pathlib import Path
 import re
 import stat
 from typing import Any
 
+from app.discovery.fixture_io import (
+    FixtureBudget,
+    FixtureInputError,
+    read_json_object_at,
+)
 from app.schemas.coverage_contracts import (
     CoverageContractError,
     validate_coverage_universe,
@@ -42,6 +47,17 @@ class DiscoveryManifestError(ValueError):
 MANIFEST_POLICY_VERSION = "discovery-run-manifest-v1"
 DISCOVERY_LANE = "discovery"
 FIXTURE_MODE = "synthetic_fixture"
+
+# Single fixture payload, decoded in isolation.
+MAX_FIXTURE_JSON_BYTES = 8 * 1024 * 1024
+MAX_FIXTURE_JSON_DEPTH = 64
+MAX_FIXTURE_JSON_NODES = 100_000
+# Entire fixture root (manifest + universe + targets) shared across one load.
+MAX_FIXTURE_MANIFEST_BYTES = 32 * 1024 * 1024
+MAX_FIXTURE_MANIFEST_NODES = 500_000
+# targets/ directory shape: total entries and JSON leaves, both bounded first.
+MAX_TARGET_DIRECTORY_ENTRIES = 512
+MAX_TARGET_JSON_FILES = 512
 
 _MANIFEST_KEYS = {
     "schemaVersion",
@@ -88,22 +104,78 @@ def _stable_id(value: Any, field: str) -> str:
     return value
 
 
-def _read_json(path: Path, label: str) -> dict[str, Any]:
+def _require_descriptor_nofollow(root: Path) -> int:
+    """Open the fixture root as a no-follow directory descriptor.
+
+    ``Path.exists()``/``lstat()`` are pure time-of-check probes: a symlink can
+    be swapped in afterwards, and every later ``Path.read_text()`` would follow
+    it. ``os.open`` with ``O_NOFOLLOW | O_DIRECTORY`` commits to the exact
+    directory inode at hand and returns a descriptor, so subsequent fixture
+    reads are anchored here instead of to whatever the path later names.
+    """
+
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY"):
+        raise DiscoveryManifestError(
+            "discovery fixture loading requires no-follow directory-descriptor support."
+        )
     try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        _fail(f"{label}: cannot read {path.name}: {exc.strerror or exc}")
+        metadata = root.lstat()
+    except OSError:
+        _fail("fixture root must be an existing directory")
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        _fail("fixture root must be a regular directory, not a link or file")
     try:
-        payload = json.loads(text)
-    except json.JSONDecodeError as exc:
-        _fail(f"{label}: {path.name} is not valid JSON: {exc}")
-    if type(payload) is not dict:
-        _fail(f"{label}: {path.name} top level must be a JSON object")
-    return payload
+        return os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError:
+        _fail("fixture root directory could not be opened safely")
 
 
-def _load_run_parameters(root: Path) -> tuple[str, str, str, str, int, str]:
-    payload = _read_json(root / "manifest.json", "run manifest")
+def _open_no_follow_directory(parent_fd: int, name: str, label: str) -> int:
+    """Open one fixture subdirectory by its root-relative name, no-follow.
+
+    ``O_NOFOLLOW | O_DIRECTORY`` on an ``O_CLOEXEC`` child makes it impossible
+    for a planted symlink to redirect the open to an attacker-chosen directory,
+    and the resulting descriptor is valid even if the parent walk races a path
+    swap.  The opened descriptor must still be a real directory, never a link.
+    """
+
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        descriptor = os.open(name, flags | os.O_CLOEXEC, dir_fd=parent_fd)
+    except OSError:
+        _fail(f"{label} directory is required and must not be a symbolic link")
+    return descriptor
+
+
+def _read_json(
+    parent_fd: int, name: str, label: str, budget: FixtureBudget
+) -> dict[str, Any]:
+    """Read and parse one fixture payload relative to ``parent_fd``, bounded.
+
+    Delegates to the shared :func:`read_json_object_at` helper so every per-file
+    byte/depth/node cap and the shared :class:`FixtureBudget` are enforced during
+    the read, and maps a :class:`FixtureInputError` to this module's stable
+    :class:`DiscoveryManifestError` carrying only ``label``/``name`` and the
+    stable ``reason_code`` — never raw decode/OS details.
+    """
+
+    try:
+        return read_json_object_at(
+            parent_fd,
+            name,
+            max_bytes=MAX_FIXTURE_JSON_BYTES,
+            max_depth=MAX_FIXTURE_JSON_DEPTH,
+            max_nodes=MAX_FIXTURE_JSON_NODES,
+            budget=budget,
+        )
+    except FixtureInputError as exc:
+        _fail(f"{label}: cannot read {name} ({exc.reason_code})")
+
+
+def _load_run_parameters(
+    root_fd: int, budget: FixtureBudget
+) -> tuple[str, str, str, str, int, str]:
+    payload = _read_json(root_fd, "manifest.json", "run manifest", budget)
     keys = set(payload)
     if keys != _MANIFEST_KEYS:
         missing = sorted(_MANIFEST_KEYS - keys)
@@ -148,37 +220,86 @@ def load_manifest(fixture_root: Path) -> DiscoveryManifest:
     """Load and fully validate one discovery fixture root, fail closed."""
 
     root = Path(fixture_root)
+    root_fd = _require_descriptor_nofollow(root)
     try:
-        metadata = root.lstat()
+        return _load_manifest_from_root(root_fd)
+    finally:
+        os.close(root_fd)
+
+
+def _load_targets_from_directory(
+    targets_fd: int, budget: FixtureBudget
+) -> list[dict[str, Any]]:
+    """Load every ``*.json`` payload in a no-follow ``targets/`` descriptor.
+
+    The full directory is scanned exactly once under a closed
+    ``with os.scandir(targets_fd)`` iterator: every entry (including ignored
+    non-JSON names and subdirectories) counts toward
+    ``MAX_TARGET_DIRECTORY_ENTRIES``, every ``.json`` leaf counts toward
+    ``MAX_TARGET_JSON_FILES``, and only then are the collected JSON names sorted
+    deterministically and decoded through the bounded shared-helper read.  The
+    bounded name pass therefore runs entirely before any payload is read, so a
+    malformed overflow JSON is never decoded once the entry caps are exceeded.
+    Leaf regularity is enforced per-file inside :func:`read_json_object_at`
+    (``stat.S_ISREG``); no ``entry.is_file`` probe is made here.
+    """
+
+    json_names: list[str] = []
+    total_entries = 0
+    try:
+        with os.scandir(targets_fd) as scan:
+            for entry in scan:
+                total_entries += 1
+                if total_entries > MAX_TARGET_DIRECTORY_ENTRIES:
+                    _fail(
+                        "targets/: directory has more than "
+                        f"{MAX_TARGET_DIRECTORY_ENTRIES} entries"
+                    )
+                if entry.name.endswith(".json"):
+                    json_names.append(entry.name)
+                    if len(json_names) > MAX_TARGET_JSON_FILES:
+                        _fail(
+                            "targets/: more than "
+                            f"{MAX_TARGET_JSON_FILES} JSON payload files"
+                        )
     except OSError:
-        _fail("fixture root must be an existing directory")
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
-        _fail("fixture root must be a regular directory, not a link or file")
+        # Redact raw OS details; keep the descriptor context in the error.
+        _fail("targets/: directory scan failed")
 
-    environment, lane, policy_revision, anchor, cadence, mode = _load_run_parameters(root)
+    targets: list[dict[str, Any]] = []
+    for name in sorted(json_names):
+        payload = _read_json(targets_fd, name, "discovery target", budget)
+        try:
+            validate_discovery_target(payload)
+        except CoverageContractError as exc:
+            _fail(f"targets/{name} failed semantic validation: {exc}")
+        targets.append(payload)
+    return targets
 
-    universe = _read_json(root / "coverage-universe.json", "coverage universe")
+
+def _load_manifest_from_root(root_fd: int) -> DiscoveryManifest:
+    """Validate a fixture root opened as one no-follow descriptor."""
+
+    budget = FixtureBudget(
+        max_bytes=MAX_FIXTURE_MANIFEST_BYTES,
+        max_nodes=MAX_FIXTURE_MANIFEST_NODES,
+    )
+
+    environment, lane, policy_revision, anchor, cadence, mode = _load_run_parameters(
+        root_fd, budget
+    )
+
+    universe = _read_json(root_fd, "coverage-universe.json", "coverage universe", budget)
     try:
         validate_coverage_universe(universe)
     except CoverageContractError as exc:
         _fail(f"coverage-universe.json failed semantic validation: {exc}")
 
-    targets_dir = root / "targets"
+    targets_fd = _open_no_follow_directory(root_fd, "targets", "targets/")
     try:
-        targets_metadata = targets_dir.lstat()
-    except OSError:
-        _fail("targets/ directory is required for an explicit target denominator")
-    if stat.S_ISLNK(targets_metadata.st_mode) or not stat.S_ISDIR(targets_metadata.st_mode):
-        _fail("targets/ must be a regular directory")
-
-    targets: list[dict[str, Any]] = []
-    for path in sorted(targets_dir.glob("*.json")):
-        payload = _read_json(path, "discovery target")
-        try:
-            validate_discovery_target(payload)
-        except CoverageContractError as exc:
-            _fail(f"targets/{path.name} failed semantic validation: {exc}")
-        targets.append(payload)
+        targets = _load_targets_from_directory(targets_fd, budget)
+    finally:
+        os.close(targets_fd)
 
     seen_revisions: set[str] = set()
     seen_target_ids: set[str] = set()
@@ -233,6 +354,13 @@ __all__ = [
     "DISCOVERY_LANE",
     "FIXTURE_MODE",
     "MANIFEST_POLICY_VERSION",
+    "MAX_FIXTURE_JSON_BYTES",
+    "MAX_FIXTURE_JSON_DEPTH",
+    "MAX_FIXTURE_JSON_NODES",
+    "MAX_FIXTURE_MANIFEST_BYTES",
+    "MAX_FIXTURE_MANIFEST_NODES",
+    "MAX_TARGET_DIRECTORY_ENTRIES",
+    "MAX_TARGET_JSON_FILES",
     "DiscoveryManifest",
     "DiscoveryManifestError",
     "load_manifest",

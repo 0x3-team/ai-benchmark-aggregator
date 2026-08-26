@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.db import models
@@ -13,6 +13,30 @@ def _normalize_alias_key(s: str) -> str:
     from app.ingestion.extractors.normalize import normalize_alias_key
 
     return normalize_alias_key(s)
+
+
+#: The alias ``entity_type`` values the read path may resolve, mapped to the
+#: concrete table an ``entity_id`` must reference for that type.  An ``Alias``
+#: is a polymorphic pointer with no database foreign key, so matching must never
+#: resolve an alias whose target row does not actually exist (a poisoned or
+#: legacy/direct dangling alias).  Mirroring the write-path allowlist in
+#: ``app.db.repositories`` keeps insertion and resolution consistent without a
+#: cross-module import cycle (``matching`` is imported by ``ingestion``).
+_ALIAS_TARGET_MODEL = {
+    "model_entity": models.ModelEntity,
+    "benchmark": models.Benchmark,
+}
+
+
+def _alias_target_ids_subquery(entity_type: str) -> Select:
+    """Target-table ids for ``entity_type``, reused to bound alias reads so a
+    dangling ``entity_id`` can never be trusted.  Only the two governed types
+    are accepted; an unknown type fails closed (rejected via ValueError) rather
+    than trusting a row."""
+    model = _ALIAS_TARGET_MODEL.get(entity_type)
+    if model is None:
+        raise ValueError(f"Unknown alias entity_type {entity_type!r}")
+    return select(model.id)
 
 
 @dataclass(frozen=True)
@@ -36,18 +60,31 @@ def _resolution(entity_ids: set[str]) -> MatchResolution:
 
 
 def _resolve_aliases(session: Session, *, entity_type: str, raw: str) -> MatchResolution:
+    # Only resolve aliases whose target row actually exists.  A single bounded
+    # scalar subquery filters out dangling/legacy/direct-poisoned aliases that
+    # carry an ``entity_id`` pointing at no real row — no per-alias SELECT, no
+    # N+1 — while preserving exact, case-insensitive, and normalized matching.
+    target_ids = _alias_target_ids_subquery(entity_type)
     exact_aliases = list(
         session.scalars(
             select(models.Alias).where(
                 models.Alias.entity_type == entity_type,
                 models.Alias.alias_text == raw,
+                models.Alias.entity_id.in_(target_ids),
             )
         )
     )
     if exact_aliases:
         return _resolution({alias.entity_id for alias in exact_aliases})
 
-    aliases = list(session.scalars(select(models.Alias).where(models.Alias.entity_type == entity_type)))
+    aliases = list(
+        session.scalars(
+            select(models.Alias).where(
+                models.Alias.entity_type == entity_type,
+                models.Alias.entity_id.in_(target_ids),
+            )
+        )
+    )
     lower = raw.lower()
     case_insensitive = {alias.entity_id for alias in aliases if alias.alias_text.lower() == lower}
     if case_insensitive:

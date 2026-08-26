@@ -141,14 +141,29 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture()
-def seeded_db(tmp_db):
-    """Seed registry and close session so tests can open their own."""
+def seeded_db(tmp_db, tmp_path: Path):
+    """Seed registry and close session so tests can open their own.
+
+    The real ``app/registry`` tree carries cross-file model-ID collisions between
+    ``models.yaml``, ``models_frontier.yaml`` and ``models_hf_seed.yaml`` that the
+    loader now rejects before any durable write. The seeded test database does not
+    need those frontier/HF-seed model rows (assertions fabricate their own
+    entities), so we seed a collision-free, disposable model manifest in a temp
+    directory and keep the real curated benchmarks + official sources.
+    """
     reg = Path(__file__).resolve().parents[1] / "app" / "registry"
+    # Seed only the base model manifest. The loader expands the ``models*.yaml``
+    # glob to the real tree, which would bring in cross-file duplicate IDs
+    # (models_frontier.yaml / models_hf_seed.yaml) that now fail closed. A
+    # collision-free copy of the base file supplies the entities tests need
+    # (e.g. the ``fake_model_1`` review-queue helper) while staying monolithic.
+    models_path = tmp_path / "models.yaml"
+    models_path.write_text((reg / "models.yaml").read_text(encoding="utf-8"), encoding="utf-8")
     with get_session() as session:
         seed_registry(
             session,
             benchmarks_path=reg / "benchmarks.yaml",
-            models_path=reg / "models.yaml",
+            models_path=models_path,
             sources_path=reg / "official_sources.yaml",
         )
     yield tmp_db

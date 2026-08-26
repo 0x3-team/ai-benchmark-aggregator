@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 
 import pytest
 
@@ -91,4 +93,73 @@ def test_invalid_target_payload_is_rejected(tmp_path) -> None:
 def test_malformed_anchor_is_rejected(tmp_path) -> None:
     root = write_manifest_root(tmp_path / "fx", anchor="2026-01-01 00:00:00")
     with pytest.raises(DiscoveryManifestError, match="anchorUtc"):
+        load_manifest(root)
+
+
+def test_manifest_root_that_is_a_symlink_is_rejected(tmp_path) -> None:
+    """A fixture root reached through a symbolic link must never be read through it."""
+    real = write_manifest_root(tmp_path / "real")
+    link = tmp_path / "fixture-link"
+    os.symlink(real, link)
+    with pytest.raises(DiscoveryManifestError, match="regular directory"):
+        load_manifest(link)
+
+
+def test_symlinked_manifest_payload_is_rejected(tmp_path) -> None:
+    """A symlinked manifest.json must not redirect the load to attacker bytes."""
+    root = write_manifest_root(tmp_path / "fx")
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}", encoding="utf-8")
+    manifest_path = root / "manifest.json"
+    manifest_path.unlink()
+    os.symlink(outside, manifest_path)
+    with pytest.raises(DiscoveryManifestError, match="manifest.json"):
+        load_manifest(root)
+
+
+def test_symlinked_universe_payload_is_rejected(tmp_path) -> None:
+    """A symlinked coverage-universe.json must not redirect the universe."""
+    root = write_manifest_root(tmp_path / "fx")
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}", encoding="utf-8")
+    universe_path = root / "coverage-universe.json"
+    universe_path.unlink()
+    os.symlink(outside, universe_path)
+    with pytest.raises(DiscoveryManifestError, match="coverage universe"):
+        load_manifest(root)
+
+
+def test_targets_directory_symlink_escape_is_rejected(tmp_path) -> None:
+    """A symlinked targets/ directory must not escape the fixture root."""
+    root = write_manifest_root(tmp_path / "fx")
+    attacker_dir = tmp_path / "attacker-targets"
+    attacker_dir.mkdir()
+    (attacker_dir / "malicious.json").write_text("{}", encoding="utf-8")
+    targets_path = root / "targets"
+    shutil.rmtree(targets_path)
+    os.symlink(attacker_dir, targets_path)
+    with pytest.raises(DiscoveryManifestError, match="symbolic link"):
+        load_manifest(root)
+
+
+def test_symlinked_target_payload_is_rejected(tmp_path) -> None:
+    """A per-target payload symlink must not re-read outside the targets denominator."""
+    root = write_manifest_root(tmp_path / "fx")
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}", encoding="utf-8")
+    target_path = root / "targets" / "example-target-v1.json"
+    target_path.unlink()
+    os.symlink(outside, target_path)
+    with pytest.raises(DiscoveryManifestError, match="cannot read"):
+        load_manifest(root)
+
+
+def test_target_directory_reaches_a_subdirectory_missing_a_payload(tmp_path) -> None:
+    """The no-follow denominator still requires at least one valid target payload."""
+    root = write_manifest_root(tmp_path / "fx")
+    (root / "targets" / "example-target-v1.json").unlink()
+    nested = root / "targets" / "nested"
+    nested.mkdir()
+    (nested / "ignored.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(DiscoveryManifestError, match="no discovery target"):
         load_manifest(root)

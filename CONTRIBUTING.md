@@ -1,111 +1,113 @@
 # Contributing to AI Benchmark Aggregator
 
-Thanks for contributing to **0x3-team/ai-benchmark-aggregator**!
+Thanks for contributing to `0x3-team/ai-benchmark-aggregator`.
 
-This repo has two components:
-- **Frontend** (`src/`) — React SPA, Vite, TypeScript strict, Tailwind
-- **Ledger** (`ledger/`) — Python CLI (Typer + SQLAlchemy + Pydantic) for official benchmark claims
+This repository contains a React/Vite frontend and a Python ledger CLI. The
+frontend currently shows `Demo (synthetic)` data. The governed `Official` track
+is intentionally unavailable until a separately approved release artifact,
+source evidence, review, and publication decision exist. A local fixture,
+generated export, or test result is not an Official release.
 
----
+## Start safely
 
-## Quick Start
+Before changing anything, inspect the checkout and preserve existing work:
+
+```bash
+git status --short --branch
+git diff --check
+```
+
+Do not use `reset`, `clean`, `checkout` to discard work, destructive database
+commands, or production/provider operations as part of routine development.
+Keep unrelated dirty files and untracked fixtures intact.
 
 ### Frontend
+
 ```bash
 npm install
-npm run dev          # dev server
-npm run typecheck    # tsc --noEmit (must pass)
-npm run test         # vitest
-npm run build        # tsc -b && vite build (must pass)
+npm run verify:official-artifact
+npm run typecheck
+npm test
+npm run build
+node --test scripts/verify-pages-static-node-tests.mjs
 ```
 
-### Ledger
+`npm run dev` starts the local Vite server. Local build or preview evidence is
+not deployment evidence. Do not upload or deploy from this repository without
+separate authorization.
+
+### Ledger CLI
+
+Use a disposable local environment for Python dependencies. The normal local
+checks are read-only after setup:
+
 ```bash
 cd ledger
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e ".[dev]"
-benchmark-ledger init-db
-benchmark-ledger seed-registry
-benchmark-ledger ingest --all
-benchmark-ledger review auto-verify-matched
-benchmark-ledger export-official-json
-pytest -q            # 49 tests must pass
+PYTHONPATH=. benchmark-ledger --help
+pytest -q
 ```
 
----
+Do not run ingestion, source fetching, bulk review, claim export, or an
+Official-mode switch while working on an ordinary pull request. Those are
+governed operations with separate evidence-preservation and release controls.
+If a change needs a database, use only an explicitly disposable temporary
+database and retain the test receipt; never point it at a claim-bearing ledger.
 
-## Development Rules (from AGENTS.md)
+## Invariants
 
-### Ledger (CLI)
-- **Preserve raw source values exactly** — `model_raw`, `benchmark_raw`, `score_raw`, etc.
-- **Never overwrite claims** — source changes create new snapshots + new claims
-- **Snapshot before extraction** — every claim needs `source_snapshot_id`
-- **Idempotent ingestion** — running twice on same snapshot = no duplicate claims
-- **Model matching uncertainty** → keep `model_raw`, leave `model_entity_id` null, mark `needs_review`
-- **No paid APIs / cloud services** in ledger
+- Preserve raw source lexemes (`model_raw`, `benchmark_raw`, `score_raw`, and
+  related fields) exactly.
+- Claims and snapshots are append-only. Source changes create new snapshots and
+  claims; they do not rewrite historical rows.
+- Snapshot source bytes before extraction and retain typed evidence that can
+  re-resolve every raw value.
+- Uncertain model identity stays unresolved and marked for review.
+- The frontend reads scores only through `DatasetProvider` and `getValue`.
+- Missing scores remain no-data (`—`), never zero or a fabricated value.
+- Demo, candidate, legacy, fixture, and ignored local-export data must not be
+  presented as Official.
+- Keep the ledger CLI-only; do not add a public ingestion or claims API.
 
-### Frontend (SPA)
-- `getValue(modelId, benchmarkId)` is the **only** score accessor
-- Use `cn(...)` for conditional classes; glass utilities from `src/index.css`
-- Sticky columns: `overflow-x-auto` + `position: sticky; left: 0` — never `ScrollArea`
-- SOTA indicator = `.sota-cell` gold ring (not Star icon)
-- Null scores render as `—` (dashed), placeholder bars, no-data state
-- Model colors from `modelColor(i)` — consistent across radar/bars/heatmap
-- `npm run typecheck && npm run build && npm test` **must stay green**
+## Pull request checklist
 
----
+- [ ] `git diff --check` is clean and unrelated work is preserved.
+- [ ] Relevant focused tests pass, plus the full frontend or ledger suite when
+      that surface changed.
+- [ ] `npm run verify:official-artifact` still reports the tracked Official
+      artifact as unavailable/data-free when frontend files changed.
+- [ ] Static Pages checks pass when public assets, metadata, or headers changed.
+- [ ] No source was fetched, ingested, exported, published, or promoted to
+      Official.
+- [ ] No secrets, tokens, credentials, private URLs, or generated claim-bearing
+      artifacts were added.
+- [ ] Documentation and the issue/PR template are updated when behavior or a
+      trust boundary changes.
 
-## Pull Request Checklist
+## Issues and proposals
 
-Before opening a PR, ensure:
+Use the templates in `.github/ISSUE_TEMPLATE/` for bug reports and feature
+requests. For a new benchmark source, describe the official source, revision,
+terms/permission status, dimensions, raw-value contract, evidence strategy, and
+fixture plan. Do not attach credentials or claim-bearing exports, and do not
+request live ingestion as a prerequisite for discussion.
 
-- [ ] **Ledger tests pass**: `cd ledger && pytest -q`
-- [ ] **Frontend gates pass**: `npm run typecheck && npm run build && npm test`
-- [ ] **Export sanity**: `src/data/official/export.from-ledger.json` has ≥1000 models, ≥20 benchmarks, ≥2000 scores (if data pipeline changed)
-- [ ] **New adapters**: Fixture test added in `ledger/tests/`
-- [ ] **New benchmark source**: Added to `ledger/app/registry/official_sources.yaml` with correct `parser_config`
-- [ ] **Docs updated**: `README.md` if architecture changed; `docs/adr/` for new decisions
-- [ ] **No secrets committed** — `.env`, tokens, keys
+## Branches, reviews, and status language
 
----
+Use a short branch such as `feat/<description>` or `fix/<description>` and
+Conventional Commit messages where practical. GitHub branch protection,
+required checks, review routing, and CODEOWNERS validity are provider settings,
+not promises made by this file; check the live repository before relying on
+them. The current checkout contains a CODEOWNERS file, but its live owner
+identities and write access still require GitHub verification.
 
-## Issue Templates
-
-Use the templates in `.github/ISSUE_TEMPLATE/`:
-- **Bug Report** — for defects in ledger, frontend, or pipeline
-- **Feature Request** — for new sources, adapters, UI features, workflow changes
-
----
-
-## Code Owners
-
-See `.github/CODEOWNERS` — reviews auto-assigned to:
-- `@0x3-team/core` — global, CI, docs
-- `@0x3-team/ledger` — `ledger/**`
-- `@0x3-team/frontend` — `src/**`, `package.json`, `vite.config.ts`
-
----
-
-## Branching & Merging
-
-- **Main branch**: `main` (protected)
-- **Feature branches**: `feat/<short-desc>`, `fix/<short-desc>`
-- **PRs**: Require `verify` workflow + 1 review from CODEOWNERS
-- **Commits**: Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`)
-
----
-
-## Adding a New Benchmark Source
-
-1. **Find the official source** — API, structured file (JSON/CSV/Parquet), or scrapeable HTML table
-2. **Choose adapter** — `generic_json`, `generic_csv`, `hf_datasets_server`, `artificial_analysis_api`, `github_yaml`, `taubench_s3`, `frontiermath_epoch`, `imo_answerbench`, `helm_json`, or write new
-3. **Add to `official_sources.yaml`** — include `benchmark_id`, `source_url`, `parser_config`, `adapter_type`
-4. **Write fixture test** — `ledger/tests/test_adapter_<name>.py` with real sample data
-5. **Run pipeline** — `seed-registry` → `ingest --source <id>` → `review auto-verify-matched` → `export-official-json`
-6. **Verify in UI** — switch to Official mode, confirm benchmark appears with scores
-
----
+Describe evidence precisely: “validated locally”, “pushed”, “deployed”, and
+“verified live” are different states. A local build, a GitHub commit, and a
+provider deployment do not prove one another.
 
 ## License
 
-By contributing, you agree your contributions are licensed under the MIT License.
+By contributing, you agree that your contributions are licensed under the MIT
+License.

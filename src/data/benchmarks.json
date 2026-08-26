@@ -7,7 +7,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Tests instruction-following with verifiable instructions.",
-    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "bbh",
@@ -17,7 +19,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "23 challenging BigBench tasks requiring multi-step reasoning.",
-    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "math_lvl5",
@@ -27,7 +31,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Competition mathematics problems at the hardest difficulty.",
-    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "gpqa_oll",
@@ -37,7 +43,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Graduate-level science Q&A, OLL version.",
-    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "musr",
@@ -47,7 +55,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Multistep reasoning with synthetic tasks.",
-    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "mmlu_pro_oll",
@@ -57,7 +67,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Hardened MMLU, OLL version.",
-    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "swebench_verified",
@@ -67,7 +79,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "500 human-validated GitHub issue resolution tasks.",
-    "sourceUrl": "https://github.com/princeton-nlp/SWE-bench"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://github.com/princeton-nlp/SWE-bench",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "mmlu_pro",
@@ -77,7 +91,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Hardened MMLU with 10 choices per item.",
-    "sourceUrl": "https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "hle",
@@ -87,7 +103,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Expert-level questions across all academic domains.",
-    "sourceUrl": "https://huggingface.co/datasets/OpenEvals/leaderboard-data"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/datasets/OpenEvals/leaderboard-data",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "swePro",
@@ -97,7 +115,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Extended SWE-bench with professional-level tasks.",
-    "sourceUrl": "https://huggingface.co/datasets/OpenEvals/leaderboard-data"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/datasets/OpenEvals/leaderboard-data",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "terminalBench",
@@ -107,7 +127,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Terminal-based agentic tasks.",
-    "sourceUrl": "https://huggingface.co/datasets/OpenEvals/leaderboard-data"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://huggingface.co/datasets/OpenEvals/leaderboard-data",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "gpqa",
@@ -117,7 +139,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Graduate-level science questions.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "scicode",
@@ -127,7 +151,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Scientific coding benchmark.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "tau2",
@@ -137,7 +163,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Agent tool-use for multi-turn dialogue.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 1 }
   },
   {
     "id": "ifbench",
@@ -147,7 +175,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Instruction following evaluation.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 1 }
   },
   {
     "id": "omniscience",
@@ -157,7 +187,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Knowledge comprehensiveness metric.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "raw_only", "reason": "signed_metric" }
   },
   {
     "id": "lcr",
@@ -167,7 +199,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Long context reasoning benchmark.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   },
   {
     "id": "critpt",
@@ -177,7 +211,9 @@
     "higherIsBetter": true,
     "scaleMax": 100,
     "description": "Critical point pass-through evaluation.",
-    "sourceUrl": "https://artificialanalysis.ai"
+    "methodology": "Tracked Demo metadata does not include the evaluation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://artificialanalysis.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 1 }
   },
   {
     "id": "lmsys_chatbot_arena_text_coding_elo",
@@ -187,7 +223,9 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Chatbot Arena Text Coding Elo rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "lmsys_chatbot_arena_text_elo",
@@ -197,7 +235,9 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Chatbot Arena Text Elo rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "lmsys_chatbot_arena_text_hard_6_elo",
@@ -207,7 +247,9 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Chatbot Arena Text Hard 6 Elo rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "lmsys_chatbot_arena_text_math_elo",
@@ -217,7 +259,9 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Chatbot Arena Text Math Elo rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "lmsys_chatbot_arena_text_rank",
@@ -227,7 +271,9 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Chatbot Arena Text Rank rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "lmsys_chatbot_arena_vision_elo",
@@ -237,7 +283,9 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Chatbot Arena Vision Elo rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "lmsys_mmlu",
@@ -247,16 +295,20 @@
     "higherIsBetter": true,
     "scaleMax": 1000,
     "description": "LMSYS Chatbot Arena Mmlu rating.",
-    "sourceUrl": "https://lmarena.ai"
+    "methodology": "Tracked Demo metadata does not include the rating procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://lmarena.ai",
+    "normalization": { "kind": "raw_only", "reason": "rating_metric" }
   },
   {
     "id": "benchlm-overall",
     "name": "BenchLM Overall",
-    "category": "Knowledge",
-    "description": "BenchLM aggregated overall score",
-    "url": "https://benchlm.ai",
-    "min": 0,
-    "max": 100,
-    "higherIsBetter": true
+    "fullName": "BenchLM Overall",
+    "category": "knowledge",
+    "higherIsBetter": true,
+    "scaleMax": 100,
+    "description": "BenchLM aggregated overall score.",
+    "methodology": "Tracked Demo metadata does not include the aggregation procedure; values are synthetic and not Official claims.",
+    "sourceUrl": "https://benchlm.ai",
+    "normalization": { "kind": "bounded", "min": 0, "max": 100 }
   }
 ]

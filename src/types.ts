@@ -11,6 +11,22 @@ export type BenchmarkCategory =
 
 export type Modality = "text" | "vision" | "audio";
 
+/**
+ * The domain contract used by presentation calculations.  Raw-only metrics
+ * remain available as raw table values, but must never be turned into a
+ * comparable percentage without an approved domain.
+ */
+export type BenchmarkNormalization =
+  | {
+      kind: "bounded";
+      min: number;
+      max: number;
+    }
+  | {
+      kind: "raw_only";
+      reason: "signed_metric" | "rating_metric" | "uncertain_domain";
+    };
+
 export interface Model {
   id: string;
   name: string;
@@ -37,6 +53,8 @@ export interface Benchmark {
   description: string;
   methodology: string;
   sourceUrl: string;
+  /** Present on the tracked Demo catalog; omitted by legacy/test fixtures. */
+  normalization?: BenchmarkNormalization;
 }
 
 export interface ScoreEvidence {

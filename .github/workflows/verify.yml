@@ -41,6 +41,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
+      LEDGER_REQUIRE_POSTGRESQL_PROOF: "1"
       TEST_POSTGRESQL_ALLOW_RESET: "1"
       TEST_POSTGRESQL_URL: postgresql+psycopg://ledger_test:ledger_test_only@127.0.0.1:5432/benchmark_phase2a_test
     defaults:
@@ -56,12 +57,19 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.11'
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.11.18'
+          enable-cache: false
+      - name: Verify Python lock authority
+        run: python scripts/verify_ci_lock.py
       - name: Install dependencies
         run: |
           set -euo pipefail
           python -m venv .venv
           source .venv/bin/activate
-          python -m pip install --disable-pip-version-check --no-input -r requirements-ci.lock
+          python -m pip install --disable-pip-version-check --no-input --require-hashes -r requirements-ci.lock
           python -m pip install --disable-pip-version-check --no-input --no-deps --no-build-isolation -e .
       - name: Prepare isolated PostgreSQL recovery and adversary targets
         shell: bash
@@ -145,10 +153,18 @@ jobs:
         run: npm run verify:official-artifact
       - name: Typecheck
         run: npm run typecheck
+      - name: Test typecheck
+        run: npm run typecheck:test
       - name: Test
         run: npm test
       - name: Build
         run: npm run build
+      - name: Verify build provenance
+        run: npm run verify:build-provenance
+      - name: Verify static Pages artifact
+        run: npm run verify:pages-static
+      - name: Verify bundle budget
+        run: npm run verify:bundle-budget
 
   clean-archive:
     name: Clean Archive Frontend Check
@@ -178,5 +194,9 @@ jobs:
           npm ci
           npm run verify:official-artifact
           npm run typecheck
+          npm run typecheck:test
           npm test
           npm run build
+          npm run verify:build-provenance
+          npm run verify:pages-static
+          npm run verify:bundle-budget

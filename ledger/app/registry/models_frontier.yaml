@@ -234,19 +234,6 @@ models:
   - MASAI + GPT 4o (2024-06-12)
   - GPT-4O-2024-08-06
   - EPAM AI/Run Developer Agent + GPT4o
-- id: gpt_4o_mini
-  canonical_name: GPT-4o-mini
-  display_name: GPT-4o Mini
-  entity_type: chat_model
-  provider: OpenAI
-  access_type: api
-  status: active
-  aliases:
-  - gpt-4o-mini
-  - GPT-4o Mini
-  - openai/gpt-4o-mini
-  - GPT-4o-mini-2024-07-18
-  - GPT-4O-mini-2024-07-18
 - id: gpt_4_turbo
   canonical_name: GPT-4-Turbo
   display_name: GPT-4 Turbo
@@ -420,24 +407,6 @@ models:
   - claude-4-sonnet
   - Claude 4 Sonnet
   - anthropic/claude-4-sonnet
-- id: claude_3_7_sonnet
-  canonical_name: Claude-3.7-Sonnet
-  display_name: Claude 3.7 Sonnet
-  entity_type: chat_model
-  provider: Anthropic
-  access_type: api
-  status: active
-  aliases:
-  - claude-3.7-sonnet
-  - Claude 3.7 Sonnet
-  - claude-3-7-sonnet
-  - Aime-coder v1 + Anthopic Claude 3.7 Sonnet
-  - SWE-agent 1.0 (Claude 3.7 Sonnet)
-  - anthropic/claude-3.7-sonnet
-  - SWE-agent + Claude 3.7 Sonnet w/ Review Heavy
-  - mini-SWE-agent + Claude 3.7 Sonnet (20250219)
-  - Tools + Claude 3.7 Sonnet (2025-02-24)
-  - TRAE + Claude Sonnet 4 + Opus 4 + Sonnet 3.7 + Gemini 2.5 Pro
 - id: claude_3_5_sonnet
   canonical_name: Claude-3.5-Sonnet
   display_name: Claude 3.5 Sonnet
@@ -754,17 +723,6 @@ models:
   - deepseek-v3.2-reasoner
   - DeepSeek V3.2 Reasoner
   - mini-SWE-agent + DeepSeek V3.2 Reasoner
-- id: deepseek_v3
-  canonical_name: DeepSeek-V3
-  display_name: DeepSeek V3
-  entity_type: chat_model
-  provider: DeepSeek
-  access_type: open_weights
-  status: active
-  aliases:
-  - deepseek-v3
-  - DeepSeek-V3
-  - deepseek-ai/DeepSeek-V3
 - id: deepseek_r1
   canonical_name: DeepSeek-R1
   display_name: DeepSeek R1

@@ -1,14 +1,29 @@
-import httpx
-import yaml
+#!/usr/bin/env python3
+"""Retired direct-network helper - governed offline stub.
 
-url = "https://raw.githubusercontent.com/Aider-AI/aider/main/aider/website/_data/polyglot_leaderboard.yml"
-resp = httpx.get(url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True, timeout=10.0)
-print(resp.status_code)
-print(resp.text[:500])
-data = yaml.safe_load(resp.text)
-print("Type of data:", type(data))
-if isinstance(data, list):
-    print("List length:", len(data))
-    print("First item:", data[0])
-elif isinstance(data, dict):
-    print("Keys:", list(data.keys()))
+This entrypoint historically performed an unbound outbound HTTP GET. It is
+retired and replaced by the governed SafeFetch seam
+(``ledger/app/ingestion/safe_fetch.py``), which defaults to a disabled network
+transport. This file is kept as a tracked, runnable no-network stub so the
+history of the retired helper is preserved through git without retaining a
+runnable raw-network copy anywhere on disk. It exits immediately with a clear
+message; it never opens a socket.
+"""
+
+from __future__ import annotations
+
+import sys
+
+
+def main() -> int:
+    print(
+        "This helper is retired. Data access goes through the governed SafeFetch "
+        "seam (ledger/app/ingestion/safe_fetch.py); this stub performs no network "
+        "I/O by design.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

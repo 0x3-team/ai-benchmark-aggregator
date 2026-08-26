@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import type { BenchmarkCategory } from "./types";
 import { models as catalogModels } from "./data/models";
 import { benchmarks as catalogBenchmarks } from "./data/benchmarks";
@@ -15,11 +15,7 @@ import { computeRanking, sortModels, type RankRow } from "./lib/aggregate";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ScoreTable } from "./components/ScoreTable";
-import { BenchmarkCard } from "./components/BenchmarkCard";
 import { CategoryLeaders } from "./components/CategoryLeaders";
-import { CatalogSharePie } from "./components/charts/CatalogSharePie";
-import { ModelDetail } from "./components/ModelDetail";
-import { ModelComparison } from "./components/ModelComparison";
 import { GlossaryDialog } from "./components/GlossaryDialog";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import {
@@ -46,6 +42,38 @@ import {
 import { useToast } from "./components/ui/use-toast";
 
 const MAX_COMPARE = 6;
+
+/**
+ * Chart-heavy secondary surfaces are code-split with React.lazy so the
+ * deferred chunk (recharts/motion/evilcharts chart layer) is not part of the
+ * primary table workflow's eager load, and so the loading/error/trust UI —
+ * Header, Filters, ScoreTable, ClaimEvidence — stays in the eager entry. Each
+ * is only ever *rendered* while its owning Sheet/dialog is open (conditional),
+ * so the fallback briefly appears only on cold open, never on the primary
+ * path. The primary workflow and accessibility are untouched: the Suspense
+ * boundary drops the loading state into the already-conditional Sheet content.
+ */
+const ModelComparison = lazy(() =>
+  import("./components/ModelComparison").then((m) => ({ default: m.ModelComparison }))
+);
+const ModelDetail = lazy(() =>
+  import("./components/ModelDetail").then((m) => ({ default: m.ModelDetail }))
+);
+const BenchmarkCard = lazy(() =>
+  import("./components/BenchmarkCard").then((m) => ({ default: m.BenchmarkCard }))
+);
+// The "Benchmark catalog" share-of-categories pie is a chart-heavy secondary
+// surface inside the primary table view. Splitting it moves the recharts Pie
+// core to a deferred chunk so the primary table workflow's eager load stays
+// under the approved 1,100,000-byte budget. It keeps its Card chrome eager,
+// so layout stays stable; only the pie body suspends on cold render with an
+// accessible `role="status"` fallback.
+const CatalogSharePie = lazy(() =>
+  import("./components/charts/CatalogSharePie").then((m) => ({
+    default: m.CatalogSharePie,
+  }))
+);
+
 const DEMO_DATASET: DatasetInput = {
   models: catalogModels,
   benchmarks: catalogBenchmarks,
@@ -256,7 +284,12 @@ function AppContent({
       if (prev?.benchmarkId === benchmarkId) {
         return { benchmarkId, dir: prev.dir === "asc" ? "desc" : "asc" };
       }
-      return { benchmarkId, dir: "desc" };
+      const benchmark = activeBenchmarks.find((b) => b.id === benchmarkId);
+      return {
+        benchmarkId,
+        // Default to the direction that puts the best score first.
+        dir: benchmark?.higherIsBetter === false ? "asc" : "desc",
+      };
     });
   }
 
@@ -310,6 +343,8 @@ function AppContent({
     setSelectedBenchmarkId(null);
     setSelectedModelId(null);
     setSelectedModels([]);
+    setShowAllBenchmarks(false);
+    setGlossaryOpen(false);
   }
 
   function handleDataModeChange(next: DataMode) {
@@ -396,7 +431,15 @@ function AppContent({
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <CatalogSharePie benchmarks={activeBenchmarks} />
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+                        Loading chart…
+                      </div>
+                    }
+                  >
+                    <CatalogSharePie benchmarks={activeBenchmarks} />
+                  </Suspense>
                 </CardContent>
               </Card>
               {sortedModels.length === 0 ? (
@@ -419,6 +462,7 @@ function AppContent({
                 <>
                 <ScoreTable
                   models={sortedModels}
+                  cohortModels={activeModels}
                   benchmarks={visibleBenchmarks}
                   sort={sort}
                   onSort={handleSort}
@@ -459,12 +503,20 @@ function AppContent({
             </main>
           ) : (
             <main id="main-content">
-              <ModelComparison
-                models={selectedModelObjects}
-                benchmarks={activeBenchmarks}
-                allModels={activeModels}
-                onOpenModel={openModel}
-              />
+              <Suspense
+                fallback={
+                  <div role="status" className="glass-strong flex items-center justify-center rounded-xl px-6 py-24 text-sm text-muted-foreground">
+                    Loading comparison…
+                  </div>
+                }
+              >
+                <ModelComparison
+                  models={selectedModelObjects}
+                  benchmarks={activeBenchmarks}
+                  allModels={activeModels}
+                  onOpenModel={openModel}
+                />
+              </Suspense>
             </main>
           )}
 
@@ -483,10 +535,19 @@ function AppContent({
                   <SheetHeader className="sr-only">
                     <SheetTitle>{selectedBenchmark.fullName}</SheetTitle>
                   </SheetHeader>
-                  <BenchmarkCard
-                    benchmark={selectedBenchmark}
-                    models={sortedModels}
-                  />
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+                        Loading benchmark…
+                      </div>
+                    }
+                  >
+                    <BenchmarkCard
+                      benchmark={selectedBenchmark}
+                      models={sortedModels}
+                      cohortModels={activeModels}
+                    />
+                  </Suspense>
                 </>
               )}
             </SheetContent>
@@ -507,13 +568,22 @@ function AppContent({
                   <SheetHeader className="sr-only">
                     <SheetTitle>{selectedModel.name}</SheetTitle>
                   </SheetHeader>
-                  <ModelDetail
-                    model={selectedModel}
-                    models={sortedModels}
-                    benchmarks={visibleBenchmarks}
-                    selectedModels={selectedModels}
-                    onToggleModelSelect={toggleModelSelect}
-                  />
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+                        Loading model…
+                      </div>
+                    }
+                  >
+                    <ModelDetail
+                      model={selectedModel}
+                      models={sortedModels}
+                      cohortModels={activeModels}
+                      benchmarks={visibleBenchmarks}
+                      selectedModels={selectedModels}
+                      onToggleModelSelect={toggleModelSelect}
+                    />
+                  </Suspense>
                 </>
               )}
             </SheetContent>

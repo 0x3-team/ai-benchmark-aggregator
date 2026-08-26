@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import errno
+import hashlib
 import os
 import secrets
 import stat
@@ -24,6 +25,62 @@ from .base import (
     require_full_sha256,
 )
 
+#: Conservative per-snapshot byte cap.  A single immutable SNAPSHOT object
+#: larger than this is rejected before retention via an fstat early guard plus
+#: a cap+1 streaming guard, so lying metadata or file growth cannot bypass the
+#: bound.  The cap applies ONLY to ``StorageObjectKind.SNAPSHOT`` objects; the
+#: ``ARTIFACT`` namespace holds relational backup blobs owned by the F9/F19
+#: drivers and is intentionally unconstrained here.  64 MiB leaves very wide
+#: headroom for a single captured-source snapshot (a benchmark/claim raw
+#: payload) while still bounding the largest single held object well below the
+#: cumulative checkpoint/restore budget evaluated in backup/service.py.
+MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024
+
+#: Fixed read chunk size: the production reader never issues an unbounded
+#: ``read()``/``read(-1)``; every object (snapshot or artifact) is streamed in
+#: chunks of this size.
+_CHUNK_SIZE = 64 * 1024
+
+
+def _sha256_stream(handle, *, cap: int | None) -> tuple[str, int, bool]:
+    """Stream one regular-file handle through bounded positive chunks.
+
+    Returns ``(digest, byte_count, over_cap)``.  When ``cap`` is set the reader
+    issues reads of ``min(_CHUNK_SIZE, (cap + 1) - byte_count)`` so it consumes
+    at most ``cap + 1`` bytes total: a file that grows beyond the fstat-reported
+    size (or that lied about its size) cannot be read unbounded and cannot be
+    over-consumed by more than one chunk beyond the cap.  When ``cap`` is
+    ``None`` (artifact namespace) the file is still read in ``_CHUNK_SIZE``
+    chunks but no total bound is imposed.
+    """
+    digest = hashlib.sha256()
+    byte_count = 0
+    over_cap = False
+    while True:
+        if cap is not None:
+            remaining = cap + 1 - byte_count
+            if remaining <= 0:
+                over_cap = True
+                break
+            read_size = min(_CHUNK_SIZE, remaining)
+        else:
+            read_size = _CHUNK_SIZE
+        chunk = handle.read(read_size)
+        if not chunk:
+            break
+        byte_count += len(chunk)
+        digest.update(chunk)
+        if cap is not None and byte_count > cap:
+            over_cap = True
+            break
+    return digest.hexdigest(), byte_count, over_cap
+
+
+def _raise_over_cap(cap: int) -> None:
+    raise SnapshotStorageIntegrityError(
+        f"Snapshot object exceeds the documented per-snapshot byte cap of {cap}"
+    )
+
 
 class LocalSnapshotStorage:
     """Local, content-addressed storage for immutable raw source bytes.
@@ -39,6 +96,10 @@ class LocalSnapshotStorage:
         self.root = root_path.resolve()
 
     security_posture = StorageSecurityPosture.application_only()
+
+    # ------------------------------------------------------------------
+    # Address handling
+    # ------------------------------------------------------------------
 
     def path_for_content_hash(
         self,
@@ -71,6 +132,23 @@ class LocalSnapshotStorage:
             content_sha256=digest,
         )
 
+    def _is_snapshot_path(self, path: Path) -> bool:
+        """True when ``path`` lives in the SNAPSHOT namespace (not ``artifacts/``).
+
+        The ARTIFACT namespace holds relational backup blobs owned by the
+        F9/F19 drivers; it is never subject to the per-snapshot byte cap.
+        """
+        relative = path.relative_to(self.root)
+        return not (relative.parts and relative.parts[0] == "artifacts")
+
+    def _cap_for_path(self, path: Path) -> int | None:
+        """Per-object cap for a path: ``MAX_SNAPSHOT_BYTES`` for snapshots, ``None`` for artifacts."""
+        return MAX_SNAPSHOT_BYTES if self._is_snapshot_path(path) else None
+
+    # ------------------------------------------------------------------
+    # Public immutable-object operations
+    # ------------------------------------------------------------------
+
     def store_snapshot(
         self,
         *,
@@ -79,15 +157,18 @@ class LocalSnapshotStorage:
     ) -> StorageStoreReceipt:
         """Create or exactly reuse one canonical object, then verify its bytes."""
         kind = self._require_object_kind(object_kind)
+        cap = self._cap_for_kind(kind)
+        if cap is not None and len(raw_bytes) > cap:
+            _raise_over_cap(cap)
         content_hash = compute_content_hash(raw_bytes)
         address = self.address_for_content_hash(content_hash, object_kind=kind)
         path = Path(address.uri)
 
         if path.exists() or path.is_symlink():
-            self._verify_target(path, content_hash)
+            self._verify_target(path, content_hash, cap)
             outcome = "reused"
         else:
-            created = self._write_new_target(path, raw_bytes, content_hash)
+            created = self._write_new_target(path, raw_bytes, content_hash, cap)
             outcome = "created" if created else "reused"
 
         read_receipt = self.read_snapshot(uri=address.uri, content_sha256=content_hash)
@@ -119,21 +200,42 @@ class LocalSnapshotStorage:
         return self.verify_snapshot(uri=uri, content_sha256=content_hash)
 
     def read(self, uri: str) -> bytes:
-        """Read a root-contained regular snapshot file without hash verification."""
-        return self._read_regular_file(self._path_from_uri(uri))
+        """Read a root-contained regular object without hash verification.
+
+        Bounded: snapshots are streamed in fixed-size chunks and any snapshot
+        over the per-object byte cap is rejected; the artifact namespace is
+        streamed in the same fixed chunks but never capped.
+        """
+        path = self._path_from_uri(uri)
+        cap = self._cap_for_path(path)
+        _, _, raw_bytes = self._stream_object(path, cap=cap, materialize=True)
+        return raw_bytes
 
     def read_snapshot(self, *, uri: str, content_sha256: str) -> StorageReadResult:
-        """Read all bytes and return a deterministic application SHA-256 receipt."""
+        """Read bytes only after bounded streaming verification.
+
+        The object is hashed in fixed-size chunks (never an unbounded read);
+        the bytes are returned only if the object is within its namespace
+        bound (snapshots at or under the per-snapshot cap) and the streaming
+        digest matches the expected one.
+        """
         expected = require_full_sha256(content_sha256)
         path = self._path_from_uri(uri)
-        raw_bytes = self._read_and_verify(path, expected, collision=False)
+        cap = self._cap_for_path(path)
+        observed, byte_length, raw_bytes = self._stream_object(
+            path, cap=cap, materialize=True
+        )
+        if observed != expected:
+            raise SnapshotStorageIntegrityError(
+                f"Snapshot at {path} hashes to {observed}, not expected digest {expected}."
+            )
         address = self._address_from_path(path, expected)
-        metadata = self._canonical_metadata(address, len(raw_bytes))
+        metadata = self._canonical_metadata(address, byte_length)
         verification = StorageVerificationReceipt.create(
             address=address,
             expected_sha256=expected,
-            observed_sha256=compute_content_hash(raw_bytes),
-            byte_length=len(raw_bytes),
+            observed_sha256=observed,
+            byte_length=byte_length,
             metadata=metadata,
         )
         return StorageReadResult.create(raw_bytes=raw_bytes, verification=verification)
@@ -141,9 +243,28 @@ class LocalSnapshotStorage:
     def verify_snapshot(
         self, *, uri: str, content_sha256: str
     ) -> StorageVerificationReceipt:
-        return self.read_snapshot(
-            uri=uri, content_sha256=content_sha256
-        ).verification
+        """Stream-verify a snapshot without materializing the object bytes.
+
+        The digest is computed through fixed-size chunks from a descriptor-
+        pinned no-follow regular file; the object is never read into memory.
+        """
+        expected = require_full_sha256(content_sha256)
+        path = self._path_from_uri(uri)
+        cap = self._cap_for_path(path)
+        observed, byte_length, _ = self._stream_object(path, cap=cap, materialize=False)
+        if observed != expected:
+            raise SnapshotStorageIntegrityError(
+                f"Snapshot at {path} hashes to {observed}, not expected digest {expected}."
+            )
+        address = self._address_from_path(path, expected)
+        metadata = self._canonical_metadata(address, byte_length)
+        return StorageVerificationReceipt.create(
+            address=address,
+            expected_sha256=expected,
+            observed_sha256=observed,
+            byte_length=byte_length,
+            metadata=metadata,
+        )
 
     def inventory_orphans(
         self,
@@ -154,13 +275,15 @@ class LocalSnapshotStorage:
         """Reconcile canonical local objects without reading, adopting, or deleting them."""
         kind = self._require_object_kind(object_kind)
         referenced: dict[str, StorageObjectAddress] = {}
+        referenced_uri_set: set[str] = set()
         for uri in referenced_uris:
             address = self._canonical_address_from_uri(uri, object_kind=kind)
-            if address.uri in {item.uri for item in referenced.values()} or address.key in referenced:
+            if address.uri in referenced_uri_set or address.key in referenced:
                 raise SnapshotStorageIntegrityError(
                     "Orphan inventory contains a duplicate reference URI or key."
                 )
             referenced[address.key] = address
+            referenced_uri_set.add(address.uri)
 
         listed: dict[str, StorageObjectAddress] = {}
         for address in self._iter_canonical_addresses(kind):
@@ -189,6 +312,10 @@ class LocalSnapshotStorage:
             orphan_objects=(listed[key] for key in orphan_keys),
             missing_references=(referenced[key] for key in missing_keys),
         )
+
+    # ------------------------------------------------------------------
+    # Inventory internals
+    # ------------------------------------------------------------------
 
     def _iter_canonical_addresses(
         self, object_kind: StorageObjectKind
@@ -299,8 +426,15 @@ class LocalSnapshotStorage:
         return object_kind
 
     @staticmethod
+    def _cap_for_kind(object_kind: StorageObjectKind) -> int | None:
+        return MAX_SNAPSHOT_BYTES if object_kind is StorageObjectKind.SNAPSHOT else None
+
+    # ------------------------------------------------------------------
+    # Path/identity reconciliation
+    # ------------------------------------------------------------------
+
     def _canonical_metadata(
-        address: StorageObjectAddress, byte_length: int
+        self, address: StorageObjectAddress, byte_length: int
     ) -> dict[str, str]:
         return {
             "storage-contract": "immutable-object-v1",
@@ -358,7 +492,13 @@ class LocalSnapshotStorage:
             ) from exc
         return normalized
 
-    def _write_new_target(self, path: Path, raw_bytes: bytes, content_hash: str) -> bool:
+    # ------------------------------------------------------------------
+    # Writes
+    # ------------------------------------------------------------------
+
+    def _write_new_target(
+        self, path: Path, raw_bytes: bytes, content_hash: str, cap: int | None
+    ) -> bool:
         parent_fd = self._open_or_create_parent(path.parent)
         temp_name: str | None = None
         try:
@@ -387,7 +527,9 @@ class LocalSnapshotStorage:
                     follow_symlinks=False,
                 )
             except FileExistsError:
-                self._verify_target_from_parent(parent_fd, path, content_hash)
+                # This is a true atomic no-replace reuse; the race outcome is
+                # bounded against the caller's accepted per-object cap.
+                self._verify_target_from_parent(parent_fd, path, content_hash, cap)
                 return False
             else:
                 self._fsync_open_directory(parent_fd, path.parent)
@@ -453,7 +595,7 @@ class LocalSnapshotStorage:
 
     @staticmethod
     def _verify_target_from_parent(
-        parent_fd: int, path: Path, content_hash: str
+        parent_fd: int, path: Path, content_hash: str, cap: int | None
     ) -> None:
         expected = require_full_sha256(content_hash)
         fd: int | None = None
@@ -463,9 +605,16 @@ class LocalSnapshotStorage:
                 raise SnapshotStorageIntegrityError(
                     f"Snapshot target is not a regular file: {path}"
                 )
-            with os.fdopen(fd, "rb") as handle:
-                fd = None
-                raw_bytes = handle.read()
+            if cap is not None and os.fstat(fd).st_size > cap:
+                _raise_over_cap(cap)
+            # Transfer ownership into the wrapper with closefd=True so the
+            # context-manager exit (and any streaming error) closes the fd
+            # exactly once; then clear our reference so the finally never
+            # double-closes it.
+            handle = os.fdopen(fd, "rb")
+            fd = None
+            with handle:
+                actual, byte_count, over_cap = _sha256_stream(handle, cap=cap)
         except OSError as exc:
             raise SnapshotStorageIntegrityError(
                 f"Cannot safely reuse snapshot target (symbolic links are rejected): {path}"
@@ -473,27 +622,87 @@ class LocalSnapshotStorage:
         finally:
             if fd is not None:
                 os.close(fd)
-        actual = compute_content_hash(raw_bytes)
+        if cap is not None and (over_cap or byte_count > cap):
+            _raise_over_cap(cap)
         if actual != expected:
             raise SnapshotStorageCollisionError(
                 f"Snapshot at {path} hashes to {actual}, not expected digest {expected}."
             )
 
-    def _verify_target(self, path: Path, content_hash: str) -> None:
-        self._read_and_verify(path, content_hash, collision=True)
-
-    def _read_and_verify(self, path: Path, content_hash: str, *, collision: bool) -> bytes:
+    def _verify_target(self, path: Path, content_hash: str, cap: int | None) -> None:
         expected = require_full_sha256(content_hash)
-        raw_bytes = self._read_regular_file(path)
-        actual = compute_content_hash(raw_bytes)
-        if actual != expected:
-            error_type = SnapshotStorageCollisionError if collision else SnapshotStorageIntegrityError
-            raise error_type(
-                f"Snapshot at {path} hashes to {actual}, not expected digest {expected}."
+        observed, byte_length, _ = self._stream_object(path, cap=cap, materialize=False)
+        if observed != expected:
+            raise SnapshotStorageCollisionError(
+                f"Snapshot at {path} hashes to {observed}, not expected digest {expected}."
             )
-        return raw_bytes
 
-    def _read_regular_file(self, path: Path) -> bytes:
+    # ------------------------------------------------------------------
+    # Reads (one ownership-transfer helper for all descriptor reads)
+    # ------------------------------------------------------------------
+
+    def _stream_object(
+        self, path: Path, *, cap: int | None, materialize: bool
+    ) -> tuple[str, int, bytes]:
+        """Stream one no-follow regular file through bounded positive chunks.
+
+        The only descriptor reader in the storage layer: it opens the exact
+        regular inode, applies an fstat precheck plus a cap+1 streaming guard
+        for snapshots (``cap`` is ``None`` for the artifact namespace), hashes
+        through ``_CHUNK_SIZE``-sized reads (never an unbounded read) clamped to
+        ``min(_CHUNK_SIZE, cap + 1 - byte_count)`` so at most ``cap + 1`` bytes
+        are consumed, and closes the descriptor exactly once in every path.
+        ``materialize`` chooses whether the raw bytes are retained
+        (read_snapshot) or discarded (verify_snapshot).  Returns
+        ``(digest, byte_count, raw_bytes)`` where ``raw_bytes`` is ``b""`` when
+        not materialized.
+        """
+        fd = self._open_regular_file(path)
+        parts: list[bytes] = [] if materialize else None  # type: ignore[assignment]
+        digest = hashlib.sha256()
+        byte_count = 0
+        over_cap = False
+        try:
+            st = os.fstat(fd)
+            if cap is not None and st.st_size > cap:
+                _raise_over_cap(cap)
+            with os.fdopen(fd, "rb", closefd=False) as handle:
+                while True:
+                    if cap is not None:
+                        remaining = cap + 1 - byte_count
+                        if remaining <= 0:
+                            over_cap = True
+                            break
+                        read_size = min(_CHUNK_SIZE, remaining)
+                    else:
+                        read_size = _CHUNK_SIZE
+                    chunk = handle.read(read_size)
+                    if not chunk:
+                        break
+                    byte_count += len(chunk)
+                    digest.update(chunk)
+                    if materialize:
+                        parts.append(chunk)
+                    if cap is not None and byte_count > cap:
+                        over_cap = True
+                        break
+        finally:
+            # ``_open_regular_file`` transfers ownership of ``fd`` to us; we
+            # are solely responsible for closing it exactly once.
+            os.close(fd)
+        if cap is not None and (over_cap or byte_count > cap):
+            _raise_over_cap(cap)
+        materialized = b"".join(parts) if materialize else b""
+        return digest.hexdigest(), byte_count, materialized
+
+    def _open_regular_file(self, path: Path) -> int:
+        """Open a root-contained regular file with no-follow directory walk.
+
+        Returns a raw file descriptor pinned to the exact regular inode; the
+        caller takes ownership and MUST close the returned fd exactly once.
+        On any exception path every intermediate and leaf descriptor is closed
+        before the exception propagates, so no descriptor leaks.
+        """
         try:
             relative = path.relative_to(self.root)
         except ValueError as exc:
@@ -511,12 +720,13 @@ class LocalSnapshotStorage:
         directory_flags = os.O_RDONLY | no_follow | getattr(os, "O_DIRECTORY", 0)
         current_fd: int | None = None
         fd: int | None = None
+        success = False
         try:
             current_fd = os.open(self.root, directory_flags)
             if not stat.S_ISDIR(os.fstat(current_fd).st_mode):
                 raise SnapshotStorageIntegrityError(
                     f"Snapshot root is not a directory: {self.root}"
-            )
+                )
             for component in relative.parts[:-1]:
                 next_fd = os.open(component, directory_flags, dir_fd=current_fd)
                 try:
@@ -536,8 +746,11 @@ class LocalSnapshotStorage:
             mode = os.fstat(fd).st_mode
             if not stat.S_ISREG(mode):
                 raise SnapshotStorageIntegrityError(f"Snapshot path is not a regular file: {path}")
-            with os.fdopen(fd, "rb", closefd=False) as handle:
-                return handle.read()
+            if current_fd is not None:
+                os.close(current_fd)
+                current_fd = None
+            success = True
+            return fd
         except FileNotFoundError as exc:
             raise SnapshotStorageMissingError(f"Snapshot file is missing: {path}") from exc
         except OSError as exc:
@@ -545,7 +758,16 @@ class LocalSnapshotStorage:
                 f"Cannot safely read snapshot file (symbolic links are rejected): {path}"
             ) from exc
         finally:
-            if fd is not None:
-                os.close(fd)
-            if current_fd is not None:
-                os.close(current_fd)
+            # On success the fd ownership transfers to the caller; only close
+            # the intermediate/leaf fds when an exception is propagating.
+            if not success:
+                if fd is not None:
+                    try:
+                        os.close(fd)
+                    except OSError:
+                        pass
+                if current_fd is not None:
+                    try:
+                        os.close(current_fd)
+                    except OSError:
+                        pass

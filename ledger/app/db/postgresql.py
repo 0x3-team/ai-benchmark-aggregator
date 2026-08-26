@@ -366,6 +366,12 @@ POSTGRESQL_REQUIRED_TRIGGER_BINDINGS = {
         11,
         (),
     ),
+    "trg_ingestion_runs_finalize_once": (
+        "ingestion_runs",
+        "ledger_validate_ingestion_run_finalization",
+        19,
+        (),
+    ),
     "trg_model_entities_id_no_update": (
         "model_entities",
         "ledger_reject_append_only_mutation",
@@ -447,6 +453,7 @@ POSTGRESQL_REQUIRED_FUNCTIONS = frozenset(
     {
         "ledger_reject_append_only_mutation",
         "ledger_reject_ingestion_run_delete",
+        "ledger_validate_ingestion_run_finalization",
         "ledger_validate_claim_publication_chain",
         "ledger_validate_claim_review_chain",
         "ledger_validate_job_lease_projection",
@@ -468,6 +475,7 @@ POSTGRESQL_REQUIRED_FUNCTIONS = frozenset(
 POSTGRESQL_REQUIRED_FUNCTION_FINGERPRINTS = {
     "ledger_reject_append_only_mutation": "c0d5f48d43b07efa802675795c7ed251c73734cc093ed0e02093a070717cdfec",
     "ledger_reject_ingestion_run_delete": "36a9d67adf5743c47d431bbc948c7d7d2327d0f617fd9b75dab38562c27568a9",
+    "ledger_validate_ingestion_run_finalization": "ef8d5772f2190cc090f9abc46df46ea892c5b7b0e87807076469a539062d8934",
     "ledger_validate_claim_publication_chain": "51eb42b6480f03be31821864fab3a0f351f34d5f23d0b1210fbebc633f36be68",
     "ledger_validate_claim_review_chain": "62f6d0c28d7455a03cc00f82667031906ba02f7d042e77ad7b7aada0c424b5e2",
     "ledger_validate_job_lease_projection": "e3a077e4401478934bb5b4ad5b4b2796e1c37d42f786a3b942b31194c037c18c",
@@ -721,6 +729,22 @@ _INGESTION_REFERENCE_ID_TABLES = (
     "source_snapshots",
 )
 
+# The runner inserts a run as ``running`` and finalizes it once with these
+# fields. Identity/source/start fields and terminal rows are trigger-frozen.
+_INGESTION_RUN_UPDATE_COLUMNS = (
+    "finished_at",
+    "status",
+    "sources_checked",
+    "snapshots_created",
+    "snapshots_reused",
+    "claims_extracted",
+    "claims_inserted",
+    "claims_unchanged",
+    "claims_needing_review",
+    "error_message",
+    "metadata",
+)
+
 _INGESTION_OPERATIONAL_REFERENCE_COLUMNS = {
     "notification_intents": ("intent_id",),
     "notification_outbox_batches": ("incident_event_id", "outbox_batch_id"),
@@ -960,7 +984,7 @@ GRANT USAGE ON SCHEMA {schema} TO {ingestion_role}, {governance_role}, {artifact
 GRANT SELECT ON {ingestion_read} TO {ingestion_role};
 GRANT INSERT ON {ingestion_insert} TO {ingestion_role};
 GRANT UPDATE (id) ON {ingestion_reference_ids} TO {ingestion_role};
-GRANT UPDATE ON {schema}.ingestion_runs TO {ingestion_role};
+GRANT UPDATE ({', '.join(_INGESTION_RUN_UPDATE_COLUMNS)}) ON {schema}.ingestion_runs TO {ingestion_role};
 GRANT UPDATE ON {schema}.scheduled_job_leases TO {ingestion_role};
 {ingestion_operational_reference_grants}
 GRANT SELECT ON {governance_read} TO {governance_role};

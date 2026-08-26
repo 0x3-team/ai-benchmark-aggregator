@@ -22,6 +22,14 @@ benchmark-ledger review queue
 pytest -q
 ```
 
+With the default `DATABASE_URL=sqlite:///./data/benchmark_ledger.db`,
+`init-db` creates at most the one missing direct `data/` parent under the
+existing `ledger/` directory, then applies the versioned migrations to a fresh
+SQLite file. It is idempotent at the migration head, refuses populated
+unversioned or otherwise unsupported databases, and never upgrades an existing
+claim-bearing database. `ingest` does not initialize or migrate a database;
+run `init-db` first and confirm the database is current.
+
 This is only for a new, disposable local database. Official publication is
 currently disabled: `ingest`, including `--dry-run`, bulk auto-verification,
 and `export-official-json` are not operational workflows during remediation.
@@ -30,7 +38,8 @@ decisions while retaining claims, snapshots, and runs. Read the
 [evidence-preservation runbook](../docs/runbooks/official-publication-and-evidence-preservation.md)
 before any migration work.
 
-The central safe-fetch client also defaults to **no outbound network transport**.
+The current contained routes require and authorize no source credentials. The
+central safe-fetch client also defaults to **no outbound network transport**.
 It requires a source-revision-bound plan and a future reviewed private-runner
 transport that can prove egress/peer controls. Do not restore adapter-local
 HTTP, redirects, URL rewriting, or source credentials to make a source run.

@@ -18,6 +18,10 @@ class SourceAdapter(ABC):
     # Network-capable adapters inherit ``fetch`` below. Retired/test-only
     # adapters must opt out explicitly and never be selected for production.
     requires_central_fetch = True
+    # Set True by an adapter that resolves typed ``parquet_cell_v1`` evidence
+    # and can therefore share a run-scoped ``ParquetEvidenceResolver`` with
+    # central claim admission instead of each call opening the snapshot bytes.
+    uses_parquet_evidence_resolver = False
     accepted_content_types: frozenset[str] = frozenset(
         {
             "application/json",

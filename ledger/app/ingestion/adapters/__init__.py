@@ -17,6 +17,7 @@ from app.ingestion.adapters.imo_answerbench import ImoAnswerBenchAdapter
 from app.ingestion.adapters.livebench_adapter import LiveBenchAdapter
 from app.ingestion.adapters.taubench_s3 import TauBenchS3Adapter
 from app.ingestion.adapters.frontiermath_epoch import FrontierMathEpochAdapter
+from app.ingestion.adapters.bigcodebench_parquet import BigCodeBenchParquetAdapter
 
 ADAPTERS: dict[str, type[SourceAdapter]] = {
     FakeSourceAdapter.source_type: FakeSourceAdapter,
@@ -37,6 +38,7 @@ ADAPTERS: dict[str, type[SourceAdapter]] = {
     "imo_answerbench": ImoAnswerBenchAdapter,
     "frontiermath_epoch": FrontierMathEpochAdapter,
     "helm_json": HelmJSONAdapter,
+    "bigcodebench_parquet": BigCodeBenchParquetAdapter,
 }
 
 

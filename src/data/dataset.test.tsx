@@ -214,6 +214,109 @@ describe("DatasetProvider", () => {
     expect(entry).not.toHaveProperty("value");
   });
 
+  it("isolates the snapshot from mutations to caller-retained records and nested references", () => {
+    const modalities = ["text"] as ("text" | "vision" | "audio")[];
+    const normalization = { kind: "bounded" as const, min: 0, max: 100 };
+    const model = { ...fixtureModel, id: "mutable-model", modalities };
+    const benchmark = {
+      ...fixtureBenchmark,
+      id: "mutable-benchmark",
+      normalization,
+    };
+    const evidenceLocation = {
+      type: "json_pointer",
+      path: "/scores/0",
+      modelPath: "/scores/0/model",
+    };
+    const displayIdentity = {
+      modelId: model.id,
+      benchmarkId: benchmark.id,
+      metric: "accuracy",
+      split: "test",
+      setting: "default",
+      evaluationVersion: "v1",
+    };
+    const evidence = {
+      type: "json_pointer" as const,
+      locator: "/scores/0",
+      modelLocator: "/scores/0/model",
+      benchmarkLocator: "/scores/0/benchmark",
+      scoreLocator: "/scores/0/value",
+    };
+    const source = {
+      sourceManifestKey: "mutable-source",
+      officialSourceId: "mutable-official-source",
+      sourceRevisionId: "mutable-revision",
+      sourceRevisionDecisionId: "mutable-revision-decision",
+      sourceName: "Mutable source",
+      sourceUrl: "https://official.example.test/mutable",
+      sourceType: "official_api",
+      sourceRevisionDefinitionSha256: "1".repeat(64),
+      sourceSnapshotId: "mutable-snapshot",
+      snapshotContentSha256: "2".repeat(64),
+      snapshotCapturedAt: "2026-07-13T10:00:00.000Z",
+    };
+    const officialProvenance = {
+      displayIdentity,
+      modelRaw: "Mutable Model",
+      benchmarkRaw: "Mutable Benchmark",
+      scoreRaw: "42",
+      scoreUnit: null,
+      evidenceText: "Mutable evidence",
+      evidence,
+      source,
+      claimReviewDecisionId: "mutable-review",
+      claimPublicationDecisionId: "mutable-publication",
+      captureMethod: "fixture",
+    };
+    const score = {
+      ...fixtureScore,
+      modelId: model.id,
+      benchmarkId: benchmark.id,
+      value: 42,
+      evidenceLocation,
+      officialProvenance,
+    };
+    const officialRelease = {
+      artifactId: "mutable-artifact",
+      policyVersion: "mutable-policy",
+      releaseApprovalDecisionId: "mutable-approval",
+      releaseApprovedAt: "2026-07-13T11:00:00.000Z",
+      sourceManifest: [source],
+    };
+    const access = createDatasetAccess({
+      models: [model],
+      benchmarks: [benchmark],
+      scores: [score],
+      officialRelease,
+    });
+
+    model.name = "mutated model";
+    modalities.push("audio");
+    benchmark.name = "mutated benchmark";
+    normalization.min = 10;
+    score.value = 7;
+    evidenceLocation.path = "/mutated-score";
+    displayIdentity.metric = "mutated-metric";
+    evidence.locator = "/mutated-evidence";
+    source.sourceName = "mutated source";
+    officialRelease.artifactId = "mutated-artifact";
+
+    expect(access.models[0].name).toBe("Fixture Model 1");
+    expect(access.models[0].modalities).toEqual(["text"]);
+    expect(access.benchmarks[0].name).toBe("Fixture Bench 1");
+    expect(access.benchmarks[0].normalization).toEqual({ kind: "bounded", min: 0, max: 100 });
+    expect(access.getValue(model.id, benchmark.id)).toBe(42);
+
+    const entry = access.getScoreEntry(model.id, benchmark.id);
+    expect(entry?.evidenceLocation?.path).toBe("/scores/0");
+    expect(entry?.officialProvenance?.displayIdentity.metric).toBe("accuracy");
+    expect(entry?.officialProvenance?.evidence.locator).toBe("/scores/0");
+    expect(entry?.officialProvenance?.source.sourceName).toBe("Mutable source");
+    expect(access.officialRelease?.artifactId).toBe("mutable-artifact");
+    expect(access.officialRelease?.sourceManifest[0].sourceName).toBe("Mutable source");
+  });
+
   it("commits only matching values and provenance when one React tree switches Demo → fixture → Demo", () => {
     const container = document.createElement("div");
     const root = createRoot(container);

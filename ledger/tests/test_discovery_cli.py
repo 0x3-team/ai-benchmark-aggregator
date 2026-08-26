@@ -5,7 +5,9 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from app import cli as cli_module
 from app.cli import app
+from app.discovery.manifest import DiscoveryManifestError
 from discovery_fixtures import standard_observations, write_manifest_root
 
 runner = CliRunner()
@@ -121,3 +123,47 @@ def test_invalid_manifest_exits_two_with_bounded_error(tmp_path) -> None:
     payload = json.loads(result.stderr)
     assert payload["reasonCode"] == "DISCOVERY_INPUT_REJECTED"
     assert payload["availability"] == "candidate_only"
+    assert payload["status"] == "failed_closed"
+
+
+def test_discovery_failure_never_discloses_raw_exception_detail(tmp_path, monkeypatch) -> None:
+    """F3 regression: the discovery failure payload must never expose raw
+    exception detail (private paths, filenames, provider/DB detail, terminal
+    escape bytes) and must be exactly one bounded JSON object with the four
+    stable keys, exit 2, and no traceback."""
+    sentinel_path = "/private/tmp/secret-ops/credentials.json"
+    sentinel_filename = "provider-auth-secret.json"
+    sentinel_provider = "smtp-relay-internal-vendor"
+    sentinel_db = "postgres://user:secret@10.0.0.8/prod"
+    sentinel_control = "\x1b]0;evil-title\x07\x1b[31m"
+    sentinel = (
+        f"{sentinel_path} {sentinel_filename} {sentinel_provider} "
+        f"{sentinel_db} {sentinel_control}"
+    )
+
+    def _boom(fixture_root):
+        raise DiscoveryManifestError(sentinel)
+
+    monkeypatch.setattr(cli_module, "load_manifest", _boom)
+    result = runner.invoke(
+        app,
+        ["discovery", "plan", "--fixture-root", str(tmp_path), "--slot-ordinal", "0"],
+    )
+    assert result.exit_code == 2
+    payload = json.loads(result.stderr)
+    assert payload == {
+        "availability": "candidate_only",
+        "status": "failed_closed",
+        "reasonCode": "DISCOVERY_INPUT_REJECTED",
+        "detail": "Discovery input was rejected.",
+    }
+    for component in (
+        sentinel_path,
+        sentinel_filename,
+        sentinel_provider,
+        sentinel_db,
+        sentinel_control,
+        "\x1b",
+    ):
+        assert component not in result.stderr
+        assert component not in result.stdout

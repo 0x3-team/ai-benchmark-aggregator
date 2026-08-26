@@ -281,7 +281,15 @@ function isSafeHttpsUrl(value: unknown): value is string {
   if (!hasNonemptyString(value)) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.length > 0 && !url.username && !url.password;
+    return (
+      url.protocol === "https:" &&
+      url.hostname.length > 0 &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      !/[?#]/.test(value)
+    );
   } catch {
     return false;
   }

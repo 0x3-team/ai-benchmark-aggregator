@@ -23,6 +23,10 @@ from app.db import models, repositories as repo
 from app.export.official_json import (
     CANONICAL_JSON_ALGORITHM,
     FeedCandidateAnalysis,
+    FeedResourceLimitError,
+    MAX_CLAIMS,
+    MAX_SNAPSHOTS,
+    FeedBatch,
     _cell_sort_key,
     _iso8601,
     analyze_official_feed_candidates,
@@ -224,8 +228,8 @@ def _capture_risk_signals(
     return sorted(signals)
 
 
-def _claim_record(
-    session: Session,
+def _claim_record_batched(
+    batch: FeedBatch,
     claim: models.ResultClaim,
     *,
     snapshot: models.SourceSnapshot | None,
@@ -234,20 +238,39 @@ def _claim_record(
     disposition: str,
     omission_reason: str | None,
 ) -> tuple[dict[str, Any], bool, bool]:
-    review = repo.get_claim_review_projection(session, claim)
-    publication = repo.get_claim_publication_projection(session, claim)
+    """Batch-context counterpart of the former session-based record builder.
+
+    Review/publication chains and the three decision rows are resolved
+    entirely from the preloaded ``FeedBatch``, preserving the same
+    fail-closed semantics and identical record fields.
+    """
+    try:
+        review_chain = batch.review_chain(claim)
+        review_chain_error: str | None = None
+    except repo.ClaimReviewChainError as exc:
+        review_chain = []
+        review_chain_error = str(exc)
+    try:
+        publication_chain = batch.publication_chain(claim)
+        publication_chain_error: str | None = None
+    except repo.ClaimReviewChainError as exc:
+        publication_chain = []
+        publication_chain_error = str(exc)
+    review = repo._project_review(claim, review_chain, chain_error=review_chain_error)
+    publication = _project_publication(publication_chain, publication_chain_error)
+
     source_decision = (
-        session.get(models.SourceRevisionDecision, claim.source_revision_decision_id)
+        batch.source_decisions.get(claim.source_revision_decision_id)
         if claim.source_revision_decision_id
         else None
     )
     review_decision = (
-        session.get(models.ClaimReviewDecision, review.effective_decision_id)
+        batch.review_decisions_by_id.get(review.effective_decision_id)
         if review.effective_decision_id
         else None
     )
     publication_decision = (
-        session.get(models.ClaimPublicationDecision, publication.effective_decision_id)
+        batch.publication_decisions_by_id.get(publication.effective_decision_id)
         if publication.effective_decision_id
         else None
     )
@@ -323,6 +346,37 @@ def _claim_record(
     return record, explicit_quarantine, explicit_revocation
 
 
+def _project_publication(
+    chain: list[models.ClaimPublicationDecision],
+    chain_error: str | None,
+) -> repo.ClaimPublicationProjection:
+    """Pure publication projection from an in-memory chain.
+
+    Mirrors the repository's ``get_claim_publication_projection`` semantics:
+    a chain error yields a fail-closed projection, an empty chain yields a
+    no-decision projection, otherwise the leaf decision's fields are used.
+    """
+    if chain_error is not None:
+        return repo.ClaimPublicationProjection(
+            outcome=None,
+            claim_review_decision_id=None,
+            effective_decision_id=None,
+            chain_error=chain_error,
+        )
+    if not chain:
+        return repo.ClaimPublicationProjection(
+            outcome=None,
+            claim_review_decision_id=None,
+            effective_decision_id=None,
+        )
+    decision = chain[0]
+    return repo.ClaimPublicationProjection(
+        outcome=decision.outcome,
+        claim_review_decision_id=decision.claim_review_decision_id,
+        effective_decision_id=decision.id,
+    )
+
+
 def _conflict_records(analysis: FeedCandidateAnalysis) -> tuple[list[dict[str, Any]], set[str]]:
     rows: list[dict[str, Any]] = []
     conflict_claim_ids: set[str] = set()
@@ -344,22 +398,56 @@ def build_legacy_inventory_report(session: Session) -> dict[str, Any]:
     The report remains useful when the candidate projection has a conflict:
     conflicting rows are labelled ``conflicted`` and the projection status is
     ``conflict`` rather than raising or silently returning a partial feed.
+
+    Cardinality is hard-bounded (SQL ``LIMIT cap + 1`` on claims and
+    snapshots, per-chunk remaining-budget limits on related rows).  A resource
+    cap overflow is converted to :class:`LegacyInventoryError` so the CLI can
+    emit one stable generic refusal and never a partial report.
     """
+    try:
+        return _build_legacy_inventory_report(session)
+    except FeedResourceLimitError as exc:
+        raise LegacyInventoryError(str(exc)) from None
+
+
+def _build_legacy_inventory_report(session: Session) -> dict[str, Any]:
     with session.no_autoflush:
-        claims = list(session.scalars(select(models.ResultClaim).order_by(models.ResultClaim.id)))
-        snapshots = list(session.scalars(select(models.SourceSnapshot).order_by(models.SourceSnapshot.id)))
-        sources = {
-            row.id: row
-            for row in session.scalars(select(models.OfficialSourceRow).order_by(models.OfficialSourceRow.id))
-        }
-        revisions = {
-            row.id: row
-            for row in session.scalars(
-                select(models.OfficialSourceRevision).order_by(models.OfficialSourceRevision.id)
+        claims = list(
+            session.scalars(
+                select(models.ResultClaim).order_by(models.ResultClaim.id).limit(MAX_CLAIMS + 1)
             )
-        }
+        )
+        if len(claims) > MAX_CLAIMS:
+            raise LegacyInventoryError(
+                f"claim count exceeds the documented inventory cap of {MAX_CLAIMS}"
+            )
+        snapshots = list(
+            session.scalars(
+                select(models.SourceSnapshot).order_by(models.SourceSnapshot.id).limit(MAX_SNAPSHOTS + 1)
+            )
+        )
+        if len(snapshots) > MAX_SNAPSHOTS:
+            raise LegacyInventoryError(
+                f"snapshot count exceeds the documented inventory cap of {MAX_SNAPSHOTS}"
+            )
         snapshots_by_id = {snapshot.id: snapshot for snapshot in snapshots}
-        analysis = analyze_official_feed_candidates(session)
+        # One bounded context shared by the candidate analysis and the per-claim
+        # inventory records (no duplicate batch build, no per-claim query).
+        #
+        # Snapshot note: the legacy report must surface EVERY snapshot,
+        # including orphan snapshots not referenced by any claim, so it loads
+        # the full (bounded, SQL LIMIT cap+1) snapshot set above for its
+        # snapshot section.  FeedBatch independently loads the claim-referenced
+        # snapshot subset under the same shared MAX_SNAPSHOTS cap for the
+        # candidate analysis.  This bounded duplicate is deliberate: it keeps
+        # FeedBatch a self-contained reusable context with its own cap guard,
+        # and the two loads serve different row sets (full vs claim-referenced).
+        batch = FeedBatch(session, claims)
+        # Sources/revisions come from the bounded batch (only rows referenced
+        # by the loaded claims/snapshots) — never an unbounded all-table scan.
+        sources = dict(batch.sources)
+        revisions = dict(batch.revisions)
+        analysis = analyze_official_feed_candidates(session, batch=batch)
         excluded_by_claim_id = {
             row["claimId"]: row["reasonCode"] for row in analysis.excluded_claims
         }
@@ -403,8 +491,8 @@ def build_legacy_inventory_report(session: Session) -> dict[str, Any]:
                 disposition, omission_reason = "omitted", excluded_by_claim_id[claim.id]
             else:
                 disposition, omission_reason = "candidate", None
-            record, explicit_quarantine, explicit_revocation = _claim_record(
-                session,
+            record, explicit_quarantine, explicit_revocation = _claim_record_batched(
+                batch,
                 claim,
                 snapshot=snapshot,
                 source=source,

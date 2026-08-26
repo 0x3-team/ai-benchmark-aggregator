@@ -137,6 +137,46 @@ def test_local_orphan_inventory_is_read_only_exact_and_deterministic(tmp_path: P
         )
 
 
+def test_local_orphan_inventory_duplicate_reference_check_scales_linearly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    uri_hash_calls = 0
+
+    class CountingUri(str):
+        def __hash__(self) -> int:
+            nonlocal uri_hash_calls
+            uri_hash_calls += 1
+            return super().__hash__()
+
+    storage = LocalSnapshotStorage(tmp_path)
+    addresses: dict[str, StorageObjectAddress] = {}
+    reference_count = 64
+    for index in range(reference_count):
+        digest = f"{index + 1:064x}"
+        key = f"{digest[:2]}/{digest[2:4]}/{digest}"
+        uri = f"reference-{index}"
+        addresses[uri] = StorageObjectAddress(
+            provider="local",
+            object_kind=StorageObjectKind.SNAPSHOT,
+            uri=CountingUri(uri),
+            key=key,
+            content_sha256=digest,
+        )
+
+    monkeypatch.setattr(
+        storage,
+        "_canonical_address_from_uri",
+        lambda uri, *, object_kind: addresses[uri],
+    )
+
+    with pytest.raises(SnapshotStorageIntegrityError, match="duplicate reference"):
+        storage.inventory_orphans(
+            referenced_uris=[*addresses, "reference-0"],
+        )
+
+    assert uri_hash_calls == 2 * reference_count + 1
+
+
 def test_local_inventory_rejects_symlinked_fanout_directory(tmp_path: Path) -> None:
     storage = LocalSnapshotStorage(tmp_path / "objects")
     raw_bytes = b"outside object must not enter inventory"

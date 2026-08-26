@@ -52,6 +52,14 @@ benchmark-ledger seed-registry
 pytest -q
 ```
 
+With the default `DATABASE_URL=sqlite:///./data/benchmark_ledger.db`,
+`init-db` creates at most the one missing direct `data/` parent under the
+existing `ledger/` directory, then applies the versioned migrations to a fresh
+SQLite file. It is idempotent at the migration head, refuses populated
+unversioned or otherwise unsupported databases, and never upgrades an existing
+claim-bearing database. `ingest` does not initialize or migrate a database;
+run `init-db` first and confirm the database is current.
+
 Use `init-db` only for a new, disposable development database. `seed-registry`
 is an append-only source-reconciliation operation, never a reset: it retains
 claims, snapshots, and runs while creating source revisions or retirement
@@ -163,7 +171,9 @@ Python constraints are reviewed in [`ledger/requirements-ci.lock`](ledger/requir
 they are not a release-artifact authorization or a replacement for future
 SBOM/provenance review.
 
-**Branch protection** recommended: require `verify` workflow + code review from `CODEOWNERS`.
+**Branch protection:** recommended settings are requiring the `verify` workflow
+and code review from `CODEOWNERS`; this README does not claim those settings are
+enabled.
 
 ---
 
@@ -205,7 +215,8 @@ not committed, imported by the runtime, or accepted by CI as release evidence.
 
 ## Credentials and environment
 
-No source credential is used by the current ingestion boundary. The central
+No source credential is used by the current ingestion boundary. The current
+contained routes require and authorize no source credentials. The central
 safe-fetch client refuses credentialed sources and has no enabled live transport
 until a private runner/egress policy and one source certification are approved.
 Do not add a token to the browser, CI, a registry URL, adapter, or public log.
@@ -251,10 +262,10 @@ MIT — see `LICENSE`.
 
 ## Team & Contacts
 
-| Role | GitHub Team | Slack |
+| Role | GitHub owner | Slack |
 |------|-------------|-------|
-| Core / Infra | `@0x3-team/core` | #0x3-core |
-| Ledger | `@0x3-team/ledger` | #0x3-ledger |
-| Frontend | `@0x3-team/frontend` | #0x3-frontend |
+| Core / Infra | `@Masih-0x3` | #0x3-core |
+| Ledger | `@Masih-0x3` | #0x3-ledger |
+| Frontend | `@Masih-0x3` | #0x3-frontend |
 
 For questions, open an issue using the templates in `.github/ISSUE_TEMPLATE/`.

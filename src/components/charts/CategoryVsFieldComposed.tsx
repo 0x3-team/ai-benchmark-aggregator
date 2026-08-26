@@ -31,7 +31,7 @@ export function CategoryVsFieldComposed({
   const fieldByCat = new Map(fieldRows.map((r) => [r.category, r.fieldPct]));
   const data = categoryRows.map((row) => ({
     ...row,
-    fieldPct: fieldByCat.get(row.category) ?? 0,
+    fieldPct: fieldByCat.get(row.category) ?? null,
   }));
 
   const config = modelChartConfig(models);
@@ -42,7 +42,7 @@ export function CategoryVsFieldComposed({
 
   return (
     <EvilComposedChart<
-      CategoryRow & { fieldPct: number } & Record<string, unknown>,
+      CategoryRow & { fieldPct: number | null } & Record<string, unknown>,
       Record<string, ChartConfig[string]>
     >
       data={data}
@@ -58,7 +58,7 @@ export function CategoryVsFieldComposed({
       />
       <YAxis domain={[0, 100]} />
       <Tooltip variant="frosted-glass" />
-      <Legend isClickable />
+      <Legend />
       {models.map((m, i) => (
         <Bar key={m.id} dataKey={seriesKey(i)} variant="duotone" />
       ))}
