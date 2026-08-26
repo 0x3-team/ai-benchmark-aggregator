@@ -888,8 +888,15 @@ class _CertifiedFixtureTransport:
 
 
 class _CertifiedFixtureRateLimiter:
-    def acquire(self, *, source_id: str, url: str, observed_at: datetime) -> None:
-        _ = source_id, url, observed_at
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: datetime,
+        timeout_seconds: float,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds
 
 
 def _certified_fixture_dependencies(raw_bytes: bytes = RAW_BYTES):  # type: ignore[no-untyped-def]

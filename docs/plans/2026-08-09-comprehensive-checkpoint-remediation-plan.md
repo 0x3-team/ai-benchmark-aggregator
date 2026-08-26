@@ -1,12 +1,12 @@
 # AI Benchmark Platform Comprehensive Checkpoint Remediation Plan
 
-## Planner metadata
+## Checkpoint metadata
 
-- Repository: `/Users/stevmq/Documents/ai-benchmark-aggregator`
+- Repository: `0x3-team/ai-benchmark-aggregator`
 - Branch/baseline: `main`, `5eb3b35e35867e6b56837d7fc9b67e120c423b45`; `origin/main` is `f0115929898dc4ec7c65882db7db96b0172c0143`; local is ahead 3.
 - Date: 2026-08-09
-- Planning route: `planner`, GPT-5.6 Sol, max reasoning. Max triggers: frontend + ledger + security + release surfaces, immutable-data and production risk, conflicting local/live/provider evidence, and a handoff too broad for High.
-- Current protected work: modified `ledger/app/ingestion/adapters/__init__.py`; untracked BigCodeBench adapter and four scale-fixture/test files. Preserve and improve them in place; never reset, stash, clean, or overwrite unrelated work.
+- Planning used the highest review tier because the checkpoint crossed frontend, ledger, security, release, immutable-data, and production-risk surfaces.
+- Existing in-progress adapter and scale-test work must be preserved in place. Never reset, stash, clean, or overwrite unrelated work.
 - Planning only: this file is the sole planning-phase edit. Implementation has not started under this plan.
 
 ## Outcome and guardrails
@@ -19,7 +19,7 @@ Guardrails:
 - Do not mutate Cloudflare, GitHub, DNS, databases, paid services, branches, commits, remotes, or provider settings.
 - Do not run destructive filesystem or database operations. New tests use temporary directories/databases only.
 - Preserve raw source lexemes and append-only ledger semantics. No coercion, fallback data, synthetic-to-Official promotion, or historical-row rewrite.
-- Use only GPT-5.6 Luna High for implementation, debugging, commands, integration, and validation. Use GPT-5.6 Sol Max for independent acceptance; Computer Use remains GPT-5.6 Sol Low Fast.
+- Keep implementation, debugging, integration, validation, independent acceptance, and browser evidence as separate owned phases.
 - A worker owns only its files below. Cross-lane changes return to the coordinator for reassignment; workers never opportunistically refactor.
 
 ## Source-of-truth contract
@@ -145,7 +145,7 @@ git diff --check
 
 - Scale test must collect 5 cases. Ledger must not fall below 1096 tests or exceed 11 skips without a reviewed explanation. Official verifier stays 5/5 and unavailable/data-free.
 - Clean archive gate: extract `git archive HEAD` into `mktemp -d`, run `npm ci`, Official verification, typecheck, tests, build, and the static Pages test; remove only that explicit temp directory on exit.
-- Once in-app Browser is available, Computer Use checks local build at 390/768/1440px and 200% zoom: source truth, filter/SOTA semantics, deep-scroll resets, compare limit, keyboard-only flow, sheets, no overlap/overflow, console errors, and responsive header. Until then visual acceptance is blocked, not passed.
+- Once the in-app browser is available, check the local build at 390/768/1440px and 200% zoom: source truth, filter/SOTA semantics, deep-scroll resets, compare limit, keyboard-only flow, sheets, no overlap/overflow, console errors, and responsive header. Until then visual acceptance is blocked, not passed.
 - No live curl result can prove the new artifact until an authorized deployment exists. After provider access, separately verify root/asset 200, unknown route/asset 404, robots plain text, canonical, headers, pages.dev noindex/redirect, deploy-to-SHA identity, and rollback.
 
 ## Acceptance criteria
@@ -156,7 +156,7 @@ git diff --check
 - Demo is always called synthetic; catalog parsing is fail-closed; header/body parity is exact; raw-only/out-of-domain and missing values never become normalized zero.
 - Global labels use the full cohort; score snapshots resist retained-reference mutation; source switching clears all dependent state; virtual rows reset and maintain their declared geometry/semantics.
 - Static Pages files and repository templates validate locally. No deployment, Official publication, source ingestion, or provider mutation occurred.
-- Independent Sol Max engineering acceptance reviews the actual diff and command receipts. Do not claim full UI acceptance until Computer Use evidence exists, or production readiness until Cloudflare/GitHub gates are closed.
+- Independent engineering acceptance reviews the actual diff and command receipts. Do not claim full UI acceptance until browser evidence exists, or production readiness until Cloudflare/GitHub gates are closed.
 
 ## Deferred/manual backlog
 
@@ -176,13 +176,12 @@ Good next features after correctness: coverage/confidence indicators for sparse 
 
 - Before each lane, capture status and a scoped diff. Roll back only that lane’s owned patch with `apply_patch`; never use reset/checkout/clean.
 - If a dependency upgrade or header policy regresses behavior, retain the prior lock/static files and defer the slice; do not weaken tests or deploy to learn in production.
-- The Luna High implementation orchestrator should create its own goal, dispatch in the dependency order above, collect per-worker diffs/test receipts, and loop until criteria pass or a named blocker remains.
+- The implementation owner should dispatch in the dependency order above, collect scoped diffs and test receipts, and loop until criteria pass or a named blocker remains.
 - “Verified” requires target-perspective evidence from the real CLI process, immutable record/artifact, rendered UI, or provider deployment—not a worker statement or diff alone.
 
-## Agent usage receipt
+## Historical execution note
 
-- Planning owner: `/root/remediation_planner`; role `planner`; GPT-5.6 Sol; max reasoning; Fast n/a; owned synthesis, tradeoffs, acceptance criteria, and this plan; accepted.
-- Evidence inputs: parent-routed Sol Max audit workers for architecture, frontend logic, ledger integrity, security, performance, QA/docs, UI/UX, and Cloudflare/release; their findings were reconciled against the frozen baseline. Security subreviews were also Sol Max. No planning worker was substituted.
-- Computer Use: GPT-5.6 Sol Low Fast; blocked because `iab` was unavailable; no evidence accepted.
-- Orca Claude/deepseek route: requested but blocked before launch by `Could not build launch command for claude`; no worker output used.
-- This planner spawned no subagents. Strict planning route passed; implementation route has not started.
+Planning completed and its findings were reconciled against the frozen
+baseline. Browser evidence was unavailable, so no visual acceptance was
+claimed. Local provider, model, permission, task, terminal, and launcher-failure
+evidence is intentionally not tracked in this public repository.

@@ -33,23 +33,21 @@ Build source digest: `2bc13bc263f34bd0b56357f38b1a0c240145968084b283c917fe8d9b9b
 - `npm run verify:bundle-budget`: passed (`eagerJs=497407`, `totalJs=1227527`) with 52 tests.
 - `npm run verify:official-artifact`: passed for the governed unavailable containment artifact, with 8 tests.
 - `cd ledger && uv run --locked --extra dev pytest -q`: 1,672 passed and 14 skipped.
-- Independent GPT-5.6 Luna high-reasoning engineering review: `accept`; no material correctness finding.
+- Independent engineering review: accepted with no material correctness finding.
 
 CodeRabbit then found five bounded issues: percent-valued opaque fields did not round-trip, generated search values could exceed decoder limits, History API writes were not rate-contained, pending CDP requests could hang after socket failure, and reload/viewport assertions could read stale state. All five were verified against the code, fixed, and covered by the passing reruns above. The external docstring-coverage warning was not adopted because it is not a repository acceptance rule and would add comments without changing the contract.
 
 The first concurrent full frontend run passed all 118 assertions but reported one Vitest worker teardown transport error. The isolated rerun passed cleanly and is the accepted result. A bare `pytest -q` attempt used unsupported macOS Python 3.9 and was rejected before collection; the accepted ledger result is from the locked `uv` environment above.
 
-## Native browser evidence
-
-Computer Use used GPT-5.6 Sol, low reasoning, Fast tier, through the Orca native browser only.
+## Browser evidence
 
 - Desktop canonicalization, visible filter/comparison/sort/model-sheet restoration, and reload: passed.
 - Native Back and Forward restored exact `q=alpha` and `q=beta` URLs and visible search values: passed.
 - Native malformed `model` plus `benchmark` input canonicalized to `?v=1` with no sheet open: passed.
 - Supplemental native 425 by 812 preset: passed. The sheet fit, visible text did not overlap or clip, and the close control worked. Closing removed only the `model` query parameter. This is not a substitute for the exact viewport below.
-- Exact native 390 by 844: blocked. Orca's Android emulator timed out while booting, and the native browser exposed fixed presets but no 390 by 844 or custom viewport. The exact automated 390 by 844 browser assertion passed, but it is not labeled as native evidence.
+- Exact manual 390 by 844: unavailable because the test surface did not expose that exact custom viewport. The exact automated 390 by 844 browser assertion passed, but it is not labeled as manual evidence.
 
-Native screenshots were produced in the Computer Use service's temporary storage. They are not committed artifacts and can expire.
+Screenshots were temporary test artifacts and were not committed.
 
 ## Scope and remaining gate
 

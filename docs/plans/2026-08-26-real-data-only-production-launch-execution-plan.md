@@ -15,7 +15,7 @@
 
 1. **Launch = the first governed Official release.** There is no interim beta. The public site goes live only when real claims flow: certified sources → snapshots → claims → review → export → digest-pinned artifact → deploy. Everything else (UX, headers, deploy pipeline) is built in parallel but is not the launch gate.
 2. **The synthetic dataset is deleted, not relabeled.** `src/data/scores.json` + `models.json` (486 fictional-or-scraped models, 976 scores) leave the runtime. The immutable `DatasetProvider`/`getValue` boundary stays (it is load-bearing in tests and architecture); the UI becomes single-source Official with the existing "awaiting publication" empty state until the artifact exists. Tests keep their own fixtures (`testFixtures.ts`, scale fixtures) — those never render to users.
-3. **The data machine is the critical path**, so it gets the strongest models and the most parallel lanes: live transport, runner, certifications for *every structured source that passes terms review* (not just 3), REL-05, identity resolution, and an explicit pipeline-validation stage with receipts.
+3. **The data machine is the critical path**, so its work is split into parallel lanes: live transport, runner, certifications for *every structured source that passes terms review* (not just 3), REL-05, identity resolution, and an explicit pipeline-validation stage with receipts.
 4. **"Most current info" is engineered, not assumed:** every certified source gets a freshness check at capture using a publisher-provided timestamp or a timestamped immutable revision. An opaque ETag or untimestamped revision cannot prove age and yields `freshness=unknown`. Every claim carries its capture date in the UI, and a scheduled re-ingest keeps data moving after launch. Historically frozen sources are labeled with their publisher-provided last-update date rather than silently presented as current.
 
 ### Honest coverage forecast (set expectations before approving)
@@ -58,7 +58,7 @@ Carried over from v1 with governance clarification: ranking threshold ≥60% cov
 | --- | --- | --- |
 | H1 | Approve this plan (with any ND overrides) | everything |
 | H2 | Cloudflare token + account ID as Actions secrets; confirm DNS | launch deploy only |
-| H3 | Branch protection (require `Verify` + review); read the 3 Dependabot alerts and paste them (agents draft dispositions) | merge train |
+| H3 | Branch protection (require `Verify` + review); read the 3 Dependabot alerts and record dispositions | merge train |
 | H4 | Create private repo `0x3-team/benchmark-ledger-data`; add `LEDGER_DATA_TOKEN` secret | runner (Wave 2) |
 | H5 | Security sign-off: pinned-transport PR | first live byte |
 | H6 | Create and verify the append-only REL-05 authorization for the exact first artifact before approving its release PR | launch |
@@ -68,32 +68,36 @@ Carried over from v1 with governance clarification: ranking threshold ≥60% cov
 
 ## 4. Lanes and PR batches (≈24 tasks → 13 PRs; you review each once)
 
-Model tiers: **CHEAP** = gpt-5.6-luna / grok-4.5 · **STD** = gpt-5.6-terra / grok-4.6 · **STRONG** = gpt-5.6-sol (high reasoning). All subscription-billed. Every task: isolated machine, fresh checkout, lane-scoped file list, repo gates green locally, no secrets, screenshots for UI, "pick the decision-sheet default and continue" rule. I inspect every diff and rerun decisive checks before it ever reaches your merge queue.
+Local provider, model, permission, authentication, catalog, task, terminal, and
+cost-routing details are internal operational evidence and are not recorded in
+this public plan. Every task uses a fresh checkout, a lane-scoped file list,
+green repository gates, no secrets, and screenshots for UI work. Every diff is
+reviewed and decisive checks are rerun before it reaches the merge queue.
 
 ### Track 1 — Data machine (critical path)
 
-| PR | Lane / tasks | Tier | Contents | Review focus for you |
-| --- | --- | --- | --- | --- |
-| **P1** | Transport (T-J1) | STRONG | `live_transport.py`: single-resolve → public-IP assert → pinned-IP TLS connect verified against hostname → no redirects → streamed byte cap. Adversarial tests (rebind, smuggle, oversize, non-global IP, TLS mismatch). Default runtime still refuses network. | **Sign-off H5.** Check: no default-path change; tests cover the 5 adversarial cases. |
-| **P2** | REL-05 + ADR-011 (T-K1..K3) | STRONG→STD stacked | Release-authorization record (digest pinned outside artifact), artifact builder from eligible feed, offline verifier extension, dormant v2 parser activation behind the record, tamper tests. ADR-011 vendor-reported class. | Digest pinning location; tamper test flips UI to unavailable. |
-| **P3** | Runner (T-R1) | STD | Scheduled workflow: restore data repo → migrate check → `ingest` → DATA-10 checkpoint → push snapshots/checkpoints → failure opens issue. | Secrets only from repo config; no ingest on PRs. |
-| **P4** | Certifications A (T-S1..S3) | STRONG | BigCodeBench, SWE-bench Verified, MTEB: terms citation, source-revision certification decision docs, URL allowlists + byte bounds, fixture rehearsals, admission dry-run receipts. | Terms quotes are verbatim + dated; bounds match file sizes. |
-| **P5** | Certifications B (T-S4..S8) | STD | GAIA, Aider Polyglot, OLL family (per ND2, with last-updated labels), Terminal-Bench only if fixture proves table stability. | Same shape as P4. |
-| **P6** | Vendor-reported slice (T-S9, per ND3) | STRONG | Model-card adapter (PDF/HTML snapshot → exact lexeme extraction → typed evidence), certification docs for timestamp-qualified frontier vendor cards, `vendor_reported` class wiring, and historical/unknown fallback labels. | This is the policy widening — check the badge, freshness, and ND1-exclusion contracts. |
-| **P7** | Identity (T-N1..N2) | STD | Exact HF/OpenRouter ID auto-accept into aliases via existing `review map-model` path; review-queue CSV for the rest; enrichment for models the launch cohort covers. | No silent merges; needs_review preserved. |
-| **P8** | Pipeline validation receipts (T-P1..P3) | STD | On disposable DBs: live capture rehearsal per certified source (via granted transport), **idempotency proof** (second run inserts 0), coverage census receipt, freshness receipts (source update time vs capture time), evidence re-resolution spot checks. Committed under `docs/receipts/`. | This is your "pipelines actually work" evidence — read it. |
+| PR | Lane / tasks | Contents | Review focus for you |
+| --- | --- | --- | --- |
+| **P1** | Transport (T-J1) | `live_transport.py`: single-resolve → public-IP assert → pinned-IP TLS connect verified against hostname → no redirects → streamed byte cap. Adversarial tests (rebind, smuggle, oversize, non-global IP, TLS mismatch). Default runtime still refuses network. | **Sign-off H5.** Check: no default-path change; tests cover the 5 adversarial cases. |
+| **P2** | REL-05 + ADR-011 (T-K1..K3) | Release-authorization record (digest pinned outside artifact), artifact builder from eligible feed, offline verifier extension, dormant v2 parser activation behind the record, tamper tests. ADR-011 vendor-reported class. | Digest pinning location; tamper test flips UI to unavailable. |
+| **P3** | Runner (T-R1) | Scheduled workflow: restore data repo → migrate check → `ingest` → DATA-10 checkpoint → push snapshots/checkpoints → failure opens issue. | Secrets only from repo config; no ingest on PRs. |
+| **P4** | Certifications A (T-S1..S3) | BigCodeBench, SWE-bench Verified, MTEB: terms citation, source-revision certification decision docs, URL allowlists + byte bounds, fixture rehearsals, admission dry-run receipts. | Terms quotes are verbatim + dated; bounds match file sizes. |
+| **P5** | Certifications B (T-S4..S8) | GAIA, Aider Polyglot, OLL family (per ND2, with last-updated labels), Terminal-Bench only if fixture proves table stability. | Same shape as P4. |
+| **P6** | Vendor-reported slice (T-S9, per ND3) | Model-card adapter (PDF/HTML snapshot → exact lexeme extraction → typed evidence), certification docs for timestamp-qualified frontier vendor cards, `vendor_reported` class wiring, and historical/unknown fallback labels. | This is the policy widening — check the badge, freshness, and ND1-exclusion contracts. |
+| **P7** | Identity (T-N1..N2) | Exact HF/OpenRouter ID auto-accept into aliases via existing `review map-model` path; review-queue CSV for the rest; enrichment for models the launch cohort covers. | No silent merges; needs_review preserved. |
+| **P8** | Pipeline validation receipts (T-P1..P3) | On disposable DBs: live capture rehearsal per certified source (via granted transport), **idempotency proof** (second run inserts 0), coverage census receipt, freshness receipts (source update time vs capture time), evidence re-resolution spot checks. Committed under `docs/receipts/`. | This is your "pipelines actually work" evidence — read it. |
 
 ### Track 2 — Frontend truth + launch shell (parallel, never the gate)
 
-| PR | Lane / tasks | Tier | Contents |
-| --- | --- | --- | --- |
-| **P9** | Real-only refactor (T-D2) | STRONG | Delete synthetic jsons + Demo toggle per ND5; single Official-or-awaiting mode; awaiting state copy; tests migrated to fixtures; docstring/README truth pass. |
-| **P10** | Ranking + defaults (T-E1) stacked on P9 | STD | ≥60%-coverage ranking with caption, hide zero-score default + toggle, sane default sort; embeddings (MTEB) as separate model-class category so apples stay with apples. |
-| **P11** | Permalinks (T-F1) stacked on P10 | STD | URL-encoded view state, fail-closed parsing, browser-proof screenshots. |
-| **P12** | Shell + headers + hygiene (T-A1, T-B1, T-C1) | CHEAP/STD | Cruft removal (`commit.sh`/`commit.py`), pre-commit fix (`debug-logger`→`debug-statements`), ledger root stubs relocated; meta/OG/favicon; enforcing CSP + staged HSTS; pages-static verifier updated. |
-| **P13** | Deploy + monitoring (T-G1, T-B2) | STD | Wrangler deploy workflow gated on `Verify`, smoke matrix, rollback note, smoke-cron issue-on-failure, Web Analytics snippet (post-H2). Registry retirements (D8) ride along here or in P5. |
+| PR | Lane / tasks | Contents |
+| --- | --- | --- |
+| **P9** | Real-only refactor (T-D2) | Delete synthetic jsons + Demo toggle per ND5; single Official-or-awaiting mode; awaiting state copy; tests migrated to fixtures; docstring/README truth pass. |
+| **P10** | Ranking + defaults (T-E1) stacked on P9 | ≥60%-coverage ranking with caption, hide zero-score default + toggle, sane default sort; embeddings (MTEB) as separate model-class category so apples stay with apples. |
+| **P11** | Permalinks (T-F1) stacked on P10 | URL-encoded view state, fail-closed parsing, browser-proof screenshots. |
+| **P12** | Shell + headers + hygiene (T-A1, T-B1, T-C1) | Cruft removal (`commit.sh`/`commit.py`), pre-commit fix (`debug-logger`→`debug-statements`), ledger root stubs relocated; meta/OG/favicon; enforcing CSP + staged HSTS; pages-static verifier updated. |
+| **P13** | Deploy + monitoring (T-G1, T-B2) | Wrangler deploy workflow gated on `Verify`, smoke matrix, rollback note, smoke-cron issue-on-failure, Web Analytics snippet (post-H2). Registry retirements (D8) ride along here or in P5. |
 
-Research (no PR): licensing memo (T-I1, CHEAP) feeding P4–P6 terms citations; delivered as a doc for your read.
+Research (no PR): licensing memo (T-I1) feeding P4–P6 terms citations; delivered as a doc for your read.
 
 ---
 
@@ -116,7 +120,7 @@ Research (no PR): licensing memo (T-I1, CHEAP) feeding P4–P6 terms citations; 
 | 1–2 | P1 (transport) + P2 (REL-05) + P9 (real-only) PRs up; **your merge window 1–2**; H5 transport sign-off |
 | 2–4 | P3 runner, P5/P6 certifications, P10/P11 UX, P13 deploy pipeline up; merge windows 3–4 |
 | 4–6 | P7 identity + P8 live rehearsals run against certified sources; receipts committed |
-| 6–8 | Real captures → review queue (agents draft dispositions; you approve batches) → export → **first artifact PR** |
+| 6–8 | Real captures → review queue (maintainers record dispositions; you approve batches) → export → **first artifact PR** |
 | 8–12 | **H6 authorization verified, then release PR approval**: deploy, smoke matrix on `benchmark.0x3.dev`, HSTS second deploy, announce |
 | 12+ | Weekly: +1–2 new certified sources, discovery live connectors, review-queue burn-down, coverage census in CI |
 

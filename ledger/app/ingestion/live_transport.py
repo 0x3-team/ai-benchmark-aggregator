@@ -28,6 +28,7 @@ from app.ingestion.safe_fetch import (
 
 
 _READ_CHUNK_BYTES = 64 * 1024
+_RESPONSE_FRAMING_ALLOWANCE_BYTES = 256 * 1024
 _REQUEST_HEADER_NAMES = frozenset({"accept", "user-agent"})
 
 
@@ -55,18 +56,37 @@ class _DeadlineRawReader(io.RawIOBase):
         raw: io.RawIOBase,
         network_socket: socket.socket,
         deadline: _RequestDeadline,
+        max_raw_bytes: int,
     ) -> None:
         self._raw = raw
         self.network_socket = network_socket
         self._deadline = deadline
+        self._max_raw_bytes = max_raw_bytes
+        self._raw_bytes = 0
 
     def readable(self) -> bool:
         return True
 
     def readinto(self, buffer: bytearray | memoryview) -> int | None:
+        # A cap-plus-one probe distinguishes exact-limit EOF from overflow.
+        # The extra byte may be consumed from the socket but is never accepted.
+        remaining = self._max_raw_bytes + 1 - self._raw_bytes
+        if remaining <= 0:
+            raise SafeFetchError(
+                "FETCH_RESPONSE_FRAMING_TOO_LARGE",
+                "response framing exceeded the certified transfer allowance",
+            )
         self.network_socket.settimeout(self._deadline.remaining())
-        read = self._raw.readinto(buffer)
+        view = memoryview(buffer)
+        read = self._raw.readinto(view[: min(len(view), remaining)])
         self._deadline.remaining()
+        if read is not None:
+            self._raw_bytes += read
+            if self._raw_bytes > self._max_raw_bytes:
+                raise SafeFetchError(
+                    "FETCH_RESPONSE_FRAMING_TOO_LARGE",
+                    "response framing exceeded the certified transfer allowance",
+                )
         return read
 
     def close(self) -> None:
@@ -81,16 +101,23 @@ class _DeadlineResponseSocket:
         self,
         network_socket: socket.socket,
         deadline: _RequestDeadline,
+        max_raw_bytes: int,
     ) -> None:
         self._network_socket = network_socket
         self._deadline = deadline
+        self._max_raw_bytes = max_raw_bytes
 
     def makefile(self, mode: str) -> io.BufferedReader:
         if mode != "rb":
             raise ValueError("deadline response socket supports binary reads only")
         raw = self._network_socket.makefile(mode, buffering=0)
         return io.BufferedReader(
-            _DeadlineRawReader(raw, self._network_socket, self._deadline)
+            _DeadlineRawReader(
+                raw,
+                self._network_socket,
+                self._deadline,
+                self._max_raw_bytes,
+            )
         )
 
 
@@ -104,9 +131,11 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         timeout: float,
         context: ssl.SSLContext,
         deadline: _RequestDeadline,
+        max_raw_bytes: int,
     ) -> None:
         self._pinned_address = pinned_address
         self._deadline = deadline
+        self._max_raw_bytes = max_raw_bytes
         super().__init__(host, port, timeout=timeout, context=context)
         self.response_class = self._create_deadline_response
 
@@ -174,7 +203,11 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         url: str | None = None,
     ) -> http.client.HTTPResponse:
         return http.client.HTTPResponse(
-            _DeadlineResponseSocket(network_socket, self._deadline),
+            _DeadlineResponseSocket(
+                network_socket,
+                self._deadline,
+                self._max_raw_bytes,
+            ),
             debuglevel=debuglevel,
             method=method,
             url=url,
@@ -245,6 +278,58 @@ def _set_body_socket_timeout(
     if network_socket is None or not callable(getattr(network_socket, "settimeout", None)):
         raise SafeFetchError("FETCH_PROTOCOL_FAILURE", "HTTPS response socket was unavailable")
     network_socket.settimeout(deadline.remaining())
+
+
+def _validated_response_content_length(response: http.client.HTTPResponse) -> int | None:
+    """Reject ambiguous or unsupported framing before accepting a body."""
+
+    raw_headers = response.getheaders()
+    values: list[int] = []
+    transfer_codings: list[str] = []
+    for name, raw_value in raw_headers:
+        if name.lower() == "transfer-encoding":
+            for raw_token in raw_value.split(","):
+                token = raw_token.strip().lower()
+                if not token:
+                    raise SafeFetchError(
+                        "FETCH_PROTOCOL_FAILURE",
+                        "HTTPS response contained an invalid Transfer-Encoding",
+                    )
+                transfer_codings.append(token)
+        if name.lower() != "content-length":
+            continue
+        for raw_token in raw_value.split(","):
+            token = raw_token.strip()
+            if not token or not token.isascii() or not token.isdecimal():
+                raise SafeFetchError(
+                    "FETCH_PROTOCOL_FAILURE",
+                    "HTTPS response contained an invalid Content-Length",
+                )
+            values.append(int(token, 10))
+    if transfer_codings:
+        if transfer_codings != ["chunked"] or not getattr(response, "chunked", False):
+            raise SafeFetchError(
+                "FETCH_PROTOCOL_FAILURE",
+                "HTTPS response used an unsupported Transfer-Encoding",
+            )
+        if values:
+            raise SafeFetchError(
+                "FETCH_PROTOCOL_FAILURE",
+                "HTTPS response contained ambiguous transfer framing",
+            )
+    if not values:
+        return None
+    if any(value != values[0] for value in values[1:]):
+        raise SafeFetchError(
+            "FETCH_PROTOCOL_FAILURE",
+            "HTTPS response contained conflicting Content-Length values",
+        )
+    effective_length = values[0]
+    if not getattr(response, "chunked", False) and not (
+        100 <= response.status < 200 or response.status == 204
+    ):
+        response.length = effective_length
+    return effective_length
 
 
 def _read_bounded_body(
@@ -350,6 +435,7 @@ class PinnedHTTPSFetchTransport:
             target = f"{target}?{parsed.query}"
 
         deadline = _RequestDeadline.start(float(timeout_seconds))
+        max_raw_bytes = max_bytes + _RESPONSE_FRAMING_ALLOWANCE_BYTES
         try:
             context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
         except (OSError, ValueError):
@@ -370,6 +456,7 @@ class PinnedHTTPSFetchTransport:
                     timeout=deadline.remaining(),
                     context=context,
                     deadline=deadline,
+                    max_raw_bytes=max_raw_bytes,
                 )
                 try:
                     candidate.connect()
@@ -403,9 +490,13 @@ class PinnedHTTPSFetchTransport:
             connection.request("GET", target, headers=request_headers)
             _set_socket_timeout(connection, deadline)
             response = connection.getresponse()
+            effective_content_length = _validated_response_content_length(response)
             response_headers: dict[str, str] = {}
             for name, value in response.getheaders():
                 normalized = name.lower()
+                if normalized == "content-length" and effective_content_length is not None:
+                    response_headers[normalized] = str(effective_content_length)
+                    continue
                 if normalized in response_headers:
                     response_headers[normalized] = f"{response_headers[normalized]}, {value}"
                 else:
