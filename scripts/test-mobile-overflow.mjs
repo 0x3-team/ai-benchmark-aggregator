@@ -96,7 +96,7 @@ try {
       socket,
       `(() => {
         const table = document.querySelector("table");
-        const scroller = table?.parentElement?.parentElement;
+        const scroller = table?.parentElement;
         if (!scroller) return null;
         return {
           documentScrollWidth: document.documentElement.scrollWidth,
@@ -109,7 +109,6 @@ try {
     if (measurements) break;
     await sleep(100);
   }
-  socket.close();
   if (!measurements) throw new Error("The published-fixture score table did not render.");
   if (measurements.documentScrollWidth !== measurements.documentClientWidth) {
     throw new Error(`Document overflow at 390px: ${JSON.stringify(measurements)}`);
@@ -117,6 +116,41 @@ try {
   if (measurements.tableScrollWidth <= measurements.tableClientWidth) {
     throw new Error(`Score table did not own horizontal overflow at 390px: ${JSON.stringify(measurements)}`);
   }
+  const stickyPositions = await evaluate(
+    socket,
+    `(() => {
+      const table = document.querySelector("table");
+      const scroller = table?.parentElement;
+      const rank = table?.querySelector("tbody tr td");
+      const model = rank?.nextElementSibling;
+      const benchmark = table?.querySelector("thead tr:nth-child(2) th");
+      if (!scroller || !rank || !model || !benchmark) return null;
+      const before = {
+        rank: rank.getBoundingClientRect().left,
+        model: model.getBoundingClientRect().left,
+        benchmark: benchmark.getBoundingClientRect().left,
+      };
+      scroller.scrollLeft = Math.min(120, scroller.scrollWidth - scroller.clientWidth);
+      const after = {
+        rank: rank.getBoundingClientRect().left,
+        model: model.getBoundingClientRect().left,
+        benchmark: benchmark.getBoundingClientRect().left,
+        scrollLeft: scroller.scrollLeft,
+      };
+      return { before, after };
+    })()`
+  );
+  if (!stickyPositions || stickyPositions.after.scrollLeft <= 0) {
+    throw new Error("The rendered score table could not be horizontally scrolled at 390px.");
+  }
+  if (
+    Math.abs(stickyPositions.after.rank - stickyPositions.before.rank) > 1 ||
+    Math.abs(stickyPositions.after.model - stickyPositions.before.model) > 1 ||
+    stickyPositions.after.benchmark >= stickyPositions.before.benchmark - 1
+  ) {
+    throw new Error(`Sticky columns did not remain pinned at 390px: ${JSON.stringify(stickyPositions)}`);
+  }
+  socket.close();
   console.log(`390px overflow assertion passed: ${JSON.stringify(measurements)}`);
 } finally {
   if (chrome) {

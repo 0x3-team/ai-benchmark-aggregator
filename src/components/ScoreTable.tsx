@@ -191,15 +191,14 @@ export function ScoreTable({
         {rankPolicy}
       </p>
 
-      <div className="overflow-x-auto scroll-thin">
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="min-w-max overflow-y-auto scroll-thin"
-          style={{ maxHeight: bodyMaxH || undefined }}
-        >
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="overflow-auto scroll-thin"
+        style={{ maxHeight: bodyMaxH || undefined }}
+      >
         <table
-          className="w-full border-separate border-spacing-0 text-[12px]"
+          className="min-w-max w-full border-separate border-spacing-0 text-[12px]"
           aria-rowcount={totalRows + 3}
           aria-describedby="overall-ranking-policy"
         >
@@ -627,7 +626,6 @@ export function ScoreTable({
             </tr>
           </tfoot>
         </table>
-        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-white/10 px-3 py-2 text-[11px] text-muted-foreground">
