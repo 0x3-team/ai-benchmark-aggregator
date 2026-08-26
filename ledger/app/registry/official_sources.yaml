@@ -121,7 +121,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM blog route: article/blog URLs are not result artifacts."
     parser_config:
       dataset_id: open-llm-leaderboard/contents
       config: default
@@ -259,7 +260,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM blog route: article/blog URLs are not result artifacts."
     parser_config:
       dataset_id: open-llm-leaderboard/contents
       config: default
@@ -280,7 +282,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM blog route: article/blog URLs are not result artifacts."
     parser_config:
       dataset_id: open-llm-leaderboard/contents
       config: default
@@ -301,7 +304,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM blog route: article/blog URLs are not result artifacts."
     parser_config:
       dataset_id: open-llm-leaderboard/contents
       config: default
@@ -322,7 +326,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM blog route: article/blog URLs are not result artifacts."
     parser_config:
       dataset_id: open-llm-leaderboard/contents
       config: default
@@ -618,10 +623,9 @@ sources:
     supports_history: false
     update_cadence: on_commit
     parser_name: github_yaml
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Aider: mutable YAML route, unsupported `yaml_path`, no exact-lexeme evidence contract, governance absent."
     parser_config: {model_field: model, score_field: pass_rate_2}
-
-    notes: "S3 listing returns XML; requires a custom taubench_s3 adapter to fetch and aggregate individual submission files."
 
   - id: gaia_results_public
     benchmark_id: gaia
@@ -634,7 +638,8 @@ sources:
     supports_history: false
     update_cadence: on_release
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. GAIA: preview-only `first-rows` endpoint, not a complete artifact."
     parser_config: {dataset_id: "gaia-benchmark/results_public", config: "2023", split: validation, records_path: rows, row_field: row, model_field: model, score_field: score, metric_field: score}
 
   - id: bfcl_leaderboard_html
@@ -691,7 +696,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: generic_html_table
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Terminal-Bench: quarantined `html_table` route and no approved structured artifact."
     parser_config: {model_column: Model, score_column: Accuracy}
 
   - id: browsecomp_llmstats
@@ -776,7 +782,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM first-rows route: incomplete previews; nested-field and complete-manifest contracts are absent."
     parser_config: {dataset_id: "open-llm-leaderboard/results", config: default, split: train, records_path: rows, row_field: row, model_field: fullname, score_field: "results.mmlu.acc,none", metric_field: accuracy}
 
   - id: truthfulqa_openllm_v2
@@ -790,7 +797,8 @@ sources:
     supports_history: false
     update_cadence: daily
     parser_name: hf_datasets_server
-    status: active
+    status: inactive
+    notes: "Candidate only; not certified; capture ineligible; publication ineligible. Open LLM first-rows route: incomplete previews; nested-field and complete-manifest contracts are absent."
     parser_config: {dataset_id: "open-llm-leaderboard/results", config: default, split: train, records_path: rows, row_field: row, model_field: fullname, score_field: "results.truthfulqa.mc2", metric_field: accuracy}
 
   - id: mmmu_hf

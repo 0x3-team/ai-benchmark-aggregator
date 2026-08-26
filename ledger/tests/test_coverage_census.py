@@ -16,6 +16,7 @@ from app.db.migrate import _alembic_config, initialize_database, inspect_databas
 from app.reporting.coverage_census import (
     CoverageCensusError,
     _registry_semantic_digest,
+    _registry_rows_digest,
     build_coverage_census,
     canonical_coverage_json,
     coverage_census_digest,
@@ -324,14 +325,51 @@ def _database_shape(path: Path) -> tuple[list[tuple[Any, ...]], dict[str, int]]:
 def test_real_universe_digest_and_baseline_denominators() -> None:
     ledger_root = Path(__file__).resolve().parents[1]
     registry_dir = ledger_root / "app" / "registry"
+    universe_path = registry_dir / "coverage_universe.yaml"
     report = build_coverage_census(
         registry_dir=registry_dir,
-        universe_path=registry_dir / "coverage_universe.yaml",
+        universe_path=universe_path,
+        database_url=None,
+    )
+    repeat = build_coverage_census(
+        registry_dir=registry_dir,
+        universe_path=universe_path,
         database_url=None,
     )
 
     assert report["universe"]["contentSha256"] == (
-        "1ffa3438cb26853ea898894b8d4566d6c694760b8cff47a886923fbae9fc8593"
+        "6a91f3fd311b43a67b3db545219056498f5bb5cd5b25b928e419350aff134320"
+    )
+    assert report == repeat
+    assert report["manifest"]["contentSha256"] == (
+        "03a84a8c21e18d63ca910a91e815cec66cf3acef36090e73c89b59a993f54040"
+    )
+    universe = yaml.safe_load(universe_path.read_text(encoding="utf-8"))
+    source_pin = next(
+        pin
+        for pin in universe["scope"]["registryInputs"]
+        if pin["recordType"] == "configured_source_route"
+    )
+    assert source_pin["semanticSha256"] == (
+        "1c3fc5768d488668ecdf868b111dc4c59514a70527a634fc46c26671bcadd274"
+    )
+    source_rows = yaml.safe_load(
+        (registry_dir / "official_sources.yaml").read_text(encoding="utf-8")
+    )["sources"]
+    configured_ids = {
+        route["sourceRouteId"] for route in universe["configuredSourceRoutes"]
+    }
+    configured_rows = [row for row in source_rows if row["id"] in configured_ids]
+    assert len(configured_ids) == len(configured_rows) == 53
+    assert len(source_rows) == 54
+    # The production census pins the complete official-source input (54 rows),
+    # while the coverage universe deliberately contains 53 configured routes.
+    assert _registry_rows_digest(source_rows) == source_pin["semanticSha256"]
+    assert _registry_rows_digest(source_rows) == (
+        "1c3fc5768d488668ecdf868b111dc4c59514a70527a634fc46c26671bcadd274"
+    )
+    assert _registry_rows_digest(configured_rows) == (
+        "ef2acc813d16b8ab4d9240002afd71d27403caa7bb089b694c349134212afce5"
     )
     assert report["universe"]["approvalStatus"] == "draft_unapproved"
     assert report["manifest"]["denominators"]["universeBenchmarkIdCount"] == 42
@@ -341,6 +379,14 @@ def test_real_universe_digest_and_baseline_denominators() -> None:
         issue["stableId"] == "lmarena_first_party_leaderboard_candidate"
         and issue["reasonCode"] == "REGISTRY_SOURCE_OUTSIDE_UNIVERSE"
         and issue["blocking"] is True
+        for issue in report["issues"]
+    )
+    assert any(
+        issue["reasonCode"] == "UNIVERSE_REGISTRY_DENOMINATOR_MISMATCH"
+        for issue in report["issues"]
+    )
+    assert not any(
+        issue["reasonCode"] == "UNIVERSE_REGISTRY_DIGEST_MISMATCH"
         for issue in report["issues"]
     )
     assert report["summary"]["certificationAssessmentStatus"] == "not_assessed"
