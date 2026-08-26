@@ -113,19 +113,79 @@ function createCdpClient(socket) {
   let nextId = 1;
   return function send(method, params = {}) {
     const id = nextId++;
-    const result = new Promise((resolve, reject) => {
-      const onMessage = (event) => {
-        const message = JSON.parse(event.toString());
-        if (message.id !== id) return;
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
         socket.off("message", onMessage);
+        socket.off("close", onClose);
+        socket.off("error", onError);
+      };
+      const rejectRequest = (error) => {
+        cleanup();
+        reject(error instanceof Error ? error : new Error(String(error)));
+      };
+      const onClose = () => {
+        rejectRequest(new Error(`CDP socket closed before ${method} responded.`));
+      };
+      const onError = (error) => rejectRequest(error);
+      const onMessage = (event) => {
+        let message;
+        try {
+          message = JSON.parse(event.toString());
+        } catch {
+          return;
+        }
+        if (message.id !== id) return;
+        cleanup();
         if (message.error) reject(new Error(message.error.message));
         else resolve(message.result);
       };
       socket.on("message", onMessage);
+      socket.once("close", onClose);
+      socket.once("error", onError);
+      try {
+        socket.send(JSON.stringify({ id, method, params }));
+      } catch (error) {
+        rejectRequest(error);
+      }
     });
-    socket.send(JSON.stringify({ id, method, params }));
-    return result;
   };
+}
+
+function waitForCdpEvent(socket, method, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      socket.off("message", onMessage);
+      socket.off("close", onClose);
+      socket.off("error", onError);
+    };
+    const settleReject = (error) => {
+      cleanup();
+      reject(error instanceof Error ? error : new Error(String(error)));
+    };
+    const onMessage = (event) => {
+      let message;
+      try {
+        message = JSON.parse(event.toString());
+      } catch {
+        return;
+      }
+      if (message.method !== method) return;
+      cleanup();
+      resolve(message.params);
+    };
+    const onClose = () => {
+      settleReject(new Error(`CDP socket closed before ${method}.`));
+    };
+    const onError = (error) => settleReject(error);
+    const timeoutId = setTimeout(() => {
+      settleReject(new Error(`Timed out waiting for CDP event ${method}.`));
+    }, timeoutMs);
+
+    socket.on("message", onMessage);
+    socket.once("close", onClose);
+    socket.once("error", onError);
+  });
 }
 
 async function evaluate(send, expression) {
@@ -276,7 +336,13 @@ try {
     "valid permalink restoration and canonicalization"
   );
 
+  const reloaded = waitForCdpEvent(
+    socket,
+    "Page.loadEventFired",
+    assertionTimeoutMs
+  );
   await send("Page.reload");
+  await reloaded;
   await waitForValue(
     send,
     appStateExpression,
@@ -293,6 +359,12 @@ try {
     deviceScaleFactor: 1,
     mobile: true,
   });
+  await waitForValue(
+    send,
+    `document.documentElement.clientWidth`,
+    (value) => value === 390,
+    "the 390px viewport override"
+  );
   const mobile = await evaluate(
     send,
     `({

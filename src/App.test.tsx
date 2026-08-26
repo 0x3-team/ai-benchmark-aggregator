@@ -180,6 +180,12 @@ function setSearch(input: HTMLInputElement, value: string) {
   });
 }
 
+async function flushPermalinkSync() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  });
+}
+
 function buttonStartingWith(container: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
     candidate.textContent?.trim().startsWith(text)
@@ -297,7 +303,7 @@ describe("App Official data boundary", () => {
         root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
       });
       await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 350));
       });
 
       const search = container.querySelector('input[type="search"]') as HTMLInputElement;
@@ -325,7 +331,7 @@ describe("App Official data boundary", () => {
     }
   });
 
-  it("fails closed when a permalink tries to open both detail sheets", () => {
+  it("fails closed when a permalink tries to open both detail sheets", async () => {
     window.history.replaceState(
       null,
       "",
@@ -339,6 +345,7 @@ describe("App Official data boundary", () => {
       act(() => {
         root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
       });
+      await flushPermalinkSync();
       expect(window.location.search).toBe("?v=1");
       expect(document.querySelector('[role="dialog"]')).toBeNull();
     } finally {
@@ -368,6 +375,62 @@ describe("App Official data boundary", () => {
       expect(search.value).toBe("eligible");
       expect(window.location.search).toBe("?v=1&q=eligible");
     } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("debounces URL writes and caps generated search state to the codec limit", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const replaceState = vi.spyOn(window.history, "replaceState");
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      replaceState.mockClear();
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      setSearch(search, "a");
+      setSearch(search, "ab");
+      setSearch(search, "x".repeat(300));
+
+      expect(replaceState).not.toHaveBeenCalled();
+      expect(search.value).toHaveLength(256);
+      await flushPermalinkSync();
+      expect(replaceState).toHaveBeenCalledTimes(1);
+      expect(new URLSearchParams(window.location.search).get("q")).toHaveLength(256);
+    } finally {
+      replaceState.mockRestore();
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("keeps UI state when the browser rejects a History API write", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const replaceState = vi
+      .spyOn(window.history, "replaceState")
+      .mockImplementation(() => {
+        throw new DOMException("History rate limit", "SecurityError");
+      });
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      setSearch(search, "eligible");
+      await flushPermalinkSync();
+
+      expect(search.value).toBe("eligible");
+      expect(container.querySelector("#dataset-error-title")).toBeNull();
+      expect(replaceState).toHaveBeenCalledTimes(1);
+    } finally {
+      replaceState.mockRestore();
       act(() => root.unmount());
       container.remove();
     }

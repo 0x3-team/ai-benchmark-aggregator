@@ -6,7 +6,7 @@ Branch: `feat/p11-permalinks`
 
 Base: `d35b0ef4211b0ee03b53891762424bdef9e4782b`
 
-Build source digest: `2521e78951447d4868e2a4c1fae4f47fc464828e3a879e82fda7a1f70663b218`
+Build source digest: `2bc13bc263f34bd0b56357f38b1a0c240145968084b283c917fe8d9b9bd1c573`
 
 ## Accepted local behavior
 
@@ -22,8 +22,8 @@ Build source digest: `2521e78951447d4868e2a4c1fae4f47fc464828e3a879e82fda7a1f706
 
 - `npm run typecheck`: passed.
 - `npm run typecheck:test`: passed.
-- `npm test`: 21 files and 118 tests passed.
-- Focused App and codec run: 26 tests passed.
+- `npm test`: 21 files and 121 tests passed.
+- Focused App and codec run: 29 tests passed.
 - `npm run test:permalinks`: passed canonical restore, reload, stale-ID removal, invalid dual-sheet rejection, Back/Forward restoration, and exact 390 by 844 overflow and sheet-width assertions.
 - `npm run test:mobile-overflow`: passed at 390 pixels (`documentScrollWidth=390`, `documentClientWidth=390`).
 - `npm run build`: passed; 2,878 modules transformed.
@@ -34,6 +34,8 @@ Build source digest: `2521e78951447d4868e2a4c1fae4f47fc464828e3a879e82fda7a1f706
 - `npm run verify:official-artifact`: passed for the governed unavailable containment artifact, with 8 tests.
 - `cd ledger && uv run --locked --extra dev pytest -q`: 1,672 passed and 14 skipped.
 - Independent GPT-5.6 Luna high-reasoning engineering review: `accept`; no material correctness finding.
+
+CodeRabbit then found five bounded issues: percent-valued opaque fields did not round-trip, generated search values could exceed decoder limits, History API writes were not rate-contained, pending CDP requests could hang after socket failure, and reload/viewport assertions could read stale state. All five were verified against the code, fixed, and covered by the passing reruns above. The external docstring-coverage warning was not adopted because it is not a repository acceptance rule and would add comments without changing the contract.
 
 The first concurrent full frontend run passed all 118 assertions but reported one Vitest worker teardown transport error. The isolated rerun passed cleanly and is the accepted result. A bare `pytest -q` attempt used unsupported macOS Python 3.9 and was rejected before collection; the accepted ledger result is from the locked `uv` environment above.
 

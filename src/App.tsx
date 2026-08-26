@@ -41,13 +41,15 @@ import {
 } from "./components/ui/toast";
 import { useToast } from "./components/ui/use-toast";
 import {
-  DEFAULT_PERMALINK_STATE,
+  createDefaultPermalinkState,
   decodePermalink,
   encodePermalink,
+  PERMALINK_MAX_COMPARE,
+  PERMALINK_MAX_VALUE_LENGTH,
   type PermalinkState,
 } from "./lib/permalinkState";
 
-const MAX_COMPARE = 6;
+const PERMALINK_SYNC_DELAY_MS = 300;
 
 /**
  * Chart-heavy secondary surfaces are code-split with React.lazy so the
@@ -146,16 +148,8 @@ interface AppContentProps {
   restorePermalinkFromLocation: boolean;
 }
 
-function defaultPermalinkState(): PermalinkState {
-  return {
-    ...DEFAULT_PERMALINK_STATE,
-    vendor: [],
-    compare: [],
-  };
-}
-
 function readPermalinkState(): PermalinkState {
-  if (typeof window === "undefined") return defaultPermalinkState();
+  if (typeof window === "undefined") return createDefaultPermalinkState();
   return decodePermalink(window.location.search);
 }
 
@@ -165,7 +159,7 @@ function validatePermalinkState(
   benchmarks: readonly DatasetBenchmark[]
 ): PermalinkState {
   if (models.length === 0 && benchmarks.length === 0) {
-    return defaultPermalinkState();
+    return createDefaultPermalinkState();
   }
 
   const modelIds = new Set(models.map((model) => model.id));
@@ -233,7 +227,7 @@ function AppContent({
   const [permalinkState, setPermalinkState] = useState<PermalinkState>(() =>
     restorePermalinkFromLocation
       ? validatePermalinkState(readPermalinkState(), activeModels, activeBenchmarks)
-      : defaultPermalinkState()
+      : createDefaultPermalinkState()
   );
   const {
     view,
@@ -271,11 +265,19 @@ function AppContent({
     if (typeof window === "undefined") return;
     const searchString = encodePermalink(permalinkState);
     if (window.location.search === searchString) return;
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${window.location.pathname}${searchString}${window.location.hash}`
-    );
+    const timeoutId = window.setTimeout(() => {
+      if (window.location.search === searchString) return;
+      try {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${searchString}${window.location.hash}`
+        );
+      } catch {
+        // Keep the current UI state if a browser rejects a History API write.
+      }
+    }, PERMALINK_SYNC_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
   }, [permalinkState]);
 
   const vendors = useMemo(
@@ -429,7 +431,7 @@ function AppContent({
       toast({ description: "Removed from comparison" });
       return;
     }
-    if (selectedModels.length >= MAX_COMPARE) {
+    if (selectedModels.length >= PERMALINK_MAX_COMPARE) {
       toast({ description: "Comparison is full (max 6)" });
       return;
     }
@@ -438,7 +440,7 @@ function AppContent({
       compare: [...previous.compare, id],
     }));
     toast({
-      description: `Added to comparison (${selectedModels.length + 1}/${MAX_COMPARE})`,
+      description: `Added to comparison (${selectedModels.length + 1}/${PERMALINK_MAX_COMPARE})`,
     });
   }
 
@@ -510,7 +512,10 @@ function AppContent({
               <Filters
                 search={search}
                 onSearch={(q) =>
-                  setPermalinkState((previous) => ({ ...previous, q }))
+                  setPermalinkState((previous) => ({
+                    ...previous,
+                    q: q.slice(0, PERMALINK_MAX_VALUE_LENGTH),
+                  }))
                 }
                 vendors={vendors}
                 vendorFilter={vendorFilter}

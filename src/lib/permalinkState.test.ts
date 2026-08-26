@@ -201,4 +201,19 @@ describe("permalinkState codec", () => {
     expect(encoded).toBe("?v=1&q=50%25%20off");
     expect(decodePermalink(encoded)).toEqual(state);
   });
+
+  it("round-trips escaped percent signs in opaque dataset values", () => {
+    const state: PermalinkState = {
+      ...DEFAULT_PERMALINK_STATE,
+      vendor: ["Vendor 50%"],
+      sort: { benchmarkId: "bench%score", dir: "desc" },
+      compare: ["model%one"],
+      model: "model%one",
+    };
+    const encoded = encodePermalink(state);
+    expect(encoded).toContain("vendor=Vendor%2050%25");
+    expect(encoded).toContain("sort=bench%25score");
+    expect(encoded).toContain("compare=model%25one");
+    expect(decodePermalink(encoded)).toEqual(state);
+  });
 });

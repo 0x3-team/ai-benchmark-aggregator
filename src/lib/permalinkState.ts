@@ -35,10 +35,10 @@ export const DEFAULT_PERMALINK_STATE: PermalinkState = {
 };
 
 export const PERMALINK_MAX_COMPARE = 6;
+export const PERMALINK_MAX_VALUE_LENGTH = 256;
 
 const VERSION = "1";
 const MAX_QUERY_LENGTH = 4096;
-const MAX_VALUE_LENGTH = 256;
 
 const VIEWS: PermalinkState["view"][] = ["table", "compare"];
 const DIRS: PermalinkSort["dir"][] = ["asc", "desc"];
@@ -88,19 +88,15 @@ function hasInvalidPercentSequence(s: string): boolean {
   return false;
 }
 
-function isValidScalar(
-  value: string,
-  { allowPercent }: { allowPercent: boolean }
-): boolean {
+function isValidScalar(value: string): boolean {
   if (value.length === 0) return false;
-  if (value.length > MAX_VALUE_LENGTH) return false;
+  if (value.length > PERMALINK_MAX_VALUE_LENGTH) return false;
   if (hasControlChar(value)) return false;
-  if (!allowPercent && value.includes("%")) return false;
   return true;
 }
 
 function isValidSearch(value: string): boolean {
-  if (value.length > MAX_VALUE_LENGTH) return false;
+  if (value.length > PERMALINK_MAX_VALUE_LENGTH) return false;
   if (hasControlChar(value)) return false;
   return true;
 }
@@ -109,7 +105,7 @@ function isValidBooleanToken(value: string): boolean {
   return value === "1";
 }
 
-function makeDefault(): PermalinkState {
+export function createDefaultPermalinkState(): PermalinkState {
   return {
     ...DEFAULT_PERMALINK_STATE,
     vendor: [],
@@ -118,7 +114,7 @@ function makeDefault(): PermalinkState {
 }
 
 function failClosed(): PermalinkState {
-  return makeDefault();
+  return createDefaultPermalinkState();
 }
 
 function rawFromInput(input: string | URLSearchParams): string {
@@ -195,11 +191,11 @@ export function decodePermalink(input: string | URLSearchParams): PermalinkState
     if (params.getAll(name).length > 1) return failClosed();
   }
 
-  const state = makeDefault();
+  const state = createDefaultPermalinkState();
 
   const view = params.get("view");
   if (view !== null) {
-    if (!isValidScalar(view, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(view)) return failClosed();
     if (!VIEWS.includes(view as PermalinkState["view"])) return failClosed();
     state.view = view as PermalinkState["view"];
   }
@@ -212,7 +208,7 @@ export function decodePermalink(input: string | URLSearchParams): PermalinkState
 
   const seenVendors = new Set<string>();
   for (const vendor of params.getAll("vendor")) {
-    if (!isValidScalar(vendor, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(vendor)) return failClosed();
     if (seenVendors.has(vendor)) continue;
     seenVendors.add(vendor);
     state.vendor.push(vendor);
@@ -220,14 +216,14 @@ export function decodePermalink(input: string | URLSearchParams): PermalinkState
 
   const category = params.get("category");
   if (category !== null) {
-    if (!isValidScalar(category, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(category)) return failClosed();
     if (!CATEGORY_SET.has(category)) return failClosed();
     state.category = category as BenchmarkCategory;
   }
 
   const open = params.get("open");
   if (open !== null) {
-    if (!isValidScalar(open, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(open)) return failClosed();
     if (!isValidBooleanToken(open)) return failClosed();
     state.open = true;
   }
@@ -235,8 +231,8 @@ export function decodePermalink(input: string | URLSearchParams): PermalinkState
   const sort = params.get("sort");
   const dir = params.get("dir");
   if (sort !== null && dir !== null) {
-    if (!isValidScalar(sort, { allowPercent: false })) return failClosed();
-    if (!isValidScalar(dir, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(sort)) return failClosed();
+    if (!isValidScalar(dir)) return failClosed();
     if (!DIRS.includes(dir as PermalinkSort["dir"])) return failClosed();
     state.sort = { benchmarkId: sort, dir: dir as PermalinkSort["dir"] };
   } else if (sort !== null || dir !== null) {
@@ -245,7 +241,7 @@ export function decodePermalink(input: string | URLSearchParams): PermalinkState
 
   const seenCompare = new Set<string>();
   for (const modelId of params.getAll("compare")) {
-    if (!isValidScalar(modelId, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(modelId)) return failClosed();
     if (seenCompare.has(modelId)) continue;
     seenCompare.add(modelId);
     if (state.compare.length < PERMALINK_MAX_COMPARE) {
@@ -258,25 +254,25 @@ export function decodePermalink(input: string | URLSearchParams): PermalinkState
   if (model !== null && benchmark !== null) return failClosed();
 
   if (model !== null) {
-    if (!isValidScalar(model, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(model)) return failClosed();
     state.model = model;
   }
 
   if (benchmark !== null) {
-    if (!isValidScalar(benchmark, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(benchmark)) return failClosed();
     state.benchmark = benchmark;
   }
 
   const all = params.get("all");
   if (all !== null) {
-    if (!isValidScalar(all, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(all)) return failClosed();
     if (!isValidBooleanToken(all)) return failClosed();
     state.all = true;
   }
 
   const zero = params.get("zero");
   if (zero !== null) {
-    if (!isValidScalar(zero, { allowPercent: false })) return failClosed();
+    if (!isValidScalar(zero)) return failClosed();
     if (!isValidBooleanToken(zero)) return failClosed();
     state.zero = true;
   }
