@@ -7,6 +7,7 @@ export type BenchmarkCategory =
   | "instruction"
   | "chat"
   | "vision"
+  | "embedding"
   | "other";
 
 export type Modality = "text" | "vision" | "audio";
@@ -161,6 +162,7 @@ export const CATEGORY_LABELS: Record<BenchmarkCategory, string> = {
   instruction: "Instruction",
   chat: "Chat",
   vision: "Vision",
+  embedding: "Embeddings",
   other: "Other",
 };
 
@@ -175,3 +177,15 @@ export const CATEGORIES: BenchmarkCategory[] = [
   "vision",
   "other",
 ];
+
+/** Complete governed category list, including the separate embedding class. */
+export const ALL_CATEGORIES: BenchmarkCategory[] = [...CATEGORIES, "embedding"];
+
+export function categoriesForBenchmarks(
+  benchmarks: readonly Pick<Benchmark, "category">[]
+): readonly BenchmarkCategory[] {
+  const hasEmbedding = benchmarks.some((benchmark) => benchmark.category === "embedding");
+  const hasGeneral = benchmarks.some((benchmark) => benchmark.category !== "embedding");
+  if (hasEmbedding && !hasGeneral) return ["embedding"];
+  return hasEmbedding ? ALL_CATEGORIES : CATEGORIES;
+}

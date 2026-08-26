@@ -23,6 +23,12 @@ deterministic rank penalty `models.length + 1`, then the resulting ranks are
 averaged across the complete cohort. Raw published-score coverage remains
 visible, and competition ties remain presentation-only.
 
+Embedding benchmarks are a separate comparison class. The governed artifact's
+exact `benchmark.category: "embedding"` value selects the embedding cohort;
+every other category remains in the general cohort. A model with scores in both
+classes is ranked independently in each class, while benchmark-category filters
+inside General do not shrink the general ranking denominator.
+
 ### Future governed score evidence
 
 Official remains unavailable in the shipped runtime. Once REL-05 authorizes an

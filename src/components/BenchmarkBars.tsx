@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import { CATEGORY_LABELS, categoriesForBenchmarks } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { buildBenchmarkRows, type BenchmarkRow } from "@/lib/chartData";
 import { modelChartConfig, seriesKey } from "@/components/charts/chart-config";
@@ -25,7 +25,7 @@ export function BenchmarkBars({ models, benchmarks, onOpenModel }: BenchmarkBars
 
   const groups = useMemo(
     () =>
-      CATEGORIES.map((cat) => ({
+      categoriesForBenchmarks(benchmarks).map((cat) => ({
         cat,
         items: benchmarks.filter((b) => b.category === cat),
       })).filter((g) => g.items.length > 0),

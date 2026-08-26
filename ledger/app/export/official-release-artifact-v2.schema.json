@@ -163,6 +163,7 @@
             "instruction",
             "chat",
             "vision",
+            "embedding",
             "other"
           ]
         },

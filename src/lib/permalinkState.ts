@@ -1,5 +1,5 @@
 import type { BenchmarkCategory } from "../types";
-import { CATEGORIES } from "../types";
+import { ALL_CATEGORIES } from "../types";
 
 export interface PermalinkSort {
   benchmarkId: string;
@@ -42,7 +42,7 @@ const MAX_QUERY_LENGTH = 4096;
 
 const VIEWS: PermalinkState["view"][] = ["table", "compare"];
 const DIRS: PermalinkSort["dir"][] = ["asc", "desc"];
-const CATEGORY_SET = new Set<string>(CATEGORIES);
+const CATEGORY_SET = new Set<string>(ALL_CATEGORIES);
 const SINGLETON_PARAMS = new Set([
   "v",
   "view",

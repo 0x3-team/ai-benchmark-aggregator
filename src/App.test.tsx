@@ -171,6 +171,121 @@ function sparsePublishedFixture(
   };
 }
 
+function embeddingPublishedFixture(embeddingOnly = false): OfficialLoadResult {
+  const result = sparsePublishedFixture("official-classes-artifact", "f".repeat(64));
+  if (result.availability !== "published") throw new Error("Expected a published fixture.");
+  const embeddingModel = { ...fixtureModel, id: "embedding-model", name: "Embedding Model" };
+  const embeddingBenchmark = {
+    ...fixtureBenchmark,
+    id: "embedding-benchmark",
+    name: "MTEB",
+    fullName: "MTEB Embeddings",
+    category: "embedding" as const,
+  };
+  const generalModels = embeddingOnly ? [] : result.data.models;
+  const generalBenchmarks = embeddingOnly ? [] : result.data.benchmarks;
+  const generalScores = embeddingOnly ? [] : result.data.scores;
+  const models = [...generalModels, embeddingModel];
+  const benchmarks = [...generalBenchmarks, embeddingBenchmark];
+  return {
+    ...result,
+    artifact: {
+      ...result.artifact,
+      artifactId: embeddingOnly ? "official-embedding-only" : result.artifact.artifactId,
+      manifest: {
+        ...result.artifact.manifest,
+        modelCount: models.length,
+        benchmarkCount: benchmarks.length,
+        scoreCount: generalScores.length + 1,
+      },
+    },
+    data: {
+      models,
+      benchmarks,
+      scores: [
+        ...generalScores,
+        { ...fixtureScore, modelId: embeddingModel.id, benchmarkId: embeddingBenchmark.id, value: 95 },
+      ],
+    },
+  };
+}
+
+function embeddingUnscoredPublishedFixture(): OfficialLoadResult {
+  const result = embeddingPublishedFixture(false);
+  if (result.availability !== "published") throw new Error("Expected a published fixture.");
+  const embeddingModelId = "embedding-model";
+  return {
+    ...result,
+    artifact: {
+      ...result.artifact,
+      artifactId: "official-embedding-unscored",
+      manifest: {
+        ...result.artifact.manifest,
+        scoreCount: result.data.scores.length - 1,
+        contentSha256: "a".repeat(64),
+      },
+    },
+    data: {
+      ...result.data,
+      scores: result.data.scores.filter((score) => score.modelId !== embeddingModelId),
+    },
+  };
+}
+
+function comparisonClassAcceptanceFixture(): OfficialLoadResult {
+  const result = publishedFixture();
+  if (result.availability !== "published") throw new Error("Expected a published fixture.");
+  const models = [
+    { ...fixtureModel, id: "class-a", name: "A Complete" },
+    { ...fixtureModel, id: "class-b", name: "B Sparse" },
+    { ...fixtureModel, id: "class-c", name: "C Embedding" },
+    { ...fixtureModel, id: "class-d", name: "D Empty" },
+  ];
+  const generalBenchmarks = Array.from({ length: 5 }, (_, index) => ({
+    ...fixtureBenchmark,
+    id: `class-general-${index + 1}`,
+    name: `General Bench ${index + 1}`,
+    fullName: `General Benchmark ${index + 1}`,
+  }));
+  const embeddingBenchmark = {
+    ...fixtureBenchmark,
+    id: "class-embedding-1",
+    name: "MTEB",
+    fullName: "MTEB Embeddings",
+    category: "embedding" as const,
+  };
+  const benchmarks = [...generalBenchmarks, embeddingBenchmark];
+  const score = (modelId: string, benchmarkId: string, value: number) => ({
+    ...fixtureScore,
+    modelId,
+    benchmarkId,
+    value,
+  });
+  const scores = [
+    ...generalBenchmarks.map((benchmark, index) => score("class-a", benchmark.id, 80 + index)),
+    ...generalBenchmarks
+      .slice(0, 3)
+      .map((benchmark, index) => score("class-b", benchmark.id, 70 + index)),
+    score("class-c", embeddingBenchmark.id, 95),
+  ];
+
+  return {
+    ...result,
+    artifact: {
+      ...result.artifact,
+      artifactId: "official-class-acceptance",
+      manifest: {
+        ...result.artifact.manifest,
+        modelCount: models.length,
+        benchmarkCount: benchmarks.length,
+        scoreCount: scores.length,
+        contentSha256: "e".repeat(64),
+      },
+    },
+    data: { models, benchmarks, scores },
+  };
+}
+
 function setSearch(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   if (!setter) throw new Error("Expected an input value setter.");
@@ -203,6 +318,209 @@ function modelSelectionCheckbox(container: HTMLElement): HTMLInputElement {
 }
 
 describe("App Official data boundary", () => {
+  it("isolates embedding ranks and restores the embedding permalink state", async () => {
+    window.history.replaceState(null, "", "/?v=1&category=embedding");
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      act(() => root.render(<AppWithDataSources officialLoadResult={embeddingPublishedFixture()} />));
+      await flushPermalinkSync();
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain("Embeddings comparison class");
+      expect(container.textContent).toContain("Embedding Model");
+      expect(container.textContent).not.toContain("Complete Model");
+      expect(window.location.search).toContain("category=embedding");
+      const embeddingToggle = container.querySelector(
+        '[aria-label="Show models with no published scores in this cohort"]'
+      ) as HTMLButtonElement;
+      expect(embeddingToggle).toBeTruthy();
+      act(() => embeddingToggle.click());
+      expect(container.textContent).toContain("No published scores in the Embeddings cohort");
+      const general = container.querySelector("#category-filter-all") as HTMLButtonElement;
+      act(() => general.click());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain("General comparison class");
+      const generalToggle = container.querySelector(
+        '[aria-label="Show models with no published scores in this cohort"]'
+      ) as HTMLButtonElement;
+      act(() => generalToggle.click());
+      expect(container.textContent).not.toContain("Embedding Model");
+      expect(container.querySelector("#category-filter-all")).toBe(document.activeElement);
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("keeps the A/B/C/D classes independent while preserving the zero-score toggle", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      act(() => root.render(<AppWithDataSources officialLoadResult={comparisonClassAcceptanceFixture()} />));
+
+      const policy = container.querySelector("#overall-ranking-policy")?.textContent;
+      expect(policy).toContain("3 of 5 benchmarks");
+      expect(policy).toContain("Each missing score counts as rank 3");
+      expect(container.textContent).toContain("A Complete");
+      expect(container.textContent).toContain("B Sparse");
+      expect(container.textContent).not.toContain("C Embedding");
+      expect(container.textContent).not.toContain("D Empty");
+      const rowFor = (name: string) =>
+        Array.from(container.querySelectorAll("tbody tr")).find((row) =>
+          row.textContent?.includes(name)
+        );
+      const rankCell = (name: string) =>
+        rowFor(name)?.querySelector('td span[aria-hidden="true"]')?.textContent?.trim();
+      expect(rankCell("A Complete")).toBe("1");
+      expect(rankCell("B Sparse")).toBe("2");
+      const initialPolicy = container.querySelector("#overall-ranking-policy")?.textContent;
+      const initialRankedOrder = Array.from(container.querySelectorAll("tbody tr"))
+        .filter((row) => row.textContent?.includes("A Complete") || row.textContent?.includes("B Sparse"))
+        .map((row) => row.textContent?.match(/A Complete|B Sparse/)?.[0]);
+
+      const toggle = container.querySelector(
+        '[aria-label="Show models with no published scores in this cohort"]'
+      ) as HTMLButtonElement;
+      act(() => toggle.click());
+      expect(container.textContent).toContain("No published scores in the General cohort");
+      expect(container.textContent).toContain("C Embedding");
+      expect(container.textContent).toContain("D Empty");
+      expect(container.textContent).toContain("A Complete");
+      expect(container.textContent).toContain("B Sparse");
+      expect(container.querySelector("#unranked-section-heading th")?.id).toBe(
+        "unranked-section-label"
+      );
+      expect(container.querySelector("#unranked-section-label")?.getAttribute("scope")).toBe("row");
+      expect(container.querySelector("#overall-ranking-policy")?.textContent).toBe(initialPolicy);
+      expect(
+        Array.from(container.querySelectorAll("tbody tr"))
+          .filter((row) => row.textContent?.includes("A Complete") || row.textContent?.includes("B Sparse"))
+          .map((row) => row.textContent?.match(/A Complete|B Sparse/)?.[0])
+      ).toEqual(initialRankedOrder);
+      for (const name of ["C Embedding", "D Empty"]) {
+        const row = rowFor(name);
+        expect(row?.getAttribute("aria-describedby")).toBe("unranked-section-label");
+        expect(row?.querySelector('td span[aria-hidden="true"]')?.textContent?.trim()).toBe("—");
+        expect(row?.querySelectorAll("td")[1]?.textContent).toContain("—");
+      }
+
+      act(() => (container.querySelector("#category-filter-embedding") as HTMLButtonElement).click());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain(
+        "Embeddings comparison class"
+      );
+      expect(container.textContent).toContain("C Embedding");
+      expect(container.textContent).toContain("No published scores in the Embeddings cohort");
+      expect(container.textContent).toContain("A Complete");
+      expect(container.textContent).toContain("B Sparse");
+      expect(container.textContent).toContain("D Empty");
+      expect(rankCell("C Embedding")).toBe("1");
+      for (const name of ["A Complete", "B Sparse", "D Empty"]) {
+        expect(rankCell(name)).toBe("—");
+      }
+
+      expect(container.textContent).toContain("No published scores in the Embeddings cohort");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("defaults an embedding-only release to the Embeddings class", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      act(() => root.render(<AppWithDataSources officialLoadResult={embeddingPublishedFixture(true)} />));
+      await flushPermalinkSync();
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain("Embeddings comparison class");
+      expect(container.textContent).toContain("Embedding Model");
+      expect(new URLSearchParams(window.location.search).get("category")).toBe("embedding");
+      expect(container.querySelector("#category-filter-all")).toBeNull();
+      expect(container.querySelector("#category-filter-knowledge")).toBeNull();
+      expect(container.querySelector("#category-filter-embedding")).toBeTruthy();
+      act(() => (container.querySelector("#category-filter-embedding") as HTMLButtonElement).click());
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain(
+        "Embeddings comparison class"
+      );
+      expect(container.querySelector("#category-filter-all")).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("shows an honest empty embedding ranking, then a separate unranked section", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      act(() => root.render(<AppWithDataSources officialLoadResult={embeddingUnscoredPublishedFixture()} />));
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain(
+        "General comparison class"
+      );
+      const embedding = container.querySelector("#category-filter-embedding") as HTMLButtonElement;
+      act(() => embedding.click());
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain(
+        "Embeddings comparison class"
+      );
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain(
+        "complete active embedding benchmark cohort"
+      );
+      expect(container.querySelector("#overall-ranking-policy")).toBeNull();
+      expect(container.textContent).toContain("No published scores in this cohort");
+      expect(container.textContent).not.toContain("No models match your filters");
+      expect(
+        Array.from(container.querySelectorAll('[role="status"]')).some((status) =>
+          status.textContent?.trim() === "0 models"
+        )
+      ).toBe(true);
+
+      const toggle = container.querySelector(
+        '[aria-label="Show models with no published scores in this cohort"]'
+      ) as HTMLButtonElement;
+      expect(toggle).toBeTruthy();
+      act(() => toggle.click());
+      expect(container.textContent).toContain("Embedding Model");
+      expect(container.textContent).toContain("No published scores in the Embeddings cohort");
+      const row = Array.from(container.querySelectorAll("tbody tr")).find((candidate) =>
+        candidate.textContent?.includes("Embedding Model")
+      );
+      expect(row?.querySelector('td span[aria-hidden="true"]')?.textContent?.trim()).toBe("—");
+      expect(row?.querySelectorAll("td")[1]?.textContent).toContain("—");
+      expect(
+        Array.from(container.querySelectorAll('[role="status"]')).some((status) =>
+          status.textContent?.trim() === "5 models"
+        )
+      ).toBe(true);
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("does not expose an Embeddings filter for a general-only release", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      act(() => root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />));
+      expect(container.querySelector("#category-filter-embedding")).toBeNull();
+      expect(container.querySelector("#category-filter-all")).toBeTruthy();
+      expect(container.querySelector("#comparison-class-status")?.textContent).toContain(
+        "General comparison class"
+      );
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
   it("contains an invalid published dataset without silently rendering fallback data", () => {
     const container = document.createElement("div");
     document.body.append(container);
@@ -436,7 +754,7 @@ describe("App Official data boundary", () => {
     }
   });
 
-  it("uses a 60% immutable cohort threshold and hides zero-score models until requested", () => {
+  it("uses a 60% immutable comparison-class cohort and excludes empty models", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -456,7 +774,7 @@ describe("App Official data boundary", () => {
       expect(policy).toContain("at least 60%");
       expect(policy).toContain("3 of 5 benchmarks");
       expect(policy).toContain("published-score coverage");
-      expect(policy).toContain("Each missing score counts as rank 5");
+      expect(policy).toContain("Each missing score counts as rank 4");
       const rows = Array.from(container.querySelectorAll("tbody tr"));
       expect(rows[0].textContent).toContain("Complete Model");
       expect(rows[1].textContent).toContain("Eligible Sparse Model");
@@ -464,12 +782,12 @@ describe("App Official data boundary", () => {
       expect(container.textContent).not.toContain("No Published Scores Model");
 
       const toggle = container.querySelector(
-        '[aria-label="Show models with no published scores"]'
+        '[aria-label="Show models with no published scores in this cohort"]'
       ) as HTMLButtonElement;
       expect(toggle).toBeTruthy();
       expect(toggle.getAttribute("aria-checked")).toBe("false");
       act(() => toggle.click());
-      expect(toggle.getAttribute("aria-checked")).toBe("true");
+      expect(container.textContent).toContain("No published scores in the General cohort");
       expect(container.textContent).toContain("No Published Scores Model");
     } finally {
       act(() => root.unmount());
@@ -477,7 +795,7 @@ describe("App Official data boundary", () => {
     }
   });
 
-  it("resets the zero-score visibility control when the Official snapshot remounts", () => {
+  it("keeps empty models excluded when the Official snapshot remounts", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -486,11 +804,12 @@ describe("App Official data boundary", () => {
       act(() => {
         root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
       });
-      const toggle = container.querySelector(
-        '[aria-label="Show models with no published scores"]'
+      const resetToggle = container.querySelector(
+        '[aria-label="Show models with no published scores in this cohort"]'
       ) as HTMLButtonElement;
-      act(() => toggle.click());
-      expect(container.textContent).toContain("No Published Scores Model");
+      expect(resetToggle).toBeTruthy();
+      expect(resetToggle.getAttribute("aria-checked")).toBe("false");
+      expect(container.textContent).not.toContain("No published scores in the General cohort");
 
       act(() => {
         root.render(
@@ -503,10 +822,7 @@ describe("App Official data boundary", () => {
         );
       });
 
-      const resetToggle = container.querySelector(
-        '[aria-label="Show models with no published scores"]'
-      ) as HTMLButtonElement;
-      expect(resetToggle.getAttribute("aria-checked")).toBe("false");
+      expect(container.querySelector('[aria-label="Show models with no published scores"]')).toBeNull();
       expect(container.textContent).not.toContain("No Published Scores Model");
     } finally {
       act(() => root.unmount());

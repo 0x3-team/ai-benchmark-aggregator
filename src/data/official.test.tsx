@@ -251,6 +251,27 @@ describe("future governed v2 Official artifact parser", () => {
     });
   });
 
+  it("accepts the governed embedding category and rejects unknown or case-altered values", async () => {
+    const embedding = await parsedPublishedFixture((artifact) => {
+      artifact.benchmarks[0].category = "embedding";
+    });
+    expect(embedding.availability).toBe("published");
+    if (embedding.availability === "published") {
+      expect(embedding.data.benchmarks[0].category).toBe("embedding");
+    }
+
+    expectUnavailable(
+      await parsedPublishedFixture((artifact) => {
+        artifact.benchmarks[0].category = "Embedding";
+      })
+    );
+    expectUnavailable(
+      await parsedPublishedFixture((artifact) => {
+        artifact.benchmarks[0].category = "mteb";
+      })
+    );
+  });
+
   it("requires an independently pinned release authorization and an unmodified canonical digest", async () => {
     const artifact = await seal(publishedArtifactFixture());
     const authorization = authorizationFor(artifact);

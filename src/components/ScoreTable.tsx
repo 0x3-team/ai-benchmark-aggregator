@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Info, ArrowUp, ArrowDown, X } from "lucide-react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
@@ -7,7 +7,7 @@ import {
   RANK_COVERAGE_THRESHOLD,
   type RankRow,
 } from "../lib/aggregate";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import { CATEGORY_LABELS, categoriesForBenchmarks } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { fmtScore as fmt } from "../lib/format";
 import { STICKY_BG, GROUP_H, ROW_H, ROW_BUFFER, BODY_MAX_H } from "../lib/table";
@@ -45,6 +45,9 @@ interface ScoreTableProps {
   selectedModels: string[];
   rankMap: Record<string, RankRow>;
   rankCohortTotal: number;
+  /** Models with no score in the active comparison class, shown only on request. */
+  unrankedModels?: readonly DatasetModel[];
+  comparisonClassLabel?: string;
 }
 
 export function ScoreTable({
@@ -60,6 +63,8 @@ export function ScoreTable({
   selectedModels,
   rankMap,
   rankCohortTotal,
+  unrankedModels = [],
+  comparisonClassLabel = "this",
 }: ScoreTableProps) {
   const { getValue, getScoreEntry } = useDataset();
   const statsByBench = useMemo(() => {
@@ -84,11 +89,20 @@ export function ScoreTable({
 
   const groups = useMemo(
     () =>
-      CATEGORIES.map((cat) => ({
+      categoriesForBenchmarks(benchmarks).map((cat) => ({
         cat,
         items: benchmarks.filter((b) => b.category === cat),
       })).filter((g) => g.items.length > 0),
     [benchmarks]
+  );
+
+  const displayModels = useMemo(
+    () => [...models, ...(unrankedModels.length > 0 ? [null] : []), ...unrankedModels],
+    [models, unrankedModels]
+  );
+  const unrankedIds = useMemo(
+    () => new Set(unrankedModels.map((model) => model.id)),
+    [unrankedModels]
   );
 
   const activeCol = sort?.benchmarkId ?? null;
@@ -96,7 +110,12 @@ export function ScoreTable({
   const rankMinimumCovered = Math.ceil(rankCohortTotal * RANK_COVERAGE_THRESHOLD);
   const rankMissingPenalty = cohortModels.length + 1;
   const rankCoveragePercent = RANK_COVERAGE_THRESHOLD * 100;
-  const rankPolicy = `Overall presentation ranks are UI-only. Eligibility requires published scores for at least ${rankCoveragePercent}% of the immutable active comparable benchmark cohort: ${rankMinimumCovered} of ${rankCohortTotal} benchmarks. Each row shows its published-score coverage over that cohort. Each missing score counts as rank ${rankMissingPenalty}, one place below the ${cohortModels.length}-model cohort; filters only change visible rows.`;
+  const rankPolicy =
+    rankCohortTotal === 0
+      ? `No active ${comparisonClassLabel} benchmark cohort is available for presentation ranking.`
+      : cohortModels.length === 0
+        ? `The active ${comparisonClassLabel} benchmark cohort contains ${rankCohortTotal} benchmark${rankCohortTotal === 1 ? "" : "s"}, but no model has a published score in it; no presentation ranking is available.`
+      : `Overall presentation ranks are UI-only. Eligibility requires published scores for at least ${rankCoveragePercent}% of the immutable active comparable benchmark cohort: ${rankMinimumCovered} of ${rankCohortTotal} benchmarks. Each row shows its published-score coverage over that cohort. Each missing score counts as rank ${rankMissingPenalty}, one place below the ${cohortModels.length}-model cohort; filters only change visible rows.`;
 
   // --- Row virtualization -------------------------------------------------
   // Only render the rows inside (and a small buffer around) the vertical
@@ -112,8 +131,8 @@ export function ScoreTable({
   // represents a new table coordinate system. Do not leave the user at an
   // old offset whose row identity no longer matches the viewport.
   const modelIdentity = useMemo(
-    () => models.map((model) => model.id).join("\u001f"),
-    [models]
+    () => displayModels.map((model) => (model ? model.id : "__unranked-heading__")).join("\u001f"),
+    [displayModels]
   );
   const cohortIdentity = useMemo(
     () => cohortModels.map((model) => model.id).join("\u001f"),
@@ -131,7 +150,7 @@ export function ScoreTable({
     setScrollTop(0);
   }, [modelIdentity, cohortIdentity, benchmarkIdentity, getValue]);
 
-  const totalRows = models.length;
+  const totalRows = displayModels.length;
   const comparisonLimit = 6;
   const comparisonLimitReached = selectedModels.length >= comparisonLimit;
   const bodyMaxH = Math.min(BODY_MAX_H, totalRows * ROW_H + TABLE_CHROME_H);
@@ -143,7 +162,7 @@ export function ScoreTable({
     requestedFirstIndex
   );
   const lastIndex = Math.min(totalRows, firstIndex + visibleCount);
-  const visibleModels = models.slice(firstIndex, lastIndex);
+  const visibleModels = displayModels.slice(firstIndex, lastIndex);
   const topPad = firstIndex * ROW_H;
   const bottomPad = (totalRows - lastIndex) * ROW_H;
 
@@ -418,6 +437,26 @@ export function ScoreTable({
               </tr>
             )}
             {visibleModels.map((m, visibleIndex) => {
+              if (m === null) {
+                return (
+                  <tr
+                    key="unranked-heading"
+                    id="unranked-section-heading"
+                    aria-rowindex={firstIndex + visibleIndex + 3}
+                    style={{ height: ROW_H }}
+                  >
+                    <th
+                      id="unranked-section-label"
+                      scope="row"
+                      colSpan={benchmarks.length + 2}
+                      className="border-b border-white/10 bg-white/[0.025] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      No published scores in the {comparisonClassLabel} cohort
+                    </th>
+                  </tr>
+                );
+              }
+              const isUnranked = unrankedIds.has(m.id);
               const rank = rankMap[m.id];
               const selected = selectedModels.includes(m.id);
               const isTop = rank?.rank === 1;
@@ -428,15 +467,16 @@ export function ScoreTable({
                     ? `Unranked: ${rank.covered} of ${rank.total} benchmarks have data. Each missing score counts as rank ${rankMissingPenalty}.`
                     : "Unranked: no presentation summary is available.";
               return (
-                <tr
-                  key={m.id}
-                  aria-rowindex={firstIndex + visibleIndex + 3}
-                  style={{ height: ROW_H }}
-                  className={cn(
-                    "transition-colors",
-                    selected ? "bg-primary/10" : "hover:bg-white/[0.03]"
-                  )}
-                >
+                <Fragment key={m.id}>
+                  <tr
+                    aria-rowindex={firstIndex + visibleIndex + 3}
+                    aria-describedby={isUnranked ? "unranked-section-label" : undefined}
+                    style={{ height: ROW_H }}
+                    className={cn(
+                      "transition-colors",
+                      selected ? "bg-primary/10" : "hover:bg-white/[0.03]"
+                    )}
+                  >
                   <td
                     className="sticky left-0 z-20 border-b border-white/5 text-center font-mono text-[11px] text-muted-foreground"
                     style={{
@@ -450,7 +490,7 @@ export function ScoreTable({
                       boxSizing: "border-box",
                     }}
                   >
-                    <span aria-hidden="true">{rank?.rank ?? "—"}</span>
+                    <span aria-hidden="true">{isUnranked ? "—" : rank?.rank ?? "—"}</span>
                     <span className="sr-only">{rankLabel}</span>
                   </td>
                   <td
@@ -472,10 +512,10 @@ export function ScoreTable({
                       <input
                         type="checkbox"
                         checked={selected}
-                        disabled={comparisonLimitReached && !selected}
-                        aria-disabled={comparisonLimitReached && !selected}
+                        disabled={isUnranked || (comparisonLimitReached && !selected)}
+                        aria-disabled={isUnranked || (comparisonLimitReached && !selected)}
                         aria-describedby={
-                          comparisonLimitReached && !selected
+                          !isUnranked && comparisonLimitReached && !selected
                             ? "comparison-limit-help"
                             : undefined
                         }
@@ -506,7 +546,7 @@ export function ScoreTable({
                           )}
                         </span>
                         <span className="text-[10px] text-muted-foreground/70">
-                          {rank?.covered ?? 0}/{rank?.total ?? rankCohortTotal} coverage
+                          {isUnranked ? "—" : `${rank?.covered ?? 0}/${rank?.total ?? rankCohortTotal} coverage`}
                         </span>
                       </span>
                     </label>
@@ -568,7 +608,8 @@ export function ScoreTable({
                       </td>
                     );
                   })}
-                </tr>
+                  </tr>
+                </Fragment>
               );
             })}
             {bottomPad > 0 && (

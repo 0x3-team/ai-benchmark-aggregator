@@ -255,6 +255,32 @@ test("canonical v2 bytes require one exact external authorization", () => {
   );
 });
 
+test("the v2 verifier accepts embedding and rejects unknown or case-altered categories", () => {
+  const artifact = publishedArtifact();
+  artifact.benchmarks[0].category = "embedding";
+  artifact.manifest.contentSha256 = officialArtifactDigest(artifact);
+  const authorization = authorizationFor(artifact);
+  assert.equal(
+    verifyPublishedOfficialArtifactBytes(canonicalOfficialArtifactJson(artifact), authorization)
+      .benchmarks[0].category,
+    "embedding"
+  );
+
+  for (const category of ["Embedding", "mteb"]) {
+    const changed = structuredClone(artifact);
+    changed.benchmarks[0].category = category;
+    changed.manifest.contentSha256 = officialArtifactDigest(changed);
+    assert.throws(
+      () =>
+        verifyPublishedOfficialArtifactBytes(
+          canonicalOfficialArtifactJson(changed),
+          authorizationFor(changed)
+        ),
+      /unsupported category/
+    );
+  }
+});
+
 test("the v2 CLI verifies supplied files without creating or authorizing them", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "official-release-verifier-"));
   try {

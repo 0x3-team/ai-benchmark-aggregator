@@ -84,7 +84,7 @@ describe("Filters accessibility semantics", () => {
     const view = renderFilters();
     try {
       const toggle = view.container.querySelector(
-        '[aria-label="Show models with no published scores"]'
+        '[aria-label="Show models with no published scores in this cohort"]'
       );
       expect(toggle?.getAttribute("role")).toBe("switch");
       expect(toggle?.getAttribute("aria-checked")).toBe("false");
