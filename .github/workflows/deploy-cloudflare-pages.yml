@@ -1,0 +1,157 @@
+name: Deploy Cloudflare Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character SHA with a successful Verify push run
+        required: true
+        type: string
+      confirm_deploy:
+        description: Type DEPLOY after confirming the governed release gate
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: inputs.confirm_deploy == 'DEPLOY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: cloudflare-pages-production
+      url: ${{ steps.deploy.outputs.deployment_url }}
+    steps:
+      - name: Prove the requested SHA passed Verify on a main push
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::An immutable full lowercase commit SHA is required."
+            exit 1
+          fi
+          verify_run_url="$(gh api --paginate \
+            "/repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs?head_sha=$COMMIT_SHA&event=push&status=completed&per_page=100" \
+            | jq -r --arg commit_sha "$COMMIT_SHA" '
+              .workflow_runs[]
+              | select(
+                  .path == ".github/workflows/verify.yml"
+                  and .name == "Verify"
+                  and .event == "push"
+                  and .conclusion == "success"
+                  and .head_branch == "main"
+                  and .head_sha == $commit_sha
+                )
+              | .html_url
+            ' | head -n 1)"
+          if [ -z "$verify_run_url" ]; then
+            echo "::error::No successful Verify push run exists for the requested main SHA."
+            exit 1
+          fi
+          printf 'verify_run_url=%s\n' "$verify_run_url" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: ${{ inputs.commit_sha }}
+      - name: Resolve immutable deployment commit
+        id: target
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_sha="$(git rev-parse HEAD)"
+          if [ "$checked_sha" != "$COMMIT_SHA" ]; then
+            echo "::error::Checkout did not resolve the requested commit."
+            exit 1
+          fi
+          printf 'commit_sha=%s\n' "$checked_sha" >> "$GITHUB_OUTPUT"
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Require REL-05 governed release composition
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required_path in \
+            src/data/official/release-artifact.json \
+            src/data/official/release-authorization.json \
+            scripts/verify-governed-release-composition.mjs; do
+            if [ ! -f "$required_path" ]; then
+              echo "::error::REL-05 governed release composition is not present at $required_path."
+              exit 1
+            fi
+          done
+          node ./scripts/verify-governed-release-composition.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify tracked Official artifact
+        run: npm run verify:official-artifact
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test typecheck
+        run: npm run typecheck:test
+      - name: Test
+        run: npm test
+      - name: Build exact static artifact
+        run: npm run build
+      - name: Verify build provenance
+        run: npm run verify:build-provenance
+      - name: Verify static Pages artifact
+        run: npm run verify:pages-static
+      - name: Verify bundle budget
+        run: npm run verify:bundle-budget
+      - name: Verify Pages workflow controls
+        run: npm run verify:pages-workflows
+      - name: Deploy exact dist
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT }}
+          COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_PAGES_PROJECT; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Required deployment secret $variable is not configured."
+              exit 1
+            fi
+          done
+          npx --no-install wrangler pages deploy dist \
+            --project-name "$CLOUDFLARE_PAGES_PROJECT" \
+            --branch main \
+            --commit-hash "$COMMIT_SHA" | tee deployment.log
+          deployment_url="$(grep -Eo 'https://[^[:space:]<>()]+\.pages\.dev/?' deployment.log | tail -n 1 || true)"
+          if [ -z "$deployment_url" ]; then
+            echo "::error::Wrangler did not report a Pages deployment URL."
+            exit 1
+          fi
+          printf 'deployment_url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Cloudflare Pages deployment candidate'
+            echo
+            echo "- Verify run: ${{ steps.verify.outputs.verify_run_url }}"
+            echo "- Commit: \`$COMMIT_SHA\`"
+            echo "- Deployment URL: $deployment_url"
+            echo '- Wrangler: `4.126.0` from the npm lockfile'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Smoke deployed Pages artifact
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: ./scripts/smoke-pages-deployment.sh "$DEPLOYMENT_URL"

@@ -121,6 +121,7 @@ retention, role/ACL recovery, RPO/RTO, cutover, or Official publication. See
 ai-benchmark-aggregator/
 ├── .github/                    # GitHub org config
 │   ├── workflows/verify.yml    # CI: ledger/frontend checks + clean archive build
+│   ├── workflows/deploy-cloudflare-pages.yml # Environment-gated Pages candidate
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── dependabot.yml          # Weekly dependency updates (npm, pip, actions)
 │   └── CODEOWNERS              # Auto-review assignment
@@ -170,6 +171,15 @@ only, and does not receive production data-plane credentials or run ingestion.
 Python constraints are reviewed in [`ledger/requirements-ci.lock`](ledger/requirements-ci.lock);
 they are not a release-artifact authorization or a replacement for future
 SBOM/provenance review.
+
+The [Cloudflare Pages deployment candidate](docs/runbooks/cloudflare-pages-deployment.md)
+is workflow-dispatch-only and requires an explicit `DEPLOY` confirmation plus
+a successful `Verify` push run for the exact full SHA. ND4 keeps every public
+deployment blocked until the future REL-05 governed artifact, authorization,
+and composition verifier paths land together. This is not a claim that any
+provider, domain, DNS, environment, or secret is currently configured. The
+companion smoke check is manual-only until an owner approves monitoring
+permissions and a schedule.
 
 **Branch protection:** recommended settings are requiring the `verify` workflow
 and code review from `CODEOWNERS`; this README does not claim those settings are
