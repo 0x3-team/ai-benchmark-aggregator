@@ -23,7 +23,7 @@ for any later owner review.
 | BigCodeBench | **STOP — candidate only** | The results dataset has no result-data license; actual null `instruct` cells and the one-field-map admission contract conflict with the two-dimension adapter; Hugging Face final redirects are expiring. |
 | SWE-bench Verified | **STOP — candidate only** | CC BY-NC 4.0 permits sharing only for NonCommercial purposes, which has no owner-approved fit for a future public product release; the raw endpoint's `text/plain` media type is not admitted; rows identify evaluated agent systems, not reliably one model. |
 | MTEB | **GO for further governance/engineering review only; still not certified** | The first-party result repository expressly uses CC0, but the current flattened Hugging Face candidate is four shards totaling 298,363,656 bytes and 8.4M+ rows, beyond current fetch and Parquet resource contracts, with no complete-manifest adapter or approved dimension mapping. |
-| LMArena first-party leaderboard dataset | **Prepared replacement candidate; not certified** | First-party immutable Parquet and CC BY 4.0 evidence are materially better than the retired scraper/fallback route, but no source-specific adapter, field-complete fixture, category inventory, stable final-URL policy, attribution decision, or certification exists. |
+| LMArena first-party leaderboard dataset | **Prepared replacement candidate; not certified** | First-party immutable Parquet and CC BY 4.0 evidence are materially better than the retired scraper/fallback route. A fixture-only adapter candidate now rehearses the pinned shape, but no category inventory, stable final-URL policy, attribution decision, or certification exists. |
 
 “GO” above means only that evidence supports spending review effort. It does not
 mean source admission, capture, claim, publication, or release approval.
@@ -335,11 +335,15 @@ parser remain inactive and quarantined. Never scrape `arena.ai`.
 
 ### Fixture and admission gaps
 
-- No source-specific LMArena Parquet adapter or fixture exists. The retired
-  LMSYS adapter parses a different fixture shape and must not be reused.
-- No fixture proves category inventory, duplicate `(model, category,
-  publish-date)` handling, float lexical replay, complete latest-split
-  accounting, rank/context exclusion, or unresolved model identity behavior.
+- A source-specific fixture-only Parquet adapter is pinned to the immutable
+  `text_style_control/latest` candidate. Generated source-shaped fixtures prove
+  duplicate `(model, category, publish-date)` rejection, float lexical replay,
+  complete fixture accounting, typed rank retention, unsupported context
+  omission, resource ceilings, and unresolved model identity. The retired
+  LMSYS adapter is not reused.
+- Fixtures do not establish the live artifact's complete category inventory,
+  source schema fingerprint, row denominator, or footer receipt. Those remain
+  owner-review inputs rather than facts inferred from synthetic rows.
 - The benchmark registry still names LMSYS, Elo, and the retired website route;
   owner/rebranding and Bradley-Terry/Arena Score semantics need a new immutable
   benchmark/source revision rather than in-place reinterpretation.
@@ -352,8 +356,9 @@ parser remain inactive and quarantined. Never scrape `arena.ai`.
 1. Named owner/reviewer and a CC BY 4.0 attribution/display decision are absent.
 2. Benchmark naming, Arena Score semantics, category allowlist, and exact raw
    dimension mapping are unapproved.
-3. A new source-specific adapter, immutable fixture, complete-accounting tests,
-   schema fingerprint, and identity rehearsal are missing.
+3. A live immutable-fixture digest, complete category inventory, exact source
+   schema fingerprint, and controlled full-artifact receipt are missing; the
+   implemented adapter and generated fixtures remain candidate-only.
 4. Hugging Face's expiring final redirect and the absent connected-peer
    transport prevent capture.
 5. No append-only source revision/certification, check receipt, claim review,
@@ -361,9 +366,9 @@ parser remain inactive and quarantined. Never scrape `arena.ai`.
 
 ## Repository containment proof
 
-The package intentionally changes no registry row, adapter registration,
-transport, database, migration, claim, snapshot, publication, release artifact,
-or frontend file. Tests keep the three original registry routes rejected and
-the retired LMSYS route inactive, while rehearsing only source-shaped local
-fixture structures for the already-supported BigCodeBench and SWE-bench
-parsers.
+The follow-up implementation adds one inactive/not-certified registry candidate
+and a fixture-only adapter registration. It changes no transport, database,
+migration, claim, snapshot, publication, release artifact, or frontend file.
+Tests keep the three original registry routes rejected and the retired LMSYS
+route inactive while rehearsing source-shaped local fixture structures for the
+candidate adapters.
