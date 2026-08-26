@@ -345,8 +345,14 @@ describe("App Official data boundary", () => {
       const generalToggle = container.querySelector(
         '[aria-label="Show models with no published scores in this cohort"]'
       ) as HTMLButtonElement;
+      expect(generalToggle.getAttribute("aria-checked")).toBe("true");
+      expect(container.textContent).toContain("No published scores in the General cohort");
+      expect(container.textContent).toContain("Embedding Model");
+      expect(container.querySelector("#category-filter-all")).toBe(document.activeElement);
       act(() => generalToggle.click());
+      expect(generalToggle.getAttribute("aria-checked")).toBe("false");
       expect(container.textContent).not.toContain("Embedding Model");
+      expect(container.textContent).not.toContain("No published scores in the General cohort");
       expect(container.querySelector("#category-filter-all")).toBe(document.activeElement);
     } finally {
       act(() => root.unmount());
