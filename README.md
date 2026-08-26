@@ -203,6 +203,10 @@ not committed, imported by the runtime, or accepted by CI as release evidence.
 | `fake` | Retired LDR-06 synthetic fixture adapter — temporary test-database fixture only; never an Official ingestion source |
 | `artificial_analysis_api` | Retired LDR-06 third-party aggregate route — fixture parser only; never an Official ingestion source |
 | `lmsys_arena_api` | Retired LDR-06 primary-plus-fallback route — fixture parser only; never an Official ingestion source |
+| `lmarena_leaderboard_parquet` | Inactive, not-certified fixture candidate pinned to first-party `lmarena-ai/leaderboard-dataset` `text_style_control/latest`; no live fetch or claim authorization |
+| `agc_bench` | Inactive generated-fixture CSV parser candidate; no source registration, live fetch, or claim authorization |
+| `elbench_results` | Inactive reduced-fixture aggregate parser candidate; no source registration, live fetch, or claim authorization |
+| `evalplus_results` | Inactive generated-fixture single-file summary parser candidate; no source registration, live fetch, or claim authorization |
 | `livebench_adapter` | Retired LDR-06 assembled/derived aggregate route — fixture parser only; never an Official ingestion source |
 | `livecodebench_adapter` | Retired LDR-06 date-window derived aggregate route — fixture parser only; never an Official ingestion source |
 | `github_yaml` | Aider Polyglot (YAML in repo) |
