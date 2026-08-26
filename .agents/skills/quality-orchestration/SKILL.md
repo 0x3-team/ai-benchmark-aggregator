@@ -9,10 +9,18 @@ Keep the repository owner accountable for integration and acceptance. Select a r
 
 ## Route economics
 
-- Two billing kinds exist: **subscription** routes (`supergrok/*` today) bill a connected seat at no marginal credit; **Capy API** routes burn prepaid credit. When the same model has both routes (`xai/grok-4.6` vs `supergrok/grok-4.6`), the subscription route is the only correct choice.
-- Prepaid credit that expires is use-it-or-lose-it: route volume to subscription lanes, and spend credit deliberately where it buys quality the seat cannot — independent premium reviews, hard escalations, and dirt-cheap bulk work.
+- Three budgets exist, and they are not interchangeable:
+  - **Codex subscription** (`codex/*`): the volume engine. A large seat carries conductor work, implementation, and bulk reads at no marginal credit.
+  - **SuperGrok subscription** (`supergrok/*`): a small seat. Its quota is scarce, so it buys vendor independence, not volume: cross-vendor review and fast second opinions only, never authorship.
+  - **Capy API credit**: the only way to buy Anthropic quality and third-vendor diversity. Expiring credit is use-it-or-lose-it — spend it deliberately on independent premium review and oracle consults, not on work a seat does for $0.
+- When the same model has both a subscription and an API route (`codex/gpt-5.6-sol` vs `openai/gpt-5.6-sol`, `supergrok/grok-4.6` vs `xai/grok-4.6`), the subscription route is the only correct choice.
 - Re-check the live model catalog before dispatch: its ids, billing kinds, and cost words are the operative ranking. The price appendix below is a dated market anchor, not a bill.
-- If a new subscription route appears in the catalog (for example a connected Codex seat), it immediately takes over its API twin's lanes.
+
+## Topology: conductor, oracle, workers
+
+- The **conductor** is the token-hungriest, most stateful role — it rereads context on every wake. It therefore runs on the strongest seat-billed model (`codex/gpt-5.6-sol`, reasoning `xhigh`), never on a frontier API model. It owns routing, integration, decisive checks, and acceptance.
+- The **oracle** (`anthropic/claude-fable-5`, reasoning `max`) is consulted, never conducting: stateless one-shot dispatches with a distilled dossier in (question, constraints, candidate diffs or designs, disagreement record) and a verdict with rationale out. Triggers: architecture forks, release-scale gates, and recorded deadlocks between conductor and reviewer. Keep dossier prefixes stable so cache pricing applies.
+- **Workers** hang at most two levels below the conductor (conductor → leads → workers). Deeper trees dilute acceptance: every diff still terminates in the conductor's own gate run.
 
 ## Lane table
 
@@ -20,15 +28,18 @@ Dispatch by lane, one primary per lane with a pinned reasoning effort. Consisten
 
 | Lane | Primary | Escalation / notes |
 | --- | --- | --- |
-| Default engineering: plan, implement, debug (frontend and ledger) | `supergrok/grok-4.6`, reasoning `high` (`xhigh` for planning) | $0 marginal. Escalate only after one failed attempt or a known-hard task. |
-| Mechanical edits: renames, rote refactors, scaffolds, lint fixes | `supergrok/composer-2.5-fast` | $0 marginal, fast. |
-| Bulk cheap: repo summaries, fixture drafts, log triage, doc drafts | `deepseek/deepseek-v4-flash-0731` | `openai/gpt-5.6-luna` when tool-calling reliability matters. Pennies per task; owner reviews all output. |
-| Hard implementation escalation: cross-cutting, multi-file, gnarly typing | `openai/gpt-5.6-sol`, reasoning `high` | Same-tier alternative: `anthropic/claude-sonnet-5`. |
-| Integrity-critical review: ledger claims, migrations, evidence resolution, release gates | `anthropic/claude-opus-5`, reasoning `high` | Reviewer vendor must differ from author vendor. At most one `anthropic/claude-fable-5` `max` pass per release-scale gate, owner-approved. |
-| Cheap second-opinion reasoner: tiebreaks, sanity checks on premium output | `deepseek/deepseek-v4-pro`, reasoning `max` | Third-vendor diversity fallbacks: `zai/glm-5.2`, `qwen/qwen3.8-max`. |
+| Conductor: orchestration, integration, acceptance | `codex/gpt-5.6-sol`, reasoning `xhigh` | Seat-billed. Consults the oracle; the oracle never conducts. |
+| Implementation leads: multi-file features (frontend and ledger) | `codex/gpt-5.6-sol`, reasoning `xhigh` (`max` for known-hard) | Fresh machine per writing lead. |
+| Bounded workers: scoped, single-surface edits | `codex/gpt-5.6-terra`, reasoning `high` | `codex/gpt-5.6-luna` for simple bounded edits. |
+| Mechanical edits: renames, rote refactors, scaffolds, lint fixes | `codex/gpt-5.3-codex-spark` | `supergrok/composer-2.5-fast` as alternative when Codex quota is under pressure. |
+| Bulk reads: repo summaries, fixture drafts, log triage, doc drafts | `codex/gpt-5.6-luna` | `deepseek/deepseek-v4-flash-0731` overflow at pennies to protect seat quota. Owner reviews all output. |
+| Cross-vendor PR review of seat-authored work | `supergrok/grok-4.6`, reasoning `xhigh` | The small seat's whole job. Review and tiebreaks only, never authorship. |
+| Integrity-critical review: ledger claims, migrations, evidence resolution, release gates | `anthropic/claude-opus-5`, reasoning `high` (credit) | Reviewer vendor must differ from author vendor. |
+| Oracle consults: architecture forks, release gates, deadlocks | `anthropic/claude-fable-5`, reasoning `max` (credit) | One-shot distilled dossiers only; owner-approved per consult. |
+| Cheap second-opinion reasoner: tiebreaks, sanity checks | `deepseek/deepseek-v4-pro`, reasoning `max` | Third-vendor diversity fallbacks: `zai/glm-5.2`, `qwen/qwen3.8-max`. |
 | Vision QA: screenshots, rendered UI states | `google/gemini-3-flash-preview` | `zai/glm-5v-turbo` as alternative. |
 
-Avoid without an owner-approved reason: `openai/gpt-5.5-pro` (one call can eat a double-digit share of a small credit pool) and `moonshotai/kimi-k3` (reasoning fixed at max, so all thinking bills as premium output). Dominated rows stay parked: `openai/gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini` (beaten by sol/terra/luna on price-quality), `anthropic/claude-opus-4-5`–`4-8` (opus-5 price, older), `claude-sonnet-4-6` and `claude-haiku-4-5` (beaten by sonnet-5 and luna), `moonshotai/kimi-k2.6` (`kimi-k2.7-code` is the same price, code-tuned), `xai/grok-4.5`/`4.6` API routes (subscription twin exists; `xai/grok-4.3` only when cheap 1M context is the point), `google/gemini-3.1-pro-preview` (Google-specific long-context multimodal only), `zai/glm-5-turbo` (`glm-5.2` is stronger at a nearby price).
+Avoid without an owner-approved reason: `openai/gpt-5.5-pro` (one call can eat a double-digit share of a small credit pool) and `moonshotai/kimi-k3` (reasoning fixed at max, so all thinking bills as premium output). Dominated rows stay parked: every `openai/gpt-5.6-*` and `openai/gpt-5.4/5.5` API twin (seat route exists), `codex/gpt-5.5` and `codex/gpt-5.4`/`gpt-5.4-mini` (older than sol/terra/luna on the same seat), `anthropic/claude-opus-4-5`–`4-8` (opus-5 price, older), `claude-sonnet-4-6`, `claude-sonnet-5`, and `claude-haiku-4-5` (credit spent below opus-5 quality that a seat already covers), `moonshotai/kimi-k2.6`/`k2.7-code` (beaten by deepseek on price, seats on quality), `xai/grok-4.5`/`4.6` (subscription twin exists; `xai/grok-4.3` only when cheap 1M context is the point), `google/gemini-3.1-pro-preview` (Google-specific long-context multimodal only), `zai/glm-5-turbo` (`glm-5.2` is stronger at a nearby price).
 
 ## Consistency and acceptance
 
@@ -36,12 +47,13 @@ Avoid without an owner-approved reason: `openai/gpt-5.5-pro` (one call can eat a
 - Task agents receive only bounded, non-sensitive candidate work. They do not own shared contracts, deployment, migrations, secrets, or final acceptance.
 - Independence rule: for integrity-critical work the reviewing model's vendor differs from the authoring model's vendor, and no model reviews its own diff.
 - Owner reruns decisive checks regardless of model: `npm run typecheck && npm run build`; `cd ledger && pytest -q`. Inspect the actual diff before accepting output.
-- Use exact fallback order — `supergrok/grok-4.6` → `openai/gpt-5.6-sol` → `anthropic/claude-sonnet-5` unless a lane names its own — and record every failed or blocked predecessor.
+- Use exact fallback order — `codex/gpt-5.6-sol` → `supergrok/grok-4.6` → `anthropic/claude-sonnet-5` (credit) unless a lane names its own — and record every failed or blocked predecessor.
 - Never send secrets, private archives, credentials, or unrelated worktree files.
 
 ## Budget rules
 
-- Estimate tokens before any premium dispatch; projected spend above roughly $10 needs owner sign-off, and actual spend goes in the receipt.
+- Seat quota is a budget: size lanes to seat size, and never spend the small seat's quota on work the large seat can do.
+- Estimate tokens before any credit dispatch; projected spend above roughly $10 needs owner sign-off, and actual spend goes in the receipt.
 - Never run two premium models on the same question unless resolving a recorded disagreement.
 - Prefer cache-friendly prompts (stable prefixes, reused context): cache-hit input is 10–50x cheaper on most routes.
 
@@ -49,29 +61,24 @@ Receipt fields: route, provider, model, billing kind, requested/effective effort
 
 ## Price appendix (vendor list, USD per 1M input/output tokens, checked 2026-08-26)
 
-Subscription seat, $0 marginal credit: `supergrok/grok-4.6` and `supergrok/grok-4.5` (API twins list $2/$6), `supergrok/composer-2.5-fast`. Capy API billing may differ from vendor list; use this only for relative ordering. No public list price found for `zai/glm-5v-turbo`.
+Seat-billed at $0 marginal credit: `codex/gpt-5.6-sol` / `terra` / `luna`, `codex/gpt-5.3-codex-spark`, `codex/gpt-5.4`/`5.4-mini`/`5.5`; `supergrok/grok-4.6`, `grok-4.5`, `composer-2.5-fast`. API list prices for the twins: sol $4/$20, terra $2/$12, luna $0.20/$1.20, grok-4.x $2/$6. Capy API billing may differ from vendor list; use this only for relative ordering. No public list price found for `zai/glm-5v-turbo`.
 
 | Tier | Model | List price |
 | --- | --- | --- |
 | Bulk | deepseek-v4-flash-0731 | $0.14/$0.28 (peak/off-peak split announced from 2026-08-17, up to $0.44/$1.32) |
-| Bulk | gpt-5.6-luna | $0.20/$1.20 |
 | Bulk | gemini-3-flash-preview | $0.50/$3.00 |
 | Mid | deepseek-v4-pro | $0.435/$0.87 (same peak/off-peak note) |
-| Mid | gpt-5.4-mini | $0.75/$4.50 |
 | Mid | kimi-k2.7-code, kimi-k2.6 | $0.95/$4.00 |
 | Mid | claude-haiku-4-5 | $1/$5 |
 | Mid | glm-5-turbo | $1.20/$4.00 |
 | Mid | grok-4.3 (API) | $1.25/$2.50 |
 | Mid | glm-5.2 | $1.40/$4.40 |
-| Mid | gpt-5.3-codex | $1.75/$14 |
+| Mid | gpt-5.3-codex (API) | $1.75/$14 |
 | Mid | claude-sonnet-5 | $2/$10 (intro price through 2026-08-31) |
-| Mid | gpt-5.6-terra | $2/$12 |
 | Mid | gemini-3.1-pro-preview | $2/$12 |
 | Mid | qwen3.8-max | $2/$6 (no cache discount listed) |
 | Premium | claude-sonnet-4-6 | $3/$15 |
 | Premium | kimi-k3 | $3/$15 (reasoning fixed at max) |
-| Premium | gpt-5.6-sol | $4/$20 (promo through 2026-11-21) |
-| Premium | gpt-5.4, gpt-5.5 | $2.50/$15, $5/$30 |
 | Premium | claude-opus-4-5…4-8, claude-opus-5 | $5/$25 |
-| Frontier | claude-fable-5 | $10/$50 |
+| Frontier | claude-fable-5 | $10/$50 (cache-hit input $1) |
 | Frontier | gpt-5.5-pro | $30/$180 |
