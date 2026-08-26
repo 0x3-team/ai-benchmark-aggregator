@@ -7,7 +7,11 @@ import {
 } from "./data/dataset";
 import { loadOfficialData, type OfficialLoadResult } from "./data/official";
 import { selectOfficialDataset } from "./data/dataSelection";
-import { computeRanking, sortModels, type RankRow } from "./lib/aggregate";
+import {
+  computeRanking,
+  sortModels,
+  type RankRow,
+} from "./lib/aggregate";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ScoreTable } from "./components/ScoreTable";
@@ -142,6 +146,7 @@ function AppContent({
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [showAllBenchmarks, setShowAllBenchmarks] = useState(false);
+  const [showModelsWithNoPublishedScores, setShowModelsWithNoPublishedScores] = useState(false);
   const { toast } = useToast();
 
   const officialUnavailableReason =
@@ -207,10 +212,29 @@ function AppContent({
     [activeModels, activeBenchmarks, getValue]
   );
 
+  const rankMap = useMemo(() => {
+    const map: Record<string, RankRow> = {};
+    presentationRanking.forEach((row) => (map[row.model.id] = row));
+    return map;
+  }, [presentationRanking]);
+
+  const modelsWithPublishedScores = useMemo(
+    () =>
+      showModelsWithNoPublishedScores
+        ? filteredModels
+        : filteredModels.filter((model) => (rankMap[model.id]?.covered ?? 0) > 0),
+    [filteredModels, rankMap, showModelsWithNoPublishedScores]
+  );
+
+  const hasModelsWithNoPublishedScores = useMemo(
+    () => presentationRanking.some((row) => row.covered === 0),
+    [presentationRanking]
+  );
+
   const sortedModels = useMemo(
     () =>
       sortModels(
-        filteredModels,
+        modelsWithPublishedScores,
         sort,
         visibleBenchmarks,
         activeBenchmarks,
@@ -218,7 +242,7 @@ function AppContent({
         presentationRanking
       ),
     [
-      filteredModels,
+      modelsWithPublishedScores,
       sort,
       visibleBenchmarks,
       activeBenchmarks,
@@ -226,12 +250,6 @@ function AppContent({
       presentationRanking,
     ]
   );
-
-  const rankMap = useMemo(() => {
-    const map: Record<string, RankRow> = {};
-    presentationRanking.forEach((row) => (map[row.model.id] = row));
-    return map;
-  }, [presentationRanking]);
 
   const selectedBenchmark = selectedBenchmarkId
     ? activeBenchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
@@ -300,6 +318,7 @@ function AppContent({
     setVendorFilter(new Set());
     setCategoryFilter(null);
     setOpenWeightsOnly(false);
+    setShowModelsWithNoPublishedScores(false);
     setSort(null);
   }
 
@@ -354,6 +373,9 @@ function AppContent({
                 onToggleOpenWeights={setOpenWeightsOnly}
                 onClear={clearFilters}
                 resultCount={sortedModels.length}
+                hasModelsWithNoPublishedScores={hasModelsWithNoPublishedScores}
+                showModelsWithNoPublishedScores={showModelsWithNoPublishedScores}
+                onToggleModelsWithNoPublishedScores={setShowModelsWithNoPublishedScores}
               />
               <CategoryLeaders
                 models={activeModels}

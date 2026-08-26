@@ -218,8 +218,11 @@ describe("ScoreTable over the 500 x 42 scale fixture", () => {
     expect(spacers).toHaveLength(1);
     expect(spacers[0].style.height).toBe(`${(SCALE_MODEL_COUNT - visible) * ROW_H}px`);
 
-    // The cohort contract is stated in the caption for assistive tech.
-    expect(container.querySelector("caption")?.textContent).toContain("all 42 benchmarks");
+    // The visible policy states the immutable cohort and eligibility threshold.
+    expect(container.querySelector("#overall-ranking-policy")?.textContent).toContain("60%");
+    expect(container.querySelector("#overall-ranking-policy")?.textContent).toContain(
+      "26 of 42 benchmarks"
+    );
   });
 
   it("sorts the full 500-model fixture correctly in both directions", () => {
@@ -341,9 +344,11 @@ describe("filtering and virtualization scroll at scale", () => {
     expect(firstCells[1].style.left).toBe("34px");
 
     // Column context intact: the header control is still focused and the
-    // caption still states the full cohort size.
+    // visible policy still states the full cohort eligibility basis.
     expect(document.activeElement).toBe(sortButton);
-    expect(container.querySelector("caption")?.textContent).toContain("all 42 benchmarks");
+    expect(container.querySelector("#overall-ranking-policy")?.textContent).toContain(
+      "26 of 42 benchmarks"
+    );
   });
 });
 });

@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Info, ArrowUp, ArrowDown, X } from "lucide-react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
-import { bestModelId, type RankRow } from "../lib/aggregate";
+import {
+  bestModelId,
+  RANK_COVERAGE_THRESHOLD,
+  type RankRow,
+} from "../lib/aggregate";
 import { CATEGORIES, CATEGORY_LABELS } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { fmtScore as fmt } from "../lib/format";
@@ -24,6 +28,8 @@ import {
   ClaimEvidenceDetails,
   ExternalSourceLink,
 } from "./ClaimEvidence";
+
+const TABLE_CHROME_H = 180;
 
 interface ScoreTableProps {
   models: readonly DatasetModel[];
@@ -87,6 +93,10 @@ export function ScoreTable({
 
   const activeCol = sort?.benchmarkId ?? null;
   const sortBench = benchmarks.find((b) => b.id === activeCol) ?? null;
+  const rankMinimumCovered = Math.ceil(rankCohortTotal * RANK_COVERAGE_THRESHOLD);
+  const rankMissingPenalty = cohortModels.length + 1;
+  const rankCoveragePercent = RANK_COVERAGE_THRESHOLD * 100;
+  const rankPolicy = `Overall presentation ranks are UI-only. Eligibility requires published scores for at least ${rankCoveragePercent}% of the immutable active comparable benchmark cohort: ${rankMinimumCovered} of ${rankCohortTotal} benchmarks. Each row shows its published-score coverage over that cohort. Each missing score counts as rank ${rankMissingPenalty}, one place below the ${cohortModels.length}-model cohort; filters only change visible rows.`;
 
   // --- Row virtualization -------------------------------------------------
   // Only render the rows inside (and a small buffer around) the vertical
@@ -124,7 +134,7 @@ export function ScoreTable({
   const totalRows = models.length;
   const comparisonLimit = 6;
   const comparisonLimitReached = selectedModels.length >= comparisonLimit;
-  const bodyMaxH = Math.min(BODY_MAX_H, totalRows * ROW_H);
+  const bodyMaxH = Math.min(BODY_MAX_H, totalRows * ROW_H + TABLE_CHROME_H);
   const visibleH = Math.min(viewportH, bodyMaxH);
   const visibleCount = Math.ceil(visibleH / ROW_H) + ROW_BUFFER * 2;
   const requestedFirstIndex = Math.max(0, Math.floor(scrollTop / ROW_H) - ROW_BUFFER);
@@ -174,21 +184,27 @@ export function ScoreTable({
         </div>
       )}
 
+      <p
+        id="overall-ranking-policy"
+        className="border-b border-white/10 px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground"
+      >
+        {rankPolicy}
+      </p>
+
       <div className="overflow-x-auto scroll-thin">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="overflow-y-auto scroll-thin"
+          className="min-w-max overflow-y-auto scroll-thin"
           style={{ maxHeight: bodyMaxH || undefined }}
         >
         <table
           className="w-full border-separate border-spacing-0 text-[12px]"
           aria-rowcount={totalRows + 3}
+          aria-describedby="overall-ranking-policy"
         >
           <caption className="sr-only">
-            Overall ranks use every benchmark in the selected dataset snapshot. A model must have a
-            score for all {rankCohortTotal} benchmarks to receive a rank; filters only change visible
-            rows.
+            Official benchmark scores and coverage-adjusted presentation rankings.
           </caption>
           <thead>
             <tr>
@@ -202,7 +218,11 @@ export function ScoreTable({
                   padding: "0",
                 }}
               >
-                <span title="Overall rank; full cohort coverage required">#</span>
+                <span
+                  title={`Overall presentation rank; at least ${rankCoveragePercent}% cohort coverage required, with missing scores counted as rank ${rankMissingPenalty}`}
+                >
+                  #
+                </span>
               </th>
               <th
                 rowSpan={2}
@@ -404,9 +424,9 @@ export function ScoreTable({
               const isTop = rank?.rank === 1;
               const rankLabel =
                 rank?.rank != null
-                  ? `Overall rank ${rank.rank}; coverage ${rank.covered} of ${rank.total} benchmarks.`
+                  ? `Overall presentation rank ${rank.rank}; coverage ${rank.covered} of ${rank.total} benchmarks. Each missing score counts as rank ${rankMissingPenalty}.`
                   : rank
-                    ? `Unranked: ${rank.covered} of ${rank.total} benchmarks have data.`
+                    ? `Unranked: ${rank.covered} of ${rank.total} benchmarks have data. Each missing score counts as rank ${rankMissingPenalty}.`
                     : "Unranked: no presentation summary is available.";
               return (
                 <tr

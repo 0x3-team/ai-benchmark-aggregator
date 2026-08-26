@@ -9,9 +9,9 @@ import { CATEGORIES } from "../types";
 
 export interface RankRow {
   model: DatasetModel;
-  /** Competition rank, or null when the model lacks a score for the cohort. */
+  /** Competition rank, or null when the model misses the coverage threshold. */
   rank: number | null;
-  /** Average of per-benchmark competition ranks; never shown as a score. */
+  /** Coverage-adjusted average rank; never shown as a score or stored as a claim. */
   avgRank: number | null;
   firsts: number;
   coverage: number;
@@ -19,6 +19,8 @@ export interface RankRow {
   total: number;
   unrankedReason: "incomplete_coverage" | "no_benchmarks" | null;
 }
+
+export const RANK_COVERAGE_THRESHOLD = 0.6;
 
 function compareModels(a: DatasetModel, b: DatasetModel): number {
   return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
@@ -91,10 +93,12 @@ export function rankForBenchmark(
   }));
 }
 
-// Presentation ranks are calculated over one fixed cohort. A model must have a
-// score for every cohort benchmark to receive an ordinal rank; filters only
-// change which rows are visible, not which scores count. Per-benchmark ties
-// use competition ranks (1, 1, 3) and otherwise sort by name/id for stable UI
+// Presentation ranks are calculated over one fixed cohort. A model needs
+// published scores for at least 60% of that cohort to receive an ordinal rank;
+// missing cells receive a deterministic rank one place below the cohort, so a
+// sparse row cannot improve its rank by omitting benchmarks. Filters only
+// change which rows are visible, not which scores count. Per-benchmark ties use
+// competition ranks (1, 1, 3) and otherwise sort by name/id for stable UI
 // order. This is presentation data only, never a ledger claim.
 export function computeRanking(
   models: readonly DatasetModel[],
@@ -129,6 +133,8 @@ export function computeRanking(
     rankCache.set(bench.id, benchRanks);
   }
 
+  const missingRankPenalty = models.length + 1;
+
   const rows: RankRow[] = models.map((model) => {
     let sum = 0;
     let count = 0;
@@ -139,17 +145,20 @@ export function computeRanking(
         sum += rank;
         count += 1;
         if (rank === 1) firsts += 1;
+      } else {
+        sum += missingRankPenalty;
       }
     }
     return {
       model,
       rank: null,
-      avgRank: count > 0 ? sum / count : null,
+      avgRank: sum / n,
       firsts,
       coverage: n > 0 ? count / n : 0,
       covered: count,
       total: n,
-      unrankedReason: count === n ? null : "incomplete_coverage",
+      unrankedReason:
+        count / n >= RANK_COVERAGE_THRESHOLD ? null : "incomplete_coverage",
     };
   });
 

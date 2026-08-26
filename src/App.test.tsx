@@ -110,6 +110,63 @@ function widePublishedFixture(): OfficialLoadResult {
   };
 }
 
+function sparsePublishedFixture(
+  artifactId = "official-sparse-artifact",
+  contentSha256 = "d".repeat(64)
+): OfficialLoadResult {
+  const result = publishedFixture();
+  if (result.availability !== "published") throw new Error("Expected a published fixture.");
+  const models = [
+    { ...fixtureModel, id: "sparse-complete", name: "Complete Model" },
+    { ...fixtureModel, id: "sparse-eligible", name: "Eligible Sparse Model" },
+    { ...fixtureModel, id: "sparse-ineligible", name: "Ineligible Sparse Model" },
+    { ...fixtureModel, id: "sparse-zero", name: "No Published Scores Model" },
+  ];
+  const benchmarks = Array.from({ length: 5 }, (_, index) => ({
+    ...fixtureBenchmark,
+    id: `sparse-benchmark-${index + 1}`,
+    name: `Sparse Bench ${index + 1}`,
+    fullName: `Sparse Benchmark ${index + 1}`,
+  }));
+  const score = (modelId: string, benchmarkIndex: number, value: number) => ({
+    ...fixtureScore,
+    modelId,
+    benchmarkId: benchmarks[benchmarkIndex].id,
+    value,
+  });
+
+  return {
+    ...result,
+    artifact: {
+      ...result.artifact,
+      artifactId,
+      manifest: {
+        ...result.artifact.manifest,
+        contentSha256,
+        modelCount: models.length,
+        benchmarkCount: benchmarks.length,
+        scoreCount: 10,
+      },
+    },
+    data: {
+      models,
+      benchmarks,
+      scores: [
+        score("sparse-complete", 0, 50),
+        score("sparse-complete", 1, 80),
+        score("sparse-complete", 2, 80),
+        score("sparse-complete", 3, 80),
+        score("sparse-complete", 4, 80),
+        score("sparse-eligible", 0, 99),
+        score("sparse-eligible", 1, 99),
+        score("sparse-eligible", 2, 99),
+        score("sparse-ineligible", 0, 100),
+        score("sparse-ineligible", 1, 100),
+      ],
+    },
+  };
+}
+
 function setSearch(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   if (!setter) throw new Error("Expected an input value setter.");
@@ -213,6 +270,84 @@ describe("App Official data boundary", () => {
       expect(container.textContent).toContain("1 models · 1 benchmarks · Official claims");
       expect(container.textContent).not.toContain("0 models · 0 benchmarks · Awaiting publication");
       expect(container.querySelector('[aria-label="Data source"]')).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("uses a 60% immutable cohort threshold and hides zero-score models until requested", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+
+      const caption = container.querySelector("caption")?.textContent;
+      expect(caption).toBe("Official benchmark scores and coverage-adjusted presentation rankings.");
+      expect(container.querySelector("table")?.getAttribute("aria-describedby")).toBe(
+        "overall-ranking-policy"
+      );
+      const policy = container.querySelector("#overall-ranking-policy")?.textContent;
+      expect(policy).toContain("UI-only");
+      expect(policy).toContain("at least 60%");
+      expect(policy).toContain("3 of 5 benchmarks");
+      expect(policy).toContain("published-score coverage");
+      expect(policy).toContain("Each missing score counts as rank 5");
+      const rows = Array.from(container.querySelectorAll("tbody tr"));
+      expect(rows[0].textContent).toContain("Complete Model");
+      expect(rows[1].textContent).toContain("Eligible Sparse Model");
+      expect(rows[2].textContent).toContain("Ineligible Sparse Model");
+      expect(container.textContent).not.toContain("No Published Scores Model");
+
+      const toggle = container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      ) as HTMLButtonElement;
+      expect(toggle).toBeTruthy();
+      expect(toggle.getAttribute("aria-checked")).toBe("false");
+      act(() => toggle.click());
+      expect(toggle.getAttribute("aria-checked")).toBe("true");
+      expect(container.textContent).toContain("No Published Scores Model");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("resets the zero-score visibility control when the Official snapshot remounts", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      const toggle = container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      ) as HTMLButtonElement;
+      act(() => toggle.click());
+      expect(container.textContent).toContain("No Published Scores Model");
+
+      act(() => {
+        root.render(
+          <AppWithDataSources
+            officialLoadResult={sparsePublishedFixture(
+              "official-sparse-artifact-next",
+              "e".repeat(64)
+            )}
+          />
+        );
+      });
+
+      const resetToggle = container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      ) as HTMLButtonElement;
+      expect(resetToggle.getAttribute("aria-checked")).toBe("false");
+      expect(container.textContent).not.toContain("No Published Scores Model");
     } finally {
       act(() => root.unmount());
       container.remove();

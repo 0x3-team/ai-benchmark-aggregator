@@ -157,6 +157,8 @@ jobs:
         run: npm run typecheck:test
       - name: Test
         run: npm test
+      - name: Verify mobile table overflow containment
+        run: npm run test:mobile-overflow
       - name: Build
         run: npm run build
       - name: Verify build provenance
@@ -196,6 +198,7 @@ jobs:
           npm run typecheck
           npm run typecheck:test
           npm test
+          npm run test:mobile-overflow
           npm run build
           npm run verify:build-provenance
           npm run verify:pages-static
