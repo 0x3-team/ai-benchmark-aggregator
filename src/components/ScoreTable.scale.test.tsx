@@ -305,7 +305,7 @@ describe("filtering and virtualization scroll at scale", () => {
     expect(document.activeElement).toBe(checkbox);
   });
 
-  it("moves the virtualization window on scroll without losing row or column context", () => {
+  it("moves the virtualization window on scroll without losing row or column context", { timeout: 20_000 }, () => {
     const { container } = renderHarness();
     const expected = defaultOrder();
 

@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { accessSync, constants } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import WebSocket from "ws";
 
@@ -16,9 +17,50 @@ const vite = spawn(
 );
 let chrome;
 
+function canExecute(candidate) {
+  try {
+    accessSync(candidate, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function commandInPath(command) {
+  for (const directory of (process.env.PATH ?? "").split(delimiter)) {
+    if (!directory) continue;
+    const candidate = join(directory, command);
+    if (canExecute(candidate)) return candidate;
+  }
+  return null;
+}
+
+function resolveChromeExecutable() {
+  const configured = process.env.CHROME_BIN?.trim();
+  if (configured) return configured;
+
+  const applicationCandidates =
+    process.platform === "darwin"
+      ? [
+          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "/Applications/Chromium.app/Contents/MacOS/Chromium",
+          "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+          "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        ]
+      : [];
+  const application = applicationCandidates.find(canExecute);
+  if (application) return application;
+
+  for (const command of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]) {
+    const executable = commandInPath(command);
+    if (executable) return executable;
+  }
+  throw new Error("No headless Chrome executable was found. Set CHROME_BIN to an executable path.");
+}
+
 async function waitFor(url) {
   let lastError;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
       const response = await fetch(url);
       if (response.ok) return response;
@@ -56,8 +98,9 @@ evaluate.nextId = 1;
 
 try {
   await waitFor(`http://127.0.0.1:${vitePort}/browser-test/p10-mobile-overflow.html`);
+  const chromeExecutable = resolveChromeExecutable();
   chrome = spawn(
-    process.env.CHROME_BIN ?? "google-chrome",
+    chromeExecutable,
     [
       "--headless=new",
       "--no-sandbox",
@@ -68,7 +111,16 @@ try {
     ],
     { stdio: "ignore" }
   );
-  const targets = await (await waitFor(`http://127.0.0.1:${chromePort}/json`)).json();
+  const chromeError = once(chrome, "error").then(([error]) => Promise.reject(error));
+  const chromeExit = once(chrome, "exit").then(([code, signal]) =>
+    Promise.reject(new Error(`Headless Chrome exited before DevTools was ready: code=${code} signal=${signal}`))
+  );
+  const targetsResponse = await Promise.race([
+    waitFor(`http://127.0.0.1:${chromePort}/json`),
+    chromeError,
+    chromeExit,
+  ]);
+  const targets = await targetsResponse.json();
   const target = targets.find((candidate) => candidate.type === "page");
   if (!target?.webSocketDebuggerUrl) throw new Error("Chrome did not expose a debuggable page.");
   const socket = new WebSocket(target.webSocketDebuggerUrl);
