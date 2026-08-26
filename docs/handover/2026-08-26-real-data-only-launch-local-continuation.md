@@ -237,5 +237,7 @@ governance and live-operation receipts.
 
 - Execution plan: `docs/plans/2026-08-26-real-data-only-production-launch-execution-plan.md`
 - Routing/acceptance receipts: `docs/audits/2026-08-26-launch-orchestration-receipts.jsonl`
+- Wave 1 model routing: `docs/audits/2026-08-26-wave1-model-routing.json`
+- Wave 2 model routing: `docs/audits/2026-08-26-wave2-model-routing.jsonl`
 - This handoff is the authoritative checkpoint for moving the remaining work
   to a local environment.
