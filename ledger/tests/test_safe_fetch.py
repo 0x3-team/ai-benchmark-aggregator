@@ -29,7 +29,16 @@ class ScriptedTransport:
         self.responses = responses
         self.calls: list[tuple[str, dict[str, str]]] = []
 
-    def request(self, *, url: str, headers, timeout_seconds: float) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+    def request(
+        self,
+        *,
+        url: str,
+        headers,
+        timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
+    ) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+        _ = timeout_seconds, resolved_addresses, max_bytes
         self.calls.append((url, dict(headers)))
         return self.responses[url]
 

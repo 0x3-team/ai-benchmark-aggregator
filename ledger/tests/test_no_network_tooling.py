@@ -37,10 +37,14 @@ BANNED_CALLS = (
     "urlopen(",
 )
 
-# The governed transport seam that is *allowed* to open a network object. Under
-# this seam the default transport refuses all outbound traffic; a private
-# runner must explicitly grant authority.
-SAFE_FETCH_SEAM = "app/ingestion/safe_fetch.py"
+# The governed transport seam is split between policy and the explicit live
+# implementation. Ordinary composition still uses the disabled transport.
+SAFE_FETCH_SEAMS = frozenset(
+    {
+        "app/ingestion/live_transport.py",
+        "app/ingestion/safe_fetch.py",
+    }
+)
 
 # Runnable roots we gate. ``scripts/`` includes any untracked task outputs the
 # prior worker left there; a directory that could hold a runnable raw-network
@@ -80,7 +84,7 @@ def test_runnable_python_has_no_direct_network_call(path: str):
     if not full.exists():
         raise AssertionError(f"expected on-disk runnable python file but it is missing: {path}")
     text = full.read_text(encoding="utf-8")
-    if path == SAFE_FETCH_SEAM:
+    if path in SAFE_FETCH_SEAMS:
         # The governed seam may legitimately contain socket/url helpers; it is
         # covered by its own suite and defaults to a disabled transport.
         return
@@ -92,12 +96,15 @@ def test_runnable_python_has_no_direct_network_call(path: str):
 
 
 def test_safe_fetch_seam_is_still_the_single_network_boundary():
-    seam = LEDGER / SAFE_FETCH_SEAM
+    seam = LEDGER / "app/ingestion/safe_fetch.py"
     assert seam.exists(), "governed SafeFetch seam must remain present"
     text = seam.read_text(encoding="utf-8")
     assert "DisabledNetworkTransport" in text, (
         "SafeFetch seam must keep a fail-closed disabled transport"
     )
+    live_transport = LEDGER / "app/ingestion/live_transport.py"
+    assert live_transport.exists(), "governed peer-pinning transport must remain present"
+    assert "PinnedHTTPSFetchTransport" in live_transport.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(

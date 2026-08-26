@@ -5,11 +5,10 @@ network requests.  A source-revision admission decision supplies the immutable
 URL allowlist, and this module validates every request/redirect before a
 transport is allowed to see it.
 
-There is deliberately no permissive production transport here.  The eventual
-private runner must supply a transport that can prove the connected peer after
-DNS validation (and enforce its egress policy).  Until that platform decision
-exists, the default transport refuses all outbound traffic rather than relying
-on a best-effort DNS pre-check that could be bypassed by rebinding.
+The ordinary runtime remains live-disabled.  An explicitly authorized runner
+may supply the peer-pinning HTTPS transport from ``live_transport``; the
+validated address set is passed into that transport so it never resolves the
+hostname a second time and cannot be redirected by DNS rebinding.
 """
 
 from __future__ import annotations
@@ -111,6 +110,8 @@ class FetchTransport(Protocol):
         url: str,
         headers: Mapping[str, str],
         timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
     ) -> FetchTransportResponse: ...
 
 
@@ -126,6 +127,8 @@ class DisabledNetworkTransport:
         url: str,
         headers: Mapping[str, str],
         timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
     ) -> FetchTransportResponse:
         raise SafeFetchError(
             "FETCH_TRANSPORT_UNAVAILABLE",
@@ -165,7 +168,14 @@ def _redacted_url(url: str) -> str:
 
 
 def _validate_https_url(url: str) -> tuple[str, int]:
-    parsed = urlsplit(url)
+    if not isinstance(url, str) or any(
+        ord(character) <= 0x20 or ord(character) == 0x7F for character in url
+    ):
+        raise SafeFetchError("FETCH_URL_FORBIDDEN", "URL contains forbidden characters")
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        raise SafeFetchError("FETCH_URL_FORBIDDEN", "URL is invalid") from None
     if parsed.scheme != "https" or not parsed.hostname:
         raise SafeFetchError("FETCH_URL_FORBIDDEN", "only absolute HTTPS URLs are permitted")
     if parsed.username or parsed.password or parsed.fragment:
@@ -190,12 +200,15 @@ def _validate_https_url(url: str) -> tuple[str, int]:
     return parsed.hostname, port or 443
 
 
-def _assert_public_resolution(url: str, resolver: Resolver) -> None:
+def _resolve_global_addresses(url: str, resolver: Resolver) -> tuple[str, ...]:
     host, port = _validate_https_url(url)
     addresses = resolver(host, port)
     if not addresses:
         raise SafeFetchError("FETCH_DNS_EMPTY", "hostname resolved to no addresses")
+    validated: list[str] = []
     for raw_address in addresses:
+        if not isinstance(raw_address, str):
+            raise SafeFetchError("FETCH_DNS_INVALID", "resolver returned a non-IP address")
         try:
             address = ipaddress.ip_address(raw_address)
         except ValueError as exc:
@@ -205,6 +218,10 @@ def _assert_public_resolution(url: str, resolver: Resolver) -> None:
                 "FETCH_PRIVATE_NETWORK_FORBIDDEN",
                 "the source hostname resolved to a non-public address",
             )
+        canonical = str(address)
+        if canonical not in validated:
+            validated.append(canonical)
+    return tuple(validated)
 
 
 def _content_type_allowed(content_type: str, allowed: frozenset[str]) -> bool:
@@ -350,11 +367,13 @@ class SafeFetchClient:
                 url=current_url,
                 observed_at=observed_at,
             )
-            _assert_public_resolution(current_url, self._resolver)
+            resolved_addresses = _resolve_global_addresses(current_url, self._resolver)
             response = self._transport.request(
                 url=current_url,
                 headers=request_headers,
                 timeout_seconds=float(self._settings.timeout_seconds),
+                resolved_addresses=resolved_addresses,
+                max_bytes=plan.max_bytes,
             )
             if response.url != current_url:
                 raise SafeFetchError(
