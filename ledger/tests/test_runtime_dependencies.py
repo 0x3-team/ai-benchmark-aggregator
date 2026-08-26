@@ -499,7 +499,7 @@ def test_rate_limiter_precedes_every_transport_request_deterministically() -> No
     assert limiter.urls == [URL, REDIRECT_URL]
     assert [call[0] for call in transport.calls] == [URL, REDIRECT_URL]
     assert all(call[1]["User-Agent"] == "injected-agent/1" for call in transport.calls)
-    assert all(call[2] == 7.0 for call in transport.calls)
+    assert all(0 < call[2] <= 7.0 for call in transport.calls)
 
 
 def test_injected_timeout_rejects_plan_substitution_before_runtime_side_effects() -> None:

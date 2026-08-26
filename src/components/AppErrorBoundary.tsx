@@ -14,7 +14,7 @@ interface AppErrorBoundaryState {
 /**
  * Contains failures while an immutable dataset snapshot is being constructed
  * or rendered. It deliberately sits outside DatasetProvider so a malformed
- * selected source can never trigger a hidden fallback to Demo data.
+ * selected source can never trigger a hidden fallback dataset.
  */
 export class AppErrorBoundary extends Component<
   AppErrorBoundaryProps,

@@ -4,7 +4,7 @@ import type {
   DatasetModel,
   GetValue,
 } from "../data/dataset";
-import { normalizeBenchmarkValue } from "../data/demoCatalog";
+import { normalizeBenchmarkValue } from "../data/benchmarkNormalization";
 import { CATEGORIES } from "../types";
 
 export interface RankRow {
@@ -32,10 +32,9 @@ function compareRankNumbers(a: number, b: number): number {
 /**
  * Convert one raw score to a comparable 0..1 presentation value.
  *
- * Tracked Demo benchmarks carry an explicit bounded domain (or are raw-only),
- * so those values are always delegated to the catalog normalizer. The legacy
- * test/fixture shape has no normalization metadata; its historical 0..scaleMax
- * contract remains a compatibility fallback until those callers migrate.
+ * A benchmark with an explicit bounded domain is delegated to the catalog
+ * normalizer. The legacy test-fixture shape has no normalization metadata; its
+ * historical 0..scaleMax contract remains a compatibility fallback.
  */
 export function normalizeForPresentation(
   benchmark: DatasetBenchmark,

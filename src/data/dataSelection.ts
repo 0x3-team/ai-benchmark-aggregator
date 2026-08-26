@@ -1,45 +1,56 @@
 import type { DatasetInput } from "./dataset";
-import type { DataMode } from "./dataMode";
-import type { OfficialLoadResult, OfficialPublishedResult } from "./official";
+import type {
+  OfficialLoadResult,
+  OfficialPublishedResult,
+  OfficialUnavailableResult,
+} from "./official";
 
 /**
- * The only state that may cross the application data boundary.  `mode` and
- * `data` are one discriminated value so a render cannot label Demo values as
- * Official (or the reverse) while a switch is in progress.
+ * The tracked unavailable artifact resolves to this immutable empty snapshot.
+ * It is deliberately not a fallback catalog: only a governed published result
+ * can supply models, benchmarks, and scores to the production provider.
  */
-export type DatasetSelection =
+export const AWAITING_PUBLICATION_DATASET: DatasetInput = Object.freeze({
+  models: Object.freeze([]),
+  benchmarks: Object.freeze([]),
+  scores: Object.freeze([]),
+});
+
+export type OfficialDatasetSelection =
   | {
-      readonly mode: "demo";
+      readonly status: "awaiting-publication";
       readonly data: DatasetInput;
-      readonly official: OfficialLoadResult;
+      readonly official: OfficialUnavailableResult;
+      readonly key: string;
     }
   | {
-      readonly mode: "official";
+      readonly status: "official";
       readonly data: DatasetInput;
       readonly official: OfficialPublishedResult;
+      readonly key: string;
     };
 
 /**
- * Select the provider snapshot synchronously from an already validated
- * Official-load result.  Parsing and integrity checks happen before this
- * function is called; an unavailable result always retains the Demo snapshot.
+ * Select the production provider snapshot from an already validated Official
+ * load result. Unavailable never falls back to sample, local, or synthetic
+ * data; it returns the honest awaiting-publication snapshot.
  */
-export function selectDataset(
-  requestedMode: DataMode,
-  demo: DatasetInput,
+export function selectOfficialDataset(
   official: OfficialLoadResult
-): DatasetSelection {
-  if (requestedMode === "official" && official.availability === "published") {
+): OfficialDatasetSelection {
+  if (official.availability === "published") {
     return Object.freeze({
-      mode: "official" as const,
+      status: "official" as const,
       data: official.data,
       official,
+      key: `official:${official.artifact.artifactId}:${official.artifact.manifest.contentSha256}`,
     });
   }
 
   return Object.freeze({
-    mode: "demo" as const,
-    data: demo,
+    status: "awaiting-publication" as const,
+    data: AWAITING_PUBLICATION_DATASET,
     official,
+    key: `awaiting-publication:${official.artifactId ?? "unidentified"}`,
   });
 }

@@ -22,6 +22,7 @@ from app.ingestion.safe_fetch import (
     FetchTransportResponse,
     MAX_TIMEOUT_SECONDS,
     SafeFetchError,
+    _is_global_unicast_address,
     _validate_https_url,
 )
 
@@ -144,6 +145,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             self.sock = self._context.wrap_socket(
                 connected_socket,
                 server_hostname=self.host,
+                suppress_ragged_eofs=False,
             )
         except (OSError, SafeFetchError, ValueError):
             connected_socket.close()
@@ -190,15 +192,15 @@ def _validated_global_addresses(resolved_addresses: tuple[str, ...]) -> tuple[st
             address = ipaddress.ip_address(raw_address)
         except ValueError:
             raise SafeFetchError("FETCH_DNS_INVALID", "transport received an invalid address") from None
-        if not address.is_global:
+        if not _is_global_unicast_address(address):
             raise SafeFetchError(
                 "FETCH_PRIVATE_NETWORK_FORBIDDEN",
-                "transport refused a non-public peer address",
+                "transport refused a non-public or non-unicast peer address",
             )
         canonical = str(address)
         if canonical not in validated:
             validated.append(canonical)
-    return tuple(validated)
+    return tuple(sorted(validated))
 
 
 def _validated_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
@@ -252,8 +254,32 @@ def _read_bounded_body(
     connection: http.client.HTTPSConnection,
     deadline: _RequestDeadline,
 ) -> bytes:
+    def framing_complete() -> bool:
+        if not hasattr(response, "fp"):
+            return False
+        length = getattr(response, "length", None)
+        if length == 0:
+            return True
+        if response.fp is not None:
+            return False
+        if getattr(response, "chunked", False):
+            if getattr(response, "chunk_left", None) is None:
+                return True
+            raise SafeFetchError(
+                "FETCH_PROTOCOL_FAILURE",
+                "HTTPS response ended before chunk framing completed",
+            )
+        if length is not None:
+            raise SafeFetchError(
+                "FETCH_PROTOCOL_FAILURE",
+                "HTTPS response ended before its declared length",
+            )
+        return True
+
     body = bytearray()
     while True:
+        if framing_complete():
+            return bytes(body)
         remaining = max_bytes + 1 - len(body)
         if remaining <= 0:
             raise SafeFetchError(
@@ -261,11 +287,24 @@ def _read_bounded_body(
                 "response exceeded the certified byte limit",
             )
         _set_body_socket_timeout(response, connection, deadline)
-        chunk = response.read(min(_READ_CHUNK_BYTES, remaining))
+        try:
+            chunk = response.read(min(_READ_CHUNK_BYTES, remaining))
+        except http.client.IncompleteRead:
+            raise SafeFetchError(
+                "FETCH_PROTOCOL_FAILURE",
+                "HTTPS response ended before framing completed",
+            ) from None
         deadline.remaining()
         if not isinstance(chunk, bytes):
             raise SafeFetchError("FETCH_PROTOCOL_FAILURE", "response body stream was invalid")
         if not chunk:
+            if hasattr(response, "fp"):
+                if framing_complete():
+                    return bytes(body)
+                raise SafeFetchError(
+                    "FETCH_PROTOCOL_FAILURE",
+                    "HTTPS response ended before framing completed",
+                )
             return bytes(body)
         if len(chunk) > remaining:
             raise SafeFetchError(
@@ -298,7 +337,7 @@ class PinnedHTTPSFetchTransport:
             isinstance(timeout_seconds, bool)
             or not isinstance(timeout_seconds, (int, float))
             or not math.isfinite(float(timeout_seconds))
-            or not 1.0 <= float(timeout_seconds) <= MAX_TIMEOUT_SECONDS
+            or not 0 < float(timeout_seconds) <= MAX_TIMEOUT_SECONDS
         ):
             raise SafeFetchError("FETCH_REQUEST_INVALID", "request timeout is invalid")
         if type(max_bytes) is not int or not 1 <= max_bytes <= MAX_CERTIFIED_FETCH_BYTES:
@@ -323,16 +362,44 @@ class PinnedHTTPSFetchTransport:
         connection: http.client.HTTPSConnection | None = None
         response: http.client.HTTPResponse | None = None
         try:
-            connection = _PinnedHTTPSConnection(
-                host,
-                port,
-                pinned_address=addresses[0],
-                timeout=float(timeout_seconds),
-                context=context,
-                deadline=deadline,
-            )
-            connection.connect()
-            _set_socket_timeout(connection, deadline)
+            for address in addresses:
+                candidate = _PinnedHTTPSConnection(
+                    host,
+                    port,
+                    pinned_address=address,
+                    timeout=deadline.remaining(),
+                    context=context,
+                    deadline=deadline,
+                )
+                try:
+                    candidate.connect()
+                    _set_socket_timeout(candidate, deadline)
+                except ssl.SSLCertVerificationError:
+                    with suppress(Exception):
+                        candidate.close()
+                    raise
+                except TimeoutError:
+                    with suppress(Exception):
+                        candidate.close()
+                    deadline.remaining()
+                    continue
+                except ssl.SSLError:
+                    with suppress(Exception):
+                        candidate.close()
+                    raise
+                except OSError:
+                    with suppress(Exception):
+                        candidate.close()
+                    deadline.remaining()
+                    continue
+                except (SafeFetchError, ValueError):
+                    with suppress(Exception):
+                        candidate.close()
+                    raise
+                connection = candidate
+                break
+            if connection is None:
+                raise SafeFetchError("FETCH_NETWORK_FAILURE", "HTTPS connection failed")
             connection.request("GET", target, headers=request_headers)
             _set_socket_timeout(connection, deadline)
             response = connection.getresponse()
@@ -343,11 +410,15 @@ class PinnedHTTPSFetchTransport:
                     response_headers[normalized] = f"{response_headers[normalized]}, {value}"
                 else:
                     response_headers[normalized] = value
-            body = _read_bounded_body(
-                response,
-                max_bytes,
-                connection=connection,
-                deadline=deadline,
+            body = (
+                _read_bounded_body(
+                    response,
+                    max_bytes,
+                    connection=connection,
+                    deadline=deadline,
+                )
+                if 200 <= response.status < 300
+                else b""
             )
             return FetchTransportResponse(
                 url=url,

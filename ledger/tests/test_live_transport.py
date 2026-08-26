@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import http.client
+import io
 import ssl
+from types import SimpleNamespace
 from typing import Callable
 
 import pytest
@@ -10,8 +13,10 @@ from app.config import Settings
 from app.ingestion import live_transport, safe_fetch
 from app.ingestion.live_transport import (
     PinnedHTTPSFetchTransport,
+    _DeadlineResponseSocket,
     _PinnedHTTPSConnection,
     _RequestDeadline,
+    _read_bounded_body,
 )
 from app.ingestion.safe_fetch import (
     DisabledNetworkTransport,
@@ -128,6 +133,74 @@ class ScriptedConnection:
         self.closed = True
 
 
+class AddressAttemptConnection(ScriptedConnection):
+    def __init__(
+        self,
+        response: ScriptedResponse,
+        *,
+        address: str,
+        deadline: _RequestDeadline,
+        fail_connect: bool,
+        on_connect: Callable[[], None] | None,
+    ) -> None:
+        super().__init__(response)
+        self.address = address
+        self.deadline = deadline
+        self.fail_connect = fail_connect
+        self.connect_callback = on_connect
+
+    def connect(self) -> None:
+        assert self.deadline is not None
+        self.sock.settimeout(self.deadline.remaining())
+        if self.connect_callback is not None:
+            self.connect_callback()
+        if self.fail_connect:
+            raise OSError("fixture connection failure")
+
+
+class AddressAttemptFactory:
+    def __init__(
+        self,
+        response: ScriptedResponse,
+        *,
+        failing_addresses: frozenset[str],
+        on_failed_connect: Callable[[], None] | None = None,
+    ) -> None:
+        self.response = response
+        self.failing_addresses = failing_addresses
+        self.on_failed_connect = on_failed_connect
+        self.instances: list[AddressAttemptConnection] = []
+        self.timeouts: list[float] = []
+        self.deadlines: list[_RequestDeadline] = []
+
+    def __call__(
+        self,
+        _host: str,
+        _port: int,
+        *,
+        pinned_address: str,
+        timeout: float,
+        context: ssl.SSLContext,
+        deadline: _RequestDeadline,
+    ) -> AddressAttemptConnection:
+        _ = context
+        self.timeouts.append(timeout)
+        self.deadlines.append(deadline)
+        connection = AddressAttemptConnection(
+            self.response,
+            address=pinned_address,
+            deadline=deadline,
+            fail_connect=pinned_address in self.failing_addresses,
+            on_connect=(
+                self.on_failed_connect
+                if pinned_address in self.failing_addresses
+                else None
+            ),
+        )
+        self.instances.append(connection)
+        return connection
+
+
 class ExplodingRateLimiter:
     def acquire(self, *, source_id, url, observed_at) -> None:  # type: ignore[no-untyped-def]
         raise AssertionError("capability denial reached the rate limiter")
@@ -142,6 +215,37 @@ class FakeMonotonic:
 
     def advance(self, seconds: float) -> None:
         self.current += seconds
+
+
+class FramedResponseSocket:
+    def __init__(self, raw_response: bytes) -> None:
+        self.raw_response = raw_response
+        self.timeouts: list[float] = []
+
+    def settimeout(self, timeout: float) -> None:
+        self.timeouts.append(timeout)
+
+    def makefile(self, mode: str, buffering: int = 0) -> io.BytesIO:
+        assert mode == "rb"
+        assert buffering == 0
+        return io.BytesIO(self.raw_response)
+
+
+def _read_framed_response(raw_response: bytes) -> bytes:
+    network_socket = FramedResponseSocket(raw_response)
+    deadline = _RequestDeadline.start(7.0)
+    response = http.client.HTTPResponse(
+        _DeadlineResponseSocket(network_socket, deadline),  # type: ignore[arg-type]
+        method="GET",
+    )
+    response.begin()
+    connection_socket = None if response.will_close else network_socket
+    return _read_bounded_body(
+        response,
+        1024,
+        connection=SimpleNamespace(sock=connection_socket),  # type: ignore[arg-type]
+        deadline=deadline,
+    )
 
 
 def _install_connection(
@@ -204,7 +308,8 @@ def test_dns_is_resolved_once_and_the_selected_address_reaches_transport(
     assert result.raw_bytes == b"{}"
     assert resolutions == [("official.example", 443)]
     assert connection.initialized_with is not None
-    assert connection.initialized_with[:4] == ("official.example", 443, "8.8.8.8", 30.0)
+    assert connection.initialized_with[:3] == ("official.example", 443, "8.8.8.8")
+    assert 0 < connection.initialized_with[3] < 30.0
 
 
 def test_pinned_connection_uses_address_without_dns_and_tls_uses_original_hostname(
@@ -231,8 +336,14 @@ def test_pinned_connection_uses_address_without_dns_and_tls_uses_original_hostna
         verify_mode = ssl.CERT_REQUIRED
         check_hostname = True
 
-        def wrap_socket(self, raw_socket: RawSocket, *, server_hostname: str) -> RawSocket:
-            events.append(("tls", server_hostname))
+        def wrap_socket(
+            self,
+            raw_socket: RawSocket,
+            *,
+            server_hostname: str,
+            suppress_ragged_eofs: bool,
+        ) -> RawSocket:
+            events.append(("tls", server_hostname, suppress_ragged_eofs))
             clock.advance(2.0)
             return raw_socket
 
@@ -256,23 +367,81 @@ def test_pinned_connection_uses_address_without_dns_and_tls_uses_original_hostna
     connection.connect()
 
     assert ("connect", "8.8.8.8", 443) in events
-    assert ("tls", "official.example") in events
+    assert ("tls", "official.example", False) in events
     assert ("timeout", 7.0) in events
     assert ("timeout", 5.0) in events
 
 
+def test_transport_falls_back_from_ipv6_to_ipv4_under_one_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+    ipv6 = "2001:4860:4860::8888"
+    ipv4 = "8.8.8.8"
+    factory = AddressAttemptFactory(
+        ScriptedResponse(b"{}"),
+        failing_addresses=frozenset({ipv6}),
+        on_failed_connect=lambda: clock.advance(2.0),
+    )
+    monkeypatch.setattr(live_transport.time, "monotonic", clock)
+    monkeypatch.setattr(live_transport, "_PinnedHTTPSConnection", factory)
+
+    result = _request(
+        PinnedHTTPSFetchTransport(),
+        addresses=(ipv4, ipv6),
+        timeout_seconds=10.0,
+    )
+
+    assert result.body == b"{}"
+    assert [instance.address for instance in factory.instances] == [ipv6, ipv4]
+    assert factory.timeouts == [10.0, 8.0]
+    assert factory.deadlines[0] is factory.deadlines[1]
+    assert all(instance.closed for instance in factory.instances)
+    assert factory.instances[0].requests == []
+    assert len(factory.instances[1].requests) == 1
+
+
+def test_transport_reports_exhausted_addresses_without_resetting_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+    addresses = ("8.8.8.8", "2001:4860:4860::8888")
+    factory = AddressAttemptFactory(
+        ScriptedResponse(b"{}"),
+        failing_addresses=frozenset(addresses),
+        on_failed_connect=lambda: clock.advance(1.0),
+    )
+    monkeypatch.setattr(live_transport.time, "monotonic", clock)
+    monkeypatch.setattr(live_transport, "_PinnedHTTPSConnection", factory)
+
+    with pytest.raises(SafeFetchError) as raised:
+        _request(
+            PinnedHTTPSFetchTransport(),
+            addresses=addresses,
+            timeout_seconds=5.0,
+        )
+
+    assert raised.value.code == "FETCH_NETWORK_FAILURE"
+    assert [instance.address for instance in factory.instances] == [addresses[1], addresses[0]]
+    assert factory.timeouts == [5.0, 4.0]
+    assert factory.deadlines[0] is factory.deadlines[1]
+    assert all(instance.closed for instance in factory.instances)
+
+
 def test_transport_returns_redirect_without_following_it(monkeypatch: pytest.MonkeyPatch) -> None:
     response = ScriptedResponse(
-        b"",
+        b"redirect-body-is-not-part-of-the-source-artifact",
         status=302,
         headers=[("location", "https://redirected.example/secret")],
     )
     connection = _install_connection(monkeypatch, response)
 
-    result = _request(PinnedHTTPSFetchTransport())
+    result = _request(PinnedHTTPSFetchTransport(), max_bytes=4)
 
     assert result.status_code == 302
     assert result.url == URL
+    assert result.body == b""
+    assert response.read_sizes == []
     assert connection.requests == [("GET", "/results.json", REQUEST_HEADERS)]
 
 
@@ -289,6 +458,34 @@ def test_oversized_body_is_stopped_during_bounded_stream_read(
     assert response.read_sizes == [5]
     assert response.closed is True
     assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    "raw_response",
+    [
+        b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n{}",
+        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}",
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\n{}\r\n0\r\n\r\n",
+    ],
+    ids=["connection-close", "exact-content-length", "complete-chunked"],
+)
+def test_body_reader_accepts_complete_http_framing(raw_response: bytes) -> None:
+    assert _read_framed_response(raw_response) == b"{}"
+
+
+@pytest.mark.parametrize(
+    "raw_response",
+    [
+        b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n{}",
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n{}",
+    ],
+    ids=["truncated-content-length", "incomplete-chunked"],
+)
+def test_body_reader_rejects_incomplete_http_framing(raw_response: bytes) -> None:
+    with pytest.raises(SafeFetchError) as raised:
+        _read_framed_response(raw_response)
+
+    assert raised.value.code == "FETCH_PROTOCOL_FAILURE"
 
 
 def test_cumulative_slow_body_progress_cannot_extend_total_deadline(
@@ -349,6 +546,32 @@ def test_transport_rejects_every_non_global_address_before_connect(
     assert raised.value.code == "FETCH_PRIVATE_NETWORK_FORBIDDEN"
 
 
+@pytest.mark.parametrize(
+    "address",
+    [
+        "224.0.0.1",
+        "ff0e::1",
+        "64:ff9b::7f00:1",
+        "::ffff:8.8.8.8",
+    ],
+    ids=["ipv4-multicast", "ipv6-multicast", "ipv6-translation", "ipv4-mapped"],
+)
+def test_transport_revalidation_rejects_non_unicast_global_classifications(
+    monkeypatch: pytest.MonkeyPatch,
+    address: str,
+) -> None:
+    monkeypatch.setattr(
+        live_transport,
+        "_PinnedHTTPSConnection",
+        lambda *_args, **_kwargs: pytest.fail("non-unicast address reached connect"),
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        _request(PinnedHTTPSFetchTransport(), addresses=(address,))
+
+    assert raised.value.code == "FETCH_PRIVATE_NETWORK_FORBIDDEN"
+
+
 def test_tls_hostname_mismatch_is_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
     class MismatchedTLSConnection:
         def __init__(self) -> None:
@@ -400,6 +623,11 @@ def test_live_transport_requires_capability_and_contained_runtime_performs_no_ne
         live_transport.socket,
         "socket",
         lambda *_args, **_kwargs: pytest.fail("contained runtime opened a socket"),
+    )
+    monkeypatch.setattr(
+        safe_fetch.time,
+        "monotonic",
+        lambda: pytest.fail("contained runtime started a network deadline"),
     )
     dependencies = contained_runtime_dependencies(Settings(_env_file=None))
     assert dependencies.capabilities == frozenset()

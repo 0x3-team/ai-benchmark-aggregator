@@ -5,11 +5,11 @@ import pytest
 
 from app.db.models import SourceSnapshot
 from app.ingestion.adapters import lmsys_arena_api as lmsys_arena_module
-from app.ingestion.adapters.hf_datasets_server import HFDatasetsServerAdapter
-from app.ingestion.adapters.lmsys_arena_api import LMSYSArenaAPIAdapter
 from app.ingestion.adapters.artificial_analysis_api import ArtificialAnalysisAPIAdapter
-from app.ingestion.adapters.swe_bench_adapter import SWEBenchAdapter
+from app.ingestion.adapters.hf_datasets_server import HFDatasetsServerAdapter
 from app.ingestion.adapters.livecodebench_adapter import LiveCodeBenchAdapter
+from app.ingestion.adapters.lmsys_arena_api import LMSYSArenaAPIAdapter
+from app.ingestion.adapters.swe_bench_adapter import SWEBenchAdapter
 from app.schemas.boundary import OfficialSource
 
 SNAP = SourceSnapshot(
@@ -218,6 +218,54 @@ def test_swe_bench_adapter_prepares_the_direct_json_artifact_shape():
     assert claims[0].evidence_location == {
         "type": "json_path_v1",
         "record_path": "$[0].results[0]",
+        "fields": {"model_raw": "name", "score_raw": "resolved"},
+    }
+    assert SWEBenchAdapter().validate_claim(claims[0], raw)[0].outcome == "pass"
+
+
+def test_swe_bench_adapter_prepares_the_full_file_object_root():
+    raw = b"""{
+        "leaderboards": [
+            {"name": "Test", "results": [{"name": "Other", "resolved": 1.0}]},
+            {
+                "name": "Verified",
+                "results": [
+                    {
+                        "name": "Agent System + Model",
+                        "resolved": 79.2000,
+                        "folder": "immutable-source-label"
+                    }
+                ]
+            }
+        ]
+    }"""
+    source = OfficialSource(
+        id="swe-full-json-test",
+        source_name="swe-full-json-test",
+        source_url="https://example.com/leaderboards.json",
+        source_type="static_json",
+        officialness_level="O4",
+        benchmark_id="swe_bench_verified",
+        parser_config={
+            "artifact_format": "direct_json",
+            "category": "Verified",
+            "leaderboards_path": "$.leaderboards",
+            "category_name_field": "name",
+            "results_field": "results",
+            "model_field": "name",
+            "score_field": "resolved",
+            "metric_raw": "% Resolved",
+        },
+    )
+
+    claims = SWEBenchAdapter().extract_claims(source, SNAP, raw)
+
+    assert len(claims) == 1
+    assert claims[0].model_raw == "Agent System + Model"
+    assert claims[0].score_raw == "79.2000"
+    assert claims[0].evidence_location == {
+        "type": "json_path_v1",
+        "record_path": "$.leaderboards[1].results[0]",
         "fields": {"model_raw": "name", "score_raw": "resolved"},
     }
     assert SWEBenchAdapter().validate_claim(claims[0], raw)[0].outcome == "pass"
