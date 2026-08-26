@@ -187,15 +187,13 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
                             }
                           />
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => onOpenModel(m.id)}
-                            className="relative flex h-full w-full items-center justify-center px-1 py-1 text-[12.5px] font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
-                            style={
+                          <span
+                            className={cn(
+                              "relative flex h-full w-full items-center justify-center px-1 py-1 text-[12.5px] font-semibold",
                               v == null
-                                ? { color: "rgba(255,255,255,0.32)" }
-                                : { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.65)" }
-                            }
+                                ? "text-muted-foreground/50"
+                                : "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]"
+                            )}
                             aria-label={
                               v == null
                                 ? `${m.name} · ${b.name}: no data`
@@ -203,7 +201,7 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
                             }
                           >
                             {fmt(v, b.scaleMax)}
-                          </button>
+                          </span>
                         )}
                       </td>
                     );

@@ -5,8 +5,10 @@ from __future__ import annotations
 from copy import deepcopy
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator, FormatChecker
 from sqlalchemy import func, select
 from typer.testing import CliRunner
 
@@ -20,6 +22,12 @@ from app.export.official_json import (
     official_feed_digest,
     project_official_feed,
     validate_official_feed,
+)
+from app.export.official_release import (
+    OfficialReleaseBuildError,
+    build_official_release_artifact,
+    canonical_official_release_artifact_json,
+    official_release_artifact_digest,
 )
 from app.ingestion.admission import ADMISSION_POLICY_SCHEMA
 from app.reporting.legacy_inventory import (
@@ -78,7 +86,11 @@ def _policy(
         "evidence_contracts": {
             "json_path_v1": {
                 "record_path_template": "$.records[{row_index}]",
-                "fields": {"model_raw": "model", "score_raw": "score"},
+                "fields": {
+                    "model_raw": "model",
+                    "benchmark_raw": "benchmark",
+                    "score_raw": "score",
+                },
             }
         },
         "dimensions": {
@@ -117,6 +129,7 @@ def _certified_source(
     session,
     *,
     source_id: str,
+    source_url: str | None = None,
     metric: str | None = "accuracy",
     split: str | None = "test",
     setting: str | None = "default",
@@ -124,7 +137,9 @@ def _certified_source(
     score_unit: str | None = "percent",
     policy_valid: bool = True,
 ) -> tuple[models.OfficialSourceRow, models.OfficialSourceRevision, models.SourceRevisionDecision]:  # type: ignore[no-untyped-def]
-    reconciled = repo.reconcile_official_source(session, _source_data(source_id))
+    reconciled = repo.reconcile_official_source(
+        session, _source_data(source_id, source_url=source_url)
+    )
     initial = session.scalar(
         select(models.SourceRevisionDecision).where(
             models.SourceRevisionDecision.source_revision_id == reconciled.revision.id
@@ -187,6 +202,7 @@ def _candidate_claim(
     evaluation_version: str | None = "v1",
     score_numeric: float | None = 91.25,
     score_raw: str = "91.2500",
+    date_raw: str = "2026-08-26T10:00:00.000Z",
     validation_outcomes: tuple[str, ...] = ("pass",),
     review_outcome: str = "validation_reviewed",
     publication_outcome: str = "approved",
@@ -223,6 +239,7 @@ def _candidate_claim(
         model_raw=f"Raw {suffix}",
         benchmark_raw="Candidate feed fixture benchmark",
         score_raw=score_raw,
+        date_raw=date_raw,
         metric_raw=metric,
         split_raw=split,
         setting_raw=setting,
@@ -234,7 +251,11 @@ def _candidate_claim(
         or {
             "type": "json_path_v1",
             "record_path": "$.records[0]",
-            "fields": {"model_raw": "model", "score_raw": "score"},
+            "fields": {
+                "model_raw": "model",
+                "benchmark_raw": "benchmark",
+                "score_raw": "score",
+            },
         },
         capture_method=capture_method,
         capture_confidence=1.0,
@@ -339,7 +360,11 @@ def test_candidate_projection_is_deterministic_complete_and_read_only(seeded_db)
                 "evidenceLocation": {
                     "type": "json_path_v1",
                     "record_path": "$.records[0]",
-                    "fields": {"model_raw": "model", "score_raw": "score"},
+                    "fields": {
+                        "model_raw": "model",
+                        "benchmark_raw": "benchmark",
+                        "score_raw": "score",
+                    },
                 },
                 "provenance": first["scores"][0]["provenance"],
             }
@@ -349,6 +374,24 @@ def test_candidate_projection_is_deterministic_complete_and_read_only(seeded_db)
         assert first["scores"][0]["provenance"]["sourceRevisionDecisionId"] == certified.id
         assert first["sourceManifest"][0]["snapshotContentSha256"]
         assert validate_official_feed(first) == first
+
+
+def test_candidate_v1_unicode_canonical_bytes_and_digest_remain_frozen():
+    payload = {
+        "schemaVersion": "1.0.0",
+        "manifest": {"contentSha256": "0" * 64},
+        "label": "Mödel",
+        "value": 90.0,
+    }
+
+    assert canonical_official_feed_json(payload) == (
+        '{"label":"M\\u00f6del","manifest":{"contentSha256":'
+        '"0000000000000000000000000000000000000000000000000000000000000000"},'
+        '"schemaVersion":"1.0.0","value":90.0}'
+    )
+    assert official_feed_digest(payload) == (
+        "e2482c23cd327b452c2773249e99896fdf86333055b652e2e05584943191d307"
+    )
 
 
 def test_projection_uses_capture_time_revision_after_catalog_advances(seeded_db):
@@ -448,7 +491,11 @@ def test_projection_fails_with_a_sorted_conflict_report_not_a_partial_feed(seede
                 "evidence_location": {
                     "type": "json_path_v1",
                     "record_path": "$.other[0]",
-                    "fields": {"model_raw": "model", "score_raw": "score"},
+                    "fields": {
+                        "model_raw": "model",
+                        "benchmark_raw": "benchmark",
+                        "score_raw": "score",
+                    },
                 }
             },
             "EVIDENCE_LOCATION_CONTRACT_MISMATCH",
@@ -606,6 +653,283 @@ def test_feed_validator_rejects_duplicate_cells_and_digest_tampering(seeded_db):
         contradictory["manifest"]["contentSha256"] = official_feed_digest(contradictory)
         with pytest.raises(FeedProjectionError, match="both select and exclude"):
             validate_official_feed(contradictory)
+
+
+def _release_inputs(
+    session,
+    candidate: dict[str, object],
+    claims_by_id: dict[str, models.ResultClaim],
+) -> dict[str, object]:
+    model = candidate["models"][0]  # type: ignore[index]
+    benchmark = candidate["benchmarks"][0]  # type: ignore[index]
+    review_ids = {
+        score["provenance"]["claimReviewDecisionId"]  # type: ignore[index]
+        for score in candidate["scores"]  # type: ignore[union-attr]
+    }
+    publication_ids = {
+        score["provenance"]["claimPublicationDecisionId"]  # type: ignore[index]
+        for score in candidate["scores"]  # type: ignore[union-attr]
+    }
+    return {
+        "artifact_id": "official-release-fixture-001",
+        "release_approval": {
+            "decisionId": "release-approval-fixture-001",
+            "policyVersion": "official-release-artifact-v2",
+            "approvedAt": "2026-08-26T12:00:00.000Z",
+        },
+        "models": [
+            {
+                "id": model["id"],  # type: ignore[index]
+                "name": model["displayName"],  # type: ignore[index]
+                "vendor": model["provider"],  # type: ignore[index]
+                "family": model["modelFamily"],  # type: ignore[index]
+                "releaseDate": "2026-01-01",
+                "contextWindowK": 128,
+                "paramsB": None,
+                "modalities": ["text"],
+                "openWeights": False,
+                "priceInPer1M": None,
+                "priceOutPer1M": None,
+            }
+        ],
+        "benchmarks": [
+            {
+                "id": benchmark["id"],  # type: ignore[index]
+                "name": benchmark["displayName"],  # type: ignore[index]
+                "fullName": benchmark["canonicalName"],  # type: ignore[index]
+                "category": "other",
+                "higherIsBetter": True,
+                "scaleMax": 100,
+                "description": "Fixture public benchmark description.",
+                "methodology": "Fixture public benchmark methodology.",
+                "sourceUrl": "https://official.example/fixture-benchmark",
+            }
+        ],
+        "claims_by_id": claims_by_id,
+        "review_decisions_by_id": {
+            decision_id: session.get(models.ClaimReviewDecision, decision_id)
+            for decision_id in review_ids
+        },
+        "publication_decisions_by_id": {
+            decision_id: session.get(models.ClaimPublicationDecision, decision_id)
+            for decision_id in publication_ids
+        },
+    }
+
+
+def test_release_builder_accepts_valid_rfc3339_and_is_deterministic_read_only(seeded_db):
+    with get_session() as session:
+        source, revision, certified = _certified_source(session, source_id="release-builder")
+        claim = _candidate_claim(
+            session,
+            suffix="happy",
+            source=source,
+            revision=revision,
+            certified=certified,
+        )
+        before = _counts(session)
+        candidate = project_official_feed(session)
+        inputs = _release_inputs(session, candidate, {claim.id: claim})
+
+        first = build_official_release_artifact(candidate, **inputs)
+        second = build_official_release_artifact(candidate, **inputs)
+
+        assert _counts(session) == before
+        assert canonical_official_release_artifact_json(first) == canonical_official_release_artifact_json(
+            second
+        )
+        assert first["manifest"]["contentSha256"] == official_release_artifact_digest(first)
+        assert first["availability"] == "published"
+        assert "authorization" not in first
+        assert first["scores"][0]["claimId"] == claim.id
+        assert first["scores"][0]["scoreRaw"] == claim.score_raw
+        assert first["scores"][0]["reportedAt"] == claim.date_raw
+        assert first["scores"][0]["evidence"] == {
+            "type": "json_pointer",
+            "locator": "/records/0",
+            "modelLocator": "/records/0/model",
+            "benchmarkLocator": "/records/0/benchmark",
+            "scoreLocator": "/records/0/score",
+        }
+        assert first["sourceManifest"][0]["snapshotCapturedAt"].endswith("Z")
+        assert first["scores"][0]["provenance"]["snapshotCapturedAt"] == first[
+            "sourceManifest"
+        ][0]["snapshotCapturedAt"]
+        for key, value in candidate["scores"][0]["provenance"].items():
+            if key != "snapshotCapturedAt":
+                assert first["scores"][0]["provenance"][key] == value
+
+        schema_path = (
+            Path(__file__).resolve().parents[2]
+            / "docs"
+            / "contracts"
+            / "official-release-artifact-v2.schema.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        Draft202012Validator(schema, format_checker=FormatChecker()).validate(first)
+
+
+def test_release_builder_rejects_unowned_overrides_and_two_variants_for_one_ui_cell(seeded_db):
+    with get_session() as session:
+        source, revision, certified = _certified_source(
+            session, source_id="release-builder-variants"
+        )
+        first_claim = _candidate_claim(
+            session,
+            suffix="release-accuracy",
+            source=source,
+            revision=revision,
+            certified=certified,
+        )
+        candidate = project_official_feed(session)
+        inputs = _release_inputs(session, candidate, {first_claim.id: first_claim})
+
+        mismatched = {**inputs, "models": deepcopy(inputs["models"])}
+        mismatched["models"][0]["name"] = "Substituted model"  # type: ignore[index]
+        with pytest.raises(OfficialReleaseBuildError, match="must match the eligible feed"):
+            build_official_release_artifact(candidate, **mismatched)
+
+        missing_review = {**inputs, "review_decisions_by_id": {}}
+        with pytest.raises(OfficialReleaseBuildError, match="exactly every eligible provenance"):
+            build_official_release_artifact(candidate, **missing_review)
+
+        missing_publication = {**inputs, "publication_decisions_by_id": {}}
+        with pytest.raises(OfficialReleaseBuildError, match="exactly every eligible provenance"):
+            build_official_release_artifact(candidate, **missing_publication)
+
+        source_two, revision_two, certified_two = _certified_source(
+            session, source_id="release-builder-variants-f1", metric="f1"
+        )
+        second_claim = _candidate_claim(
+            session,
+            suffix="release-f1",
+            source=source_two,
+            revision=revision_two,
+            certified=certified_two,
+            metric="f1",
+        )
+        variants = project_official_feed(session)
+        variant_inputs = _release_inputs(
+            session,
+            variants,
+            {first_claim.id: first_claim, second_claim.id: second_claim},
+        )
+        with pytest.raises(OfficialReleaseBuildError, match="only one score"):
+            build_official_release_artifact(variants, **variant_inputs)
+
+
+def test_release_builder_rejects_date_only_raw_reported_at_without_coercion(seeded_db):
+    with get_session() as session:
+        source, revision, certified = _certified_source(
+            session, source_id="release-builder-date-only"
+        )
+        claim = _candidate_claim(
+            session,
+            suffix="release-date-only",
+            source=source,
+            revision=revision,
+            certified=certified,
+            date_raw="2026-08-26",
+        )
+        candidate = project_official_feed(session)
+
+        with pytest.raises(
+            OfficialReleaseBuildError,
+            match=r"\$\.scores\[0\]\.reportedAt \(format\)",
+        ):
+            build_official_release_artifact(
+                candidate, **_release_inputs(session, candidate, {claim.id: claim})
+            )
+        assert claim.date_raw == "2026-08-26"
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value", "expected_path"),
+    [
+        ("models", "contextWindowK", None, r"\$\.models\[0\]\.contextWindowK \(type\)"),
+        ("models", "openWeights", None, r"\$\.models\[0\]\.openWeights \(type\)"),
+        ("models", "paramsB", "unknown", r"\$\.models\[0\]\.paramsB \(type\)"),
+        ("benchmarks", "category", "unknown", r"\$\.benchmarks\[0\]\.category \(enum\)"),
+        (
+            "benchmarks",
+            "higherIsBetter",
+            "yes",
+            r"\$\.benchmarks\[0\]\.higherIsBetter \(type\)",
+        ),
+    ],
+)
+def test_release_builder_rejects_v2_model_and_benchmark_schema_drift(
+    seeded_db, section: str, field: str, value: object, expected_path: str
+):
+    with get_session() as session:
+        source, revision, certified = _certified_source(
+            session, source_id=f"release-schema-{section}-{field}"
+        )
+        claim = _candidate_claim(
+            session,
+            suffix=f"release-schema-{section}-{field}",
+            source=source,
+            revision=revision,
+            certified=certified,
+        )
+        candidate = project_official_feed(session)
+        inputs = _release_inputs(session, candidate, {claim.id: claim})
+        inputs = {**inputs, section: deepcopy(inputs[section])}
+        inputs[section][0][field] = value  # type: ignore[index]
+
+        with pytest.raises(OfficialReleaseBuildError, match=expected_path):
+            build_official_release_artifact(candidate, **inputs)
+
+
+@pytest.mark.parametrize(
+    "unsafe_url",
+    [
+        "http://official.example/fixture-benchmark",
+        "https://official.example/fixture-benchmark?token=secret",
+        "https://user:password@official.example/fixture-benchmark",
+    ],
+)
+def test_release_builder_rejects_unsafe_public_benchmark_urls(seeded_db, unsafe_url: str):
+    with get_session() as session:
+        source, revision, certified = _certified_source(
+            session, source_id="release-builder-unsafe-url"
+        )
+        claim = _candidate_claim(
+            session,
+            suffix="release-unsafe-url",
+            source=source,
+            revision=revision,
+            certified=certified,
+        )
+        candidate = project_official_feed(session)
+        inputs = _release_inputs(session, candidate, {claim.id: claim})
+        inputs = {**inputs, "benchmarks": deepcopy(inputs["benchmarks"])}
+        inputs["benchmarks"][0]["sourceUrl"] = unsafe_url  # type: ignore[index]
+
+        with pytest.raises(OfficialReleaseBuildError, match="canonical HTTPS URL"):
+            build_official_release_artifact(candidate, **inputs)
+
+
+def test_release_builder_rejects_unsafe_source_manifest_url(seeded_db):
+    with get_session() as session:
+        source, revision, certified = _certified_source(
+            session,
+            source_id="release-builder-unsafe-source-url",
+            source_url="https://official.example/results?token=secret",
+        )
+        claim = _candidate_claim(
+            session,
+            suffix="release-unsafe-source-url",
+            source=source,
+            revision=revision,
+            certified=certified,
+        )
+        candidate = project_official_feed(session)
+
+        with pytest.raises(OfficialReleaseBuildError, match="canonical HTTPS URL"):
+            build_official_release_artifact(
+                candidate, **_release_inputs(session, candidate, {claim.id: claim})
+            )
 
 
 def test_legacy_inventory_accounts_for_every_claim_and_orphan_snapshot_without_writing(seeded_db):

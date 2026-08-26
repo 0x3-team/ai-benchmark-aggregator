@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer select-none",
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors select-none",
   {
     variants: {
       variant: {
@@ -25,17 +25,30 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof badgeVariants> {}
+  extends React.HTMLAttributes<HTMLElement>,
+    VariantProps<typeof badgeVariants> {
+  /** Render a keyboard-operable button only for genuinely interactive badges. */
+  interactive?: boolean
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <button
-      type="button"
-      className={cn(badgeVariants({ variant }), className)}
-      {...props}
-    />
+function Badge({ className, variant, interactive = false, ...props }: BadgeProps) {
+  const classes = cn(
+    badgeVariants({ variant }),
+    interactive && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+    className
   )
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        className={classes}
+        {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      />
+    )
+  }
+
+  return <span className={classes} {...props} />
 }
 
 export { Badge, badgeVariants }

@@ -2,21 +2,21 @@
 # These owners will be automatically requested for review on PRs matching the patterns.
 
 # Global owners
-* @0x3-team/core
+* @Masih-0x3
 
 # Ledger (Python CLI)
-/ledger/ @0x3-team/ledger
+/ledger/ @Masih-0x3
 
 # Frontend (React SPA)
-/src/ @0x3-team/frontend
-/package.json @0x3-team/frontend
-/vite.config.ts @0x3-team/frontend
-/tsconfig.json @0x3-team/frontend
+/src/ @Masih-0x3
+/package.json @Masih-0x3
+/vite.config.ts @Masih-0x3
+/tsconfig.json @Masih-0x3
 
 # CI/CD
-/.github/ @0x3-team/core
+/.github/ @Masih-0x3
 
 # Documentation
-/docs/ @0x3-team/core
-/README.md @0x3-team/core
-/AGENTS.md @0x3-team/core
+/docs/ @Masih-0x3
+/README.md @Masih-0x3
+/AGENTS.md @Masih-0x3

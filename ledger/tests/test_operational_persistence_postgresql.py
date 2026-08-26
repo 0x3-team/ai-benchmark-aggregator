@@ -33,6 +33,7 @@ from app.db.operational_repositories import (
 from app.db.postgresql import render_least_privilege_role_sql
 from app.schemas.coverage_contracts import contract_self_digest as coverage_digest
 from app.schemas.operations_contracts import contract_self_digest, derive_attempt_id
+from postgresql_test_support import skip_or_fail
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -55,7 +56,7 @@ ROLES = {
 def _target_url() -> str:
     database_url = os.environ.get(TARGET_ENV)
     if not database_url:
-        pytest.skip(f"real PostgreSQL proof requires {TARGET_ENV}")
+        skip_or_fail(f"real PostgreSQL proof requires {TARGET_ENV}")
     if os.environ.get(RESET_ENV) != "1":
         pytest.fail(f"{RESET_ENV}=1 is required for destructive disposable-target tests")
     url = make_url(database_url)

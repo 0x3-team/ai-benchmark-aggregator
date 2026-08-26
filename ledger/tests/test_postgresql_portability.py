@@ -26,6 +26,7 @@ from app.db.migrate import (
     upgrade_postgresql_database,
 )
 from app.db.postgresql import POSTGRESQL_MIGRATION_LOCK_KEY, render_least_privilege_role_sql
+from postgresql_test_support import skip_or_fail
 
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -51,7 +52,7 @@ def _config(database_url: str, *, output_buffer: StringIO | None = None) -> Conf
 def _target_url() -> str:
     database_url = os.environ.get(_TARGET_ENV)
     if not database_url:
-        pytest.skip(
+        skip_or_fail(
             f"real PostgreSQL proof not emitted: {_TARGET_ENV} is unset; "
             "offline DDL and SQLite are not PostgreSQL substitutes"
         )
@@ -239,7 +240,10 @@ def test_offline_postgresql_ddl_compiles_without_claiming_real_target_proof():
     ddl = output.getvalue()
     assert "0009_postgresql_guardrails" in ddl
     assert "0010_operational_persistence" in ddl
+    assert "0011_ingestion_run_hardening" in ddl
     assert "ledger_validate_result_claim_admission" in ddl
+    assert "ledger_validate_ingestion_run_finalization" in ddl
+    assert "trg_ingestion_runs_finalize_once" in ddl
     assert "ledger_validate_operational_completion" in ddl
     assert "ledger_validate_job_lease_projection" in ddl
     assert "trg_scheduled_cycles_terminal_insert" in ddl
@@ -247,7 +251,11 @@ def test_offline_postgresql_ddl_compiles_without_claiming_real_target_proof():
     assert "DEFERRABLE INITIALLY DEFERRED" in ddl
     assert "TYPE JSONB" in ddl
     assert "TYPE TIMESTAMPTZ" in ddl
-    assert "sqlite" not in ddl.lower()
+    # 0012 is intentionally a PostgreSQL no-op: its revision must advance the
+    # offline version chain, but its SQLite-only guard (RAISE(ABORT, ...)) must
+    # not leak any real SQL into the offline PostgreSQL DDL.
+    assert "0012_sqlite_ingestion_run_hardening" in ddl
+    assert "RAISE(ABORT" not in ddl
 
 
 def test_offline_migration_rejects_unsupported_dialect_before_emitting_ddl():
@@ -289,6 +297,16 @@ def test_postgresql_url_redaction_and_role_contract_are_secret_free_and_split():
         "GRANT UPDATE ON public.scheduled_job_leases TO benchmark_ledger_ingestion;"
         in sql
     )
+    assert (
+        "GRANT UPDATE ON public.ingestion_runs TO benchmark_ledger_ingestion;"
+        not in sql
+    )
+    assert (
+        "GRANT UPDATE (finished_at, status, sources_checked, snapshots_created, "
+        "snapshots_reused, claims_extracted, claims_inserted, claims_unchanged, "
+        "claims_needing_review, error_message, metadata) ON public.ingestion_runs "
+        "TO benchmark_ledger_ingestion;"
+    ) in sql
     artifact_grant = next(
         line
         for line in sql.splitlines()
@@ -1076,6 +1094,41 @@ def test_real_postgresql_wrong_search_path_and_role_bypasses_fail_closed():
                 )
                 """
             )
+            connection.exec_driver_sql(
+                """
+                UPDATE ingestion_runs
+                SET status = 'completed',
+                    finished_at = now(),
+                    sources_checked = 1,
+                    snapshots_created = 1,
+                    snapshots_reused = 0,
+                    claims_extracted = 1,
+                    claims_inserted = 1,
+                    claims_unchanged = 0,
+                    claims_needing_review = 0,
+                    error_message = NULL,
+                    metadata = '{"role_finalized": true}'::jsonb
+                WHERE id = 'role-run-positive'
+                """
+            )
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            connection.exec_driver_sql(f"SET LOCAL ROLE {_TEST_ROLES['ingestion']}")
+            with pytest.raises(DBAPIError, match="identity/history"):
+                connection.exec_driver_sql(
+                    "UPDATE ingestion_runs SET metadata = '{}'::jsonb "
+                    "WHERE id = 'role-run-positive'"
+                )
+            transaction.rollback()
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            connection.exec_driver_sql(f"SET LOCAL ROLE {_TEST_ROLES['ingestion']}")
+            with pytest.raises(DBAPIError, match="permission denied"):
+                connection.exec_driver_sql(
+                    "UPDATE ingestion_runs SET run_type = 'rewritten' "
+                    "WHERE id = 'role-run-positive'"
+                )
+            transaction.rollback()
         with engine.begin() as connection:
             connection.exec_driver_sql(f"SET LOCAL ROLE {_TEST_ROLES['governance']}")
             connection.exec_driver_sql(
@@ -1105,6 +1158,20 @@ def test_real_postgresql_wrong_search_path_and_role_bypasses_fail_closed():
                 text(
                     "SELECT has_column_privilege(:role, "
                     "'public.scheduled_job_intents', 'lane', 'UPDATE')"
+                ),
+                {"role": _TEST_ROLES["ingestion"]},
+            ).scalar_one()
+            assert connection.execute(
+                text(
+                    "SELECT has_column_privilege(:role, "
+                    "'public.ingestion_runs', 'metadata', 'UPDATE')"
+                ),
+                {"role": _TEST_ROLES["ingestion"]},
+            ).scalar_one()
+            assert not connection.execute(
+                text(
+                    "SELECT has_column_privilege(:role, "
+                    "'public.ingestion_runs', 'run_type', 'UPDATE')"
                 ),
                 {"role": _TEST_ROLES["ingestion"]},
             ).scalar_one()

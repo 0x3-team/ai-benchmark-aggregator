@@ -16,9 +16,11 @@ that production access posture was recovered.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import re
+import select
 import signal
 import stat
 import subprocess
@@ -109,6 +111,28 @@ _DEFAULT_COMMAND_TIMEOUT_SECONDS = 600.0
 _MAX_COMMAND_TIMEOUT_SECONDS = 3600.0
 _PROCESS_STOP_GRACE_SECONDS = 2.0
 _POLL_SECONDS = 0.1
+
+# ---- F9: bound all PostgreSQL recovery materialization (CWE-400) -----------
+# PostgreSQL custom-archive bytes, pg-tool stdout, TOC entries, and the live
+# database-size probe all fail closed above these conservative documented caps.
+# RelationalBackupArtifact.raw_bytes is intentionally preserved (its owner
+# contract is unchanged); this finding bounds how those bytes reach the driver,
+# the tool output buffered in-process, and the TOC/DB-size denominators.
+_ARCHIVE_BYTES_CAP = 1 * 1024 * 1024 * 1024  # 1 GiB relational archive max
+_ARCHIVE_READ_CHUNK = 64 * 1024  # 64 KiB fixed positive read request size
+# Per-invocation stdout budgets: tool version lines, pg_restore --list (TOC),
+# pg_dump --schema-only output, and commands that emit no stdout by design.
+_TOOL_VERSION_OUTPUT_BUDGET = 16 * 1024  # 16 KiB
+_ARCHIVE_TOC_OUTPUT_BUDGET = 4 * 1024 * 1024  # 4 MiB before TOC entry filtering
+_SCHEMA_ONLY_OUTPUT_BUDGET = 64 * 1024 * 1024  # 64 MiB schema-only digest dump
+_ZERO_OUTPUT_BUDGET = 0  # true zero: any stdout byte is an overflow
+# TOC entry/line bound before list filtering or any write.
+_TOC_ENTRY_BOUND = 4096
+# PostgreSQL database size budget enforced at the source before pg_dump and at
+# inspection/restore targets before expensive inspection/materialization.
+_MAX_DATABASE_SIZE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB source + target cap
+# Output chunk drained read request (positive, bounded, reused across budgets).
+_OUTPUT_READ_CHUNK = 64 * 1024
 
 _ALLOWED_QUERY_OPTIONS = frozenset(
     {
@@ -509,6 +533,7 @@ def _run_pg_tool(
     environment: Mapping[str, str],
     phase: str,
     timeout_seconds: float,
+    output_budget: int,
     cancel_requested: Callable[[], bool] | None = None,
     target_created: bool = False,
     cwd: Path | None = None,
@@ -518,6 +543,14 @@ def _run_pg_tool(
         or not 0 < float(timeout_seconds) <= _MAX_COMMAND_TIMEOUT_SECONDS
     ):
         raise RecoveryTargetError("PostgreSQL tool timeout is outside the bounded range.")
+    if (
+        type(output_budget) is not int
+        or type(output_budget) is bool
+        or output_budget < 0
+    ):
+        raise RecoveryTargetError(
+            "PostgreSQL tool output budget must be a non-negative int."
+        )
     if not argv or argv[0] not in {str(PG_DUMP_PATH), str(PG_RESTORE_PATH)}:
         raise RecoveryTargetError("PostgreSQL tool invocation is not on the fixed allowlist.")
     if set(environment) & {"PGOPTIONS", "PGSERVICE", "PGSERVICEFILE", "PGPASSFILE"}:
@@ -550,8 +583,20 @@ def _run_pg_tool(
             relational_target_created=target_created,
         ) from None
     deadline = time.monotonic() + float(timeout_seconds)
+    # F9: accumulate tool stdout with explicit per-invocation output budgets via
+    # fixed positive descriptor reads.  ``process.communicate`` is never used
+    # (it buffers unbounded bytes).  A zero output budget rejects the very first
+    # byte; any overflow terminates ONLY this child process group and raises one
+    # stable typed partial failure without retaining stdout/stderr/DSN detail.
+    # The drain continues through EOF even after the child exits so the final
+    # stdout is neither lost nor able to bypass the cap, and any read error after
+    # partial output fails closed.
+    chunks: list[bytes] = []
+    total = 0
+    zero_budget = output_budget == 0
+    reached_eof = False
     try:
-        while True:
+        while not reached_eof:
             try:
                 _cancel(
                     cancel_requested,
@@ -570,26 +615,89 @@ def _run_pg_tool(
                     relational_target_created=target_created,
                 )
             try:
-                stdout, _discarded_stderr = process.communicate(
-                    timeout=min(_POLL_SECONDS, remaining)
+                readable, _, _ = select.select(
+                    [process.stdout],
+                    [],
+                    [],
+                    min(_POLL_SECONDS, max(0.0, remaining)),
                 )
-                break
-            except subprocess.TimeoutExpired:
+            except (OSError, ValueError):
+                # A polling failure must never unboundedly spin or return a
+                # truncated success; fail closed the same stable typed way.
+                _terminate_process_group(process)
+                raise RecoveryPartialFailure(
+                    "POSTGRESQL_TOOL_RUNTIME_FAILED",
+                    phase=phase,
+                    relational_target_created=target_created,
+                ) from None
+            if not readable:
                 continue
-    except Exception as exc:
+            try:
+                # ``read1`` returns only the already-buffered bytes (never an
+                # unbounded read); select guarantees at least one is available.
+                # Each request is fixed positive and at most the remaining bytes
+                # until the budget is exhausted-plus-one, so the drain can never
+                # ask for more than the output cap allows.  In true zero-output
+                # mode the very first byte is requested alone to prove rejection.
+                if zero_budget:
+                    request_size = 1
+                else:
+                    request_size = min(
+                        _OUTPUT_READ_CHUNK, output_budget + 1 - total
+                    )
+                if request_size <= 0:
+                    raise RecoveryPartialFailure(
+                        "POSTGRESQL_TOOL_OUTPUT_BUDGET_EXCEEDED",
+                        phase=phase,
+                        relational_target_created=target_created,
+                    ) from None
+                data = process.stdout.read1(request_size)
+            except (OSError, ValueError):
+                # Any stdout read error after partial output is fail-closed:
+                # never break-and-return a truncated success.
+                _terminate_process_group(process)
+                raise RecoveryPartialFailure(
+                    "POSTGRESQL_TOOL_RUNTIME_FAILED",
+                    phase=phase,
+                    relational_target_created=target_created,
+                ) from None
+            if not data:
+                reached_eof = True
+                continue
+            if zero_budget:
+                # True zero-output emitters reject the very first byte.
+                _terminate_process_group(process)
+                raise RecoveryPartialFailure(
+                    "POSTGRESQL_TOOL_OUTPUT_BUDGET_EXCEEDED",
+                    phase=phase,
+                    relational_target_created=target_created,
+                )
+            total += len(data)
+            if total > output_budget:
+                _terminate_process_group(process)
+                raise RecoveryPartialFailure(
+                    "POSTGRESQL_TOOL_OUTPUT_BUDGET_EXCEEDED",
+                    phase=phase,
+                    relational_target_created=target_created,
+                )
+            chunks.append(data)
+    except RecoveryCancelled:
         if process.poll() is None:
             _terminate_process_group(process)
-        if isinstance(exc, (RecoveryCancelled, RecoveryPartialFailure)):
-            raise
-        raise RecoveryPartialFailure(
-            "POSTGRESQL_TOOL_RUNTIME_FAILED",
-            phase=phase,
-            relational_target_created=target_created,
-        ) from None
+        raise
+    except RecoveryPartialFailure:
+        raise
     except BaseException:
         if process.poll() is None:
             _terminate_process_group(process)
         raise
+    finally:
+        if process.poll() is None:
+            _terminate_process_group(process)
+        try:
+            process.stdout.close()
+        except OSError:
+            pass
     if process.returncode != 0:
         raise RecoveryPartialFailure(
             "POSTGRESQL_TOOL_FAILED",
@@ -597,7 +705,38 @@ def _run_pg_tool(
             relational_target_created=target_created,
         )
     _cancel(cancel_requested, phase=phase, target_created=target_created)
-    return stdout
+    return b"".join(chunks)
+
+
+def _write_archive_bytes(path: Path, artifact: RelationalBackupArtifact) -> Path:
+    """Persist artifact bytes privately and return the path for a bounded read.
+
+    The archive byte cap is enforced BEFORE the write so an over-cap archive is
+    never materialized to the temporary archive path.
+    """
+    if type(artifact.raw_bytes) is not bytes:
+        raise UnsupportedRecoveryArtifact(
+            "PostgreSQL archive bytes are not the typed bytes."
+        )
+    if len(artifact.raw_bytes) > _ARCHIVE_BYTES_CAP:
+        raise RecoveryIntegrityError(
+            "PostgreSQL archive exceeds the documented archive byte cap."
+        )
+    _private_write(path, artifact.raw_bytes)
+    return path
+
+
+def _write_archive_toc(path: Path, filtered_toc: bytes) -> None:
+    """Write the filtered, bounded TOC privately for pg_restore ``--use-list``.
+
+    The TOC was already bounded by the tool-output budget and the entry/line
+    bound before filtering; this writer refuses further oversized writes.
+    """
+    if len(filtered_toc) > _ARCHIVE_TOC_OUTPUT_BUDGET:
+        raise RecoveryIntegrityError(
+            "PostgreSQL archive TOC exceeds the documented output budget."
+        )
+    _private_write(path, filtered_toc)
 
 
 def _private_write(path: Path, raw_bytes: bytes) -> None:
@@ -616,6 +755,120 @@ def _private_write(path: Path, raw_bytes: bytes) -> None:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
+
+
+def _read_bounded_bytes(path: Path, *, cap: int, label: str) -> bytes:
+    """Read a private regular file with descriptor-pinned fixed-positive reads.
+
+    Enforces a documented byte cap with an ``fstat`` precheck plus a ``cap+1``
+    growth guard: a file that grows in place past the fstat size must still fail
+    closed after being offered at most ``cap+1`` bytes, never a full chunk over
+    the cap.  Symlink/non-regular/private-posture violations are rejected.  The
+    descriptor is closed exactly once on every path.
+    """
+
+    if type(cap) is not int or type(cap) is bool or cap <= 0:
+        raise RecoveryIntegrityError("PostgreSQL archive cap is not a positive int.")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    # No descriptor is held yet; a failed open raises a stable redacted typed
+    # failure (never a raw OSError that could carry filesystem detail).  When
+    # O_NOFOLLOW is available, an ELOOP open failure means the path is a
+    # symlink: that is an unsafe-posture rejection (RecoveryIntegrityError),
+    # distinct from every other open failure (RecoveryPartialFailure).
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        if getattr(os, "O_NOFOLLOW", 0) and getattr(exc, "errno", None) == errno.ELOOP:
+            raise RecoveryIntegrityError(
+                f"{label} file/header posture or size is invalid."
+            ) from None
+        raise RecoveryPartialFailure(
+            "POSTGRESQL_ARCHIVE_OPEN_FAILED", phase="postgresql_archive"
+        ) from None
+    try:
+        metadata = os.fstat(descriptor)
+    except OSError:
+        os.close(descriptor)
+        raise RecoveryPartialFailure(
+            "POSTGRESQL_ARCHIVE_STAT_FAILED", phase="postgresql_archive"
+        ) from None
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or stat.S_ISLNK(metadata.st_mode)
+        or metadata.st_mode & (stat.S_IRWXG | stat.S_IRWXO)
+        or metadata.st_size > cap
+    ):
+        os.close(descriptor)
+        raise RecoveryIntegrityError(f"{label} file/header posture or size is invalid.")
+    chunks: list[bytes] = []
+    total = 0
+    try:
+        while total <= cap:
+            remaining = cap + 1 - total
+            request = _ARCHIVE_READ_CHUNK if remaining > _ARCHIVE_READ_CHUNK else remaining
+            try:
+                data = os.read(descriptor, request)
+            except OSError:
+                raise RecoveryPartialFailure(
+                    "POSTGRESQL_ARCHIVE_READ_FAILED",
+                    phase="postgresql_archive",
+                ) from None
+            if not data:
+                break
+            total += len(data)
+            # cap+1 growth guard: exactly-cap passes, one extra byte fails.
+            if total > cap:
+                raise RecoveryIntegrityError(
+                    f"{label} exceeded the documented archive byte cap (cap+1)."
+                )
+            chunks.append(data)
+        return b"".join(chunks)
+    finally:
+        os.close(descriptor)
+
+
+def _assert_database_size_budget(
+    connection: psycopg.Connection[Any],
+    *,
+    label: str,
+    phase: str = "postgresql_database_size_budget",
+    target_created: bool = False,
+) -> None:
+    """Enforce the documented database-size budget via one typed SQL probe.
+
+    ``pg_database_size(current_database())`` returns a bigint byte count for the
+    exact current database.  A non-int / negative value fails closed; the exact
+    cap passes; cap+1 is rejected with a stable redacted partial failure before
+    any expensive pg_dump/restore/inspection materialization.
+
+    ``phase`` and ``target_created`` carry the durable context: source checks
+    happen before any target-side change (defaults are source-safe), whereas
+    restore/inspection target checks occur after the durable target fence, so
+    callers pass ``target_created=True`` to report the partially-created target.
+    """
+    try:
+        row = connection.execute(
+            "SELECT pg_database_size(current_database())"
+        ).fetchone()
+    except (psycopg.Error, TypeError, ValueError, IndexError):
+        raise RecoveryIntegrityError(
+            f"PostgreSQL {label} size probe failed closed."
+        ) from None
+    if row is None or len(row) != 1:
+        raise RecoveryIntegrityError(
+            f"PostgreSQL {label} size probe returned a malformed denominator."
+        )
+    raw = row[0]
+    if type(raw) is bool or type(raw) is not int or raw < 0:
+        raise RecoveryIntegrityError(
+            f"PostgreSQL {label} size probe returned a malformed size."
+        )
+    if raw > _MAX_DATABASE_SIZE_BYTES:
+        raise RecoveryPartialFailure(
+            "POSTGRESQL_DATABASE_SIZE_BUDGET_EXCEEDED",
+            phase=phase,
+            relational_target_created=target_created,
+        )
 
 
 def _require_tool_binary(path: Path) -> None:
@@ -642,6 +895,7 @@ def _parse_tool_version(path: Path, *, timeout_seconds: float) -> str:
         environment={"LANG": "C", "LC_ALL": "C", "TZ": "UTC"},
         phase="postgresql_tool_version",
         timeout_seconds=min(timeout_seconds, 30.0),
+        output_budget=_TOOL_VERSION_OUTPUT_BUDGET,
     )
     match = _TOOL_VERSION.match(output.strip())
     if match is None:
@@ -691,6 +945,10 @@ def _filter_public_schema_toc(raw_bytes: bytes) -> bytes:
     if "\x00" in document or "\r" in document:
         raise RecoveryIntegrityError("PostgreSQL archive TOC encoding is noncanonical.")
     lines = document.splitlines()
+    if len(lines) > _TOC_ENTRY_BOUND:
+        raise UnsupportedRecoveryArtifact(
+            "PostgreSQL archive TOC exceeds the documented entry bound."
+        )
     public_schema_indexes: list[int] = []
     table_count = 0
     table_data_count = 0
@@ -1714,6 +1972,7 @@ def _schema_sha256(
         environment=environment,
         phase="postgresql_schema_digest",
         timeout_seconds=timeout_seconds,
+        output_budget=_SCHEMA_ONLY_OUTPUT_BUDGET,
         cancel_requested=cancel_requested,
         target_created=True,
     )
@@ -1737,6 +1996,22 @@ def _inspect_restored_target(
         expected_marker=target_marker,
         expected_database_scope_sha256=target_database_scope_sha256,
     )
+    # F9: enforce the database-size budget before expensive semantic and
+    # schema inspection materialization consumes the restored target.
+    inspection_connection = _open_connection(
+        spec,
+        application_name="ai-benchmark-recovery-inspection-size-budget",
+        autocommit=True,
+    )
+    try:
+        _assert_database_size_budget(
+            inspection_connection,
+            label="inspection target",
+            phase="postgresql_inspection_size_budget",
+            target_created=True,
+        )
+    finally:
+        inspection_connection.close()
     strict_proof = _strict_current_head(spec)
     _strict_public_object_denominator(spec, strict_head_proof=strict_proof)
     rows_by_table, engine_version = _rows_by_table(spec)
@@ -1880,6 +2155,12 @@ class PostgreSQLBackupRestoreDriver:
             raise RecoveryIntegrityError(
                 "PostgreSQL custom archive lacks the typed PGDMP header."
             )
+        # F9: the archive byte cap is enforced here, BEFORE any archive write or
+        # tool invocation. cap+1 fails closed before materialization.
+        if len(artifact.raw_bytes) > _ARCHIVE_BYTES_CAP:
+            raise RecoveryIntegrityError(
+                "PostgreSQL archive exceeds the documented archive byte cap."
+            )
 
     def _archive_toc(
         self,
@@ -1889,19 +2170,26 @@ class PostgreSQLBackupRestoreDriver:
         cancel_requested: Callable[[], bool] | None,
         target_created: bool,
     ) -> tuple[Path, Path]:
+        self._require_artifact(artifact)
         archive_path = temporary_root / "relational-backup.dump"
         toc_path = temporary_root / "relational-backup.list"
-        _private_write(archive_path, artifact.raw_bytes)
+        # F9: _require_artifact has already enforced type, PGDMP header, and the
+        # archive byte cap, and _write_archive_bytes enforces the cap again
+        # before this write lands.  No up-to-cap in-memory bytes copy is needed;
+        # pg_dump-produced files are instead re-read bounded via _read_bounded_bytes.
+        _write_archive_bytes(archive_path, artifact)
         raw_toc = _run_pg_tool(
             (str(PG_RESTORE_PATH), "--list", str(archive_path)),
             environment={"LANG": "C", "LC_ALL": "C", "TZ": "UTC"},
             phase="postgresql_archive_list",
             timeout_seconds=self._command_timeout_seconds,
+            output_budget=_ARCHIVE_TOC_OUTPUT_BUDGET,
             cancel_requested=cancel_requested,
             target_created=target_created,
             cwd=temporary_root,
         )
-        _private_write(toc_path, _filter_public_schema_toc(raw_toc))
+        filtered_toc = _filter_public_schema_toc(raw_toc)
+        _write_archive_toc(toc_path, filtered_toc)
         return archive_path, toc_path
 
     def create_backup(
@@ -1917,6 +2205,16 @@ class PostgreSQLBackupRestoreDriver:
         source_facts = _read_database_facts(
             spec, application_name="ai-benchmark-recovery-source-identity"
         )
+        # F9: enforce the database-size budget at the source BEFORE pg_dump.
+        source_connection = _open_connection(
+            spec,
+            application_name="ai-benchmark-recovery-source-size-budget",
+            autocommit=True,
+        )
+        try:
+            _assert_database_size_budget(source_connection, label="backup source")
+        finally:
+            source_connection.close()
         _assert_safe_backup_source_scope(source_facts)
         source_strict_proof = _strict_current_head(spec)
         _strict_public_object_denominator(
@@ -1951,23 +2249,17 @@ class PostgreSQLBackupRestoreDriver:
                 environment=environment,
                 phase="postgresql_relational_backup",
                 timeout_seconds=self._command_timeout_seconds,
+                output_budget=_ZERO_OUTPUT_BUDGET,
                 cancel_requested=cancel_requested,
                 cwd=root,
             )
-            try:
-                metadata = archive_path.lstat()
-                raw_bytes = archive_path.read_bytes()
-            except OSError:
-                raise RecoveryPartialFailure(
-                    "POSTGRESQL_BACKUP_READ_FAILED",
-                    phase="postgresql_relational_backup",
-                ) from None
-            if (
-                not stat.S_ISREG(metadata.st_mode)
-                or stat.S_ISLNK(metadata.st_mode)
-                or metadata.st_mode & (stat.S_IRWXG | stat.S_IRWXO)
-                or not raw_bytes.startswith(_ARCHIVE_HEADER)
-            ):
+            # F9: read the produced archive through the descriptor-pinned
+            # bounded reader (never ``read_bytes``).  The cap+1 guard rejects a
+            # pg_dump that grew the file beyond the archive budget in place.
+            raw_bytes = _read_bounded_bytes(
+                archive_path, cap=_ARCHIVE_BYTES_CAP, label="PostgreSQL backup"
+            )
+            if not raw_bytes.startswith(_ARCHIVE_HEADER):
                 raise RecoveryIntegrityError(
                     "PostgreSQL backup artifact file/header posture is invalid."
                 )
@@ -2034,6 +2326,22 @@ class PostgreSQLBackupRestoreDriver:
             phase="after_postgresql_target_fence",
             target_created=True,
         )
+        # F9: enforce the database-size budget at the restore/inspection target
+        # before any expensive restore or inspection materialization.
+        budget_connection = _open_connection(
+            spec,
+            application_name="ai-benchmark-recovery-target-size-budget",
+            autocommit=True,
+        )
+        try:
+            _assert_database_size_budget(
+                budget_connection,
+                label="restore target",
+                phase="postgresql_restore_size_budget",
+                target_created=True,
+            )
+        finally:
+            budget_connection.close()
         with tempfile.TemporaryDirectory(
             prefix="ledger-recovery-postgresql-restore-"
         ) as temporary:
@@ -2066,6 +2374,7 @@ class PostgreSQLBackupRestoreDriver:
                 environment=environment,
                 phase="postgresql_relational_restore",
                 timeout_seconds=self._command_timeout_seconds,
+                output_budget=_ZERO_OUTPUT_BUDGET,
                 cancel_requested=cancel_requested,
                 target_created=True,
                 cwd=root,

@@ -79,6 +79,7 @@ from app.schemas.recovery_contracts import (
 )
 from app.storage.base import StorageObjectKind, compute_content_hash
 from app.storage.local import LocalSnapshotStorage
+from postgresql_test_support import require_executable_paths, skip_or_fail
 
 
 _SOURCE_ENV = "TEST_POSTGRESQL_RECOVERY_SOURCE_URL"
@@ -573,7 +574,7 @@ def test_archive_toc_proves_role_acl_and_database_posture_are_not_carried(
 
 def _strict_head_proof() -> _StrictHeadProof:
     return _StrictHeadProof(
-        schema_revision="0010_operational_persistence",
+        schema_revision="0012_sqlite_ingestion_run_hardening",
         operational_constraint_inventory_sha256=(
             POSTGRESQL_OPERATIONAL_CONSTRAINT_INVENTORY_SHA256
         ),
@@ -660,11 +661,26 @@ def test_tool_paths_are_fixed_absolute_postgresql_paths() -> None:
 
 
 class _FakeProcess:
+    """Minimal Popen-shaped fake with a real OS pipe for the bounded stdout.
+
+    ``_run_pg_tool`` drains stdout via ``select`` + ``read1``, so the read end
+    must be a real file descriptor.  The write end stays owned by the fake so
+    the poll/returncode lifecycle can be driven from the test.
+    """
+
     def __init__(self, *, returncode: int | None, stderr: bytes = b"") -> None:
         self.pid = 424242
         self.returncode = returncode
         self._stderr = stderr
         self.waited = False
+        read_fd, self._write_fd = os.pipe()
+        self.stdout = os.fdopen(read_fd, "rb")
+
+    def feed(self, payload: bytes) -> None:
+        if self.returncode is None:
+            raise AssertionError("feed() requires a non-running fake")
+        os.write(self._write_fd, payload)
+        os.close(self._write_fd)
 
     def communicate(self, *, timeout: float):  # type: ignore[no-untyped-def]
         if self.returncode is None:
@@ -673,6 +689,10 @@ class _FakeProcess:
 
     def wait(self, *, timeout: float) -> int:
         self.waited = True
+        try:
+            self.stdout.close()
+        except OSError:
+            pass
         self.returncode = -15
         return self.returncode
 
@@ -704,6 +724,7 @@ def test_running_tool_cancellation_stops_its_isolated_process_group(
             environment={"LANG": "C", "LC_ALL": "C", "TZ": "UTC"},
             phase="unit-running-tool",
             timeout_seconds=1,
+            output_budget=16 * 1024,
             cancel_requested=lambda: next(polls),
             target_created=True,
         )
@@ -734,6 +755,7 @@ def test_failed_tool_discards_secret_bearing_stderr(
             environment={"LANG": "C", "LC_ALL": "C", "TZ": "UTC"},
             phase="unit-failed-tool",
             timeout_seconds=1,
+            output_budget=16 * 1024,
         )
 
     assert "very-secret" not in str(failed.value)
@@ -747,10 +769,13 @@ def test_unexpected_live_process_error_is_reaped_and_redacted(
     process = _FakeProcess(returncode=None)
     signals: list[tuple[int, int]] = []
 
-    def explode(*, timeout: float):  # type: ignore[no-untyped-def]
+    def explode(self, size: int = -1) -> bytes:  # type: ignore[no-untyped-def]
         raise ValueError("postgresql://ledger:very-secret@private.example/ledger")
 
-    process.communicate = explode  # type: ignore[method-assign]
+    # Close the writer so the bounded drain's select() returns EOF immediately
+    # and read1() is invoked (rather than blocking until timeout).
+    os.close(process._write_fd)
+    process.stdout.read1 = explode  # type: ignore[method-assign]
     monkeypatch.setattr(
         "app.backup.postgresql_driver.subprocess.Popen",
         lambda *_args, **_kwargs: process,
@@ -766,6 +791,7 @@ def test_unexpected_live_process_error_is_reaped_and_redacted(
             environment={"LANG": "C", "LC_ALL": "C", "TZ": "UTC"},
             phase="unit-unexpected-tool-error",
             timeout_seconds=1,
+            output_budget=16 * 1024,
         )
 
     assert signals == [(424242, __import__("signal").SIGTERM)]
@@ -1022,10 +1048,14 @@ def _target_security_facts(database_url: str) -> tuple[set[str], int, int]:
 def _recovery_urls() -> tuple[str, str, str]:
     values = tuple(os.getenv(name) for name in _RECOVERY_ENV_NAMES)
     if not all(values):
-        pytest.skip(
+        skip_or_fail(
             "real PostgreSQL recovery requires all three explicit "
             "TEST_POSTGRESQL_RECOVERY_*_URL values"
         )
+    require_executable_paths(
+        (PG_DUMP_PATH, PG_RESTORE_PATH),
+        context="real PostgreSQL recovery",
+    )
     source, inspection, restore = values
     assert source is not None and inspection is not None and restore is not None
     parsed = tuple(make_url(value) for value in (source, inspection, restore))
@@ -1068,10 +1098,14 @@ def _adversary_urls() -> tuple[str, str, str]:
         for name in _ADVERSARY_ENV_NAMES
     )
     if not all(values):
-        pytest.skip(
+        skip_or_fail(
             "real PostgreSQL scope adversaries require all three explicit "
             "TEST_POSTGRESQL_RECOVERY_ADVERSARY_*_URL values"
         )
+    require_executable_paths(
+        (PG_DUMP_PATH, PG_RESTORE_PATH),
+        context="real PostgreSQL scope adversaries",
+    )
     source, publication, large_object = values
     assert source is not None and publication is not None and large_object is not None
     parsed = tuple(make_url(value) for value in (source, publication, large_object))

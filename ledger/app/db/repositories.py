@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import base64
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import re
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.db import models
@@ -61,6 +64,36 @@ class ClaimPublicationProjection:
     claim_review_decision_id: str | None
     effective_decision_id: str | None
     chain_error: str | None = None
+
+
+@dataclass(frozen=True)
+class ReviewQueueItem:
+    """A single review-queue entry with its already-computed projection.
+
+    Carrying the projection here means CLI/page rendering performs no per-row
+    repository query: resolving the projection is purely in-memory.
+    """
+
+    claim: models.ResultClaim
+    projection: ClaimReviewProjection
+
+
+@dataclass(frozen=True)
+class ReviewQueuePage:
+    """One bounded review-queue page with explicit cursor/metadata.
+
+    ``next_cursor`` is the opaque-but-caller-visible continuation token; pass
+    it back as ``cursor`` to fetch the following page.  ``exhausted`` is true
+    only when the claims table is fully consumed (no further rows at all), so a
+    caller can render an explicit end-of-queue.  ``scanned`` is the number of
+    ``ResultClaim`` rows read within this page's single bounded SQL window.
+    """
+
+    items: list[ReviewQueueItem]
+    next_cursor: str | None
+    exhausted: bool
+    scanned: int
+    projected: int = 0
 
 
 _SOURCE_DEFINITION_FIELDS = (
@@ -118,6 +151,12 @@ def _definition_hash(definition: dict[str, Any]) -> str:
 
 
 def upsert_benchmark(session: Session, data: dict[str, Any]) -> models.Benchmark:
+    """Upsert one benchmark, preserving the public per-row identity-get contract.
+
+    Single-row callers keep the exact prior behavior (one identity ``get`` +
+    ``flush``).  The registry seed path uses the batched :func:`_upsert_many`
+    seam instead so it preloads rows in a constant number of SELECTs.
+    """
     row = session.get(models.Benchmark, data["id"])
     if row is None:
         row = models.Benchmark(**{k: v for k, v in data.items() if hasattr(models.Benchmark, k)})
@@ -130,7 +169,29 @@ def upsert_benchmark(session: Session, data: dict[str, Any]) -> models.Benchmark
     return row
 
 
+def _upsert_benchmark_from_map(
+    session: Session, data: dict[str, Any], existing: dict[str, models.Benchmark]
+) -> models.Benchmark:
+    """Identity-get-free upsert backed by a preloaded ``{id: row}`` map.
+
+    New rows are merely ``session.add``ed (no per-row ``flush``); the caller
+    flushes once after the whole benchmark group so the number of flush/insert
+    statements is constant, not proportional to row count.  Public
+    :func:`upsert_benchmark` is unchanged for single-row callers.
+    """
+    row = existing.get(data["id"])
+    if row is None:
+        row = models.Benchmark(**{k: v for k, v in data.items() if hasattr(models.Benchmark, k)})
+        session.add(row)
+    else:
+        for k, v in data.items():
+            if hasattr(row, k) and k != "id":
+                setattr(row, k, v)
+    return row
+
+
 def upsert_model_entity(session: Session, data: dict[str, Any]) -> models.ModelEntity:
+    """Upsert one model_entity, preserving the public per-row identity contract."""
     row = session.get(models.ModelEntity, data["id"])
     if row is None:
         row = models.ModelEntity(**{k: v for k, v in data.items() if hasattr(models.ModelEntity, k)})
@@ -143,6 +204,43 @@ def upsert_model_entity(session: Session, data: dict[str, Any]) -> models.ModelE
     return row
 
 
+def _upsert_model_entity_from_map(
+    session: Session, data: dict[str, Any], existing: dict[str, models.ModelEntity]
+) -> models.ModelEntity:
+    """Bulk counterpart of :func:`upsert_model_entity` using a preloaded map.
+
+    New rows are merely ``session.add``ed (no per-row ``flush``); caller flushes
+    once after the whole model group.
+    """
+    row = existing.get(data["id"])
+    if row is None:
+        row = models.ModelEntity(**{k: v for k, v in data.items() if hasattr(models.ModelEntity, k)})
+        session.add(row)
+    else:
+        for k, v in data.items():
+            if hasattr(row, k) and k != "id":
+                setattr(row, k, v)
+    return row
+
+
+#: The only entity types an alias may target.  An alias row is a polymorphic
+#: pointer with no database FK, so matching must not trust a dangling or
+#: arbitrary ``entity_type``/``entity_id``.  We reject anything else before
+#: ``insertion`` so a poisoned alias can never return a nonexistent identity.
+_ALLOWED_ALIAS_ENTITY_TYPES = ("benchmark", "model_entity")
+
+
+def _alias_entity_model(entity_type: str) -> type[models.Base]:
+    if entity_type == "benchmark":
+        return models.Benchmark
+    if entity_type == "model_entity":
+        return models.ModelEntity
+    raise ValueError(
+        f"Invalid alias entity_type {entity_type!r}; must be one of "
+        f"{', '.join(_ALLOWED_ALIAS_ENTITY_TYPES)}"
+    )
+
+
 def add_alias(
     session: Session,
     *,
@@ -152,6 +250,13 @@ def add_alias(
     is_official_alias: bool = False,
     alias_source: str | None = None,
 ) -> models.Alias:
+    # Fail closed before insertion: the polymorphic alias column has no FK, so a
+    # caller-provided type/id must be valid and must reference an existing row.
+    entity_model = _alias_entity_model(entity_type)
+    if session.get(entity_model, entity_id) is None:
+        raise ValueError(
+            f"Cannot create alias for nonexistent {entity_type} {entity_id!r}."
+        )
     existing = session.scalar(
         select(models.Alias).where(
             models.Alias.entity_type == entity_type,
@@ -171,6 +276,106 @@ def add_alias(
     session.add(row)
     session.flush()
     return row
+
+
+@dataclass(frozen=True)
+class _AliasSeedRequest:
+    entity_type: str
+    entity_id: str
+    alias_text: str
+    is_official_alias: bool = False
+    alias_source: str | None = None
+
+
+#: Maximum tuple-IN elements per existing-alias lookup batch.  This keeps the
+#: ``(...) IN ...`` parameter list small enough for both SQLite and PostgreSQL
+#: variable limits (typically 999 for SQLite older versions, 32767 for PG) while
+#: the number of SELECTs stays bounded and independent of the alias count: O(size
+#: / batch).  A bounded-but-large registry (e.g. 50k aliases) uses ~102 lookups,
+#: never a single unbounded tuple.
+_ALIAS_LOOKUP_BATCH = 250
+
+
+def add_aliases_bulk(
+    session: Session,
+    aliases: Sequence[_AliasSeedRequest],
+    *,
+    known_entity_ids: dict[str, set[str]] | None = None,
+) -> int:
+    """Bulk-insert missing aliases for seeding, preserving uniqueness semantics.
+
+    This is the bounded bulk counterpart of :func:`add_alias` used only by the
+    registry seed path: it loads the *current* ``(entity_type, entity_id,
+    alias_text)`` rows in bounded chunks and inserts only the missing ones, so
+    the number of ``SELECT`` statements grows sub-linearly (O(n/chunk)) and
+    never exceeds SQLite/PostgreSQL parameter limits.  The public
+    :func:`add_alias` API (per-alias look-and-insert) is unchanged.
+
+    The unique constraint on ``(entity_type, entity_id, alias_text)`` is
+    preserved: an already-present alias is skipped (idempotent), and a
+    duplicate within ``aliases`` is inserted once because the missing set is
+    deduplicated identically to how the constraint would reject it.
+
+    Aliases carry a polymorphic ``entity_id`` with no database foreign key. A
+    required ``known_target_ids`` mapping (``entity_type -> set of entity ids
+    that exist this run``) lets the seed path fail closed on a dangling target
+    without an extra per-alias SELECT, keeping the statement count constant for
+    the constant-SELECT registry seed contract.  A caller that does not supply
+    it degrades to an explicit in-loop ``session.get`` existence check so a
+    dangling alias can never be inserted by any path.
+    """
+    if not aliases:
+        return 0
+    # Validate entity_type up front and, when the caller did not preload the
+    # target id map, check each target exists (fail closed on dangling ids).
+    known = known_entity_ids or {}
+    for alias in aliases:
+        model = _alias_entity_model(alias.entity_type)
+        if alias.entity_type in known:
+            if alias.entity_id not in known[alias.entity_type]:
+                raise ValueError(
+                    f"Cannot create alias for nonexistent {alias.entity_type} "
+                    f"{alias.entity_id!r}."
+                )
+        elif session.get(model, alias.entity_id) is None:
+            raise ValueError(
+                f"Cannot create alias for nonexistent {alias.entity_type} "
+                f"{alias.entity_id!r}."
+            )
+    # Load existing aliases only for the target entity ids/types in bounded
+    # chunks, accumulating an in-memory key set; in-memory filtering below
+    # decides insert (no per-alias SELECT).
+    existing_pairs: set[tuple[str, str, str]] = set()
+    for i in range(0, len(aliases), _ALIAS_LOOKUP_BATCH):
+        chunk = aliases[i : i + _ALIAS_LOOKUP_BATCH]
+        keys = [(a.entity_type, a.entity_id, a.alias_text) for a in chunk]
+        rows = session.scalars(
+            select(models.Alias).where(
+                tuple_(models.Alias.entity_type, models.Alias.entity_id, models.Alias.alias_text).in_(
+                    keys
+                )
+            )
+        )
+        existing_pairs.update((a.entity_type, a.entity_id, a.alias_text) for a in rows)
+    seen: set[tuple[str, str, str]] = set()
+    inserted = 0
+    for alias in aliases:
+        key = (alias.entity_type, alias.entity_id, alias.alias_text)
+        if key in existing_pairs or key in seen:
+            continue
+        seen.add(key)
+        session.add(
+            models.Alias(
+                entity_type=alias.entity_type,
+                entity_id=alias.entity_id,
+                alias_text=alias.alias_text,
+                is_official_alias=alias.is_official_alias,
+                alias_source=alias.alias_source,
+            )
+        )
+        inserted += 1
+    session.flush()
+    return inserted
 
 
 _SOURCE_PROJECTION_FIELDS = tuple(field for field in _SOURCE_DEFINITION_FIELDS if field != "benchmark_id")
@@ -723,23 +928,16 @@ def append_source_revision_decision(
     return row
 
 
-def _claim_review_chain(
-    session: Session, result_claim_id: str
+def _resolve_review_chain(
+    result_claim_id: str, decisions: Sequence[models.ClaimReviewDecision]
 ) -> list[models.ClaimReviewDecision]:
-    """Return the one effective review chain, ordered leaf to root.
+    """Pure, fail-closed resolution of one effective review chain from a grouped set.
 
-    Review decisions are evidence, not a mutable status field.  A branch, a
-    foreign parent, or a cycle has no deterministic effective state and must
-    remain fail-closed rather than being picked by timestamp or insertion
-    order.
+    ``decisions`` must already be filtered to ``result_claim_id`` (the single
+    grouped IN query in :func:`_load_review_chains`).  A branch, a foreign
+    parent, or a cycle has no deterministic effective state and must remain
+    fail-closed rather than being picked by timestamp or insertion order.
     """
-    decisions = list(
-        session.scalars(
-            select(models.ClaimReviewDecision).where(
-                models.ClaimReviewDecision.result_claim_id == result_claim_id
-            )
-        )
-    )
     if not decisions:
         return []
 
@@ -774,6 +972,49 @@ def _claim_review_chain(
     return chain
 
 
+def _load_review_decisions(
+    session: Session, result_claim_ids: Sequence[str]
+) -> dict[str, list[models.ClaimReviewDecision]]:
+    """Group-load review decisions for a bounded claim window in one IN query.
+
+    Returns ``{claim_id: [decisions]}`` preserving the existing fail-closed
+    semantics: the bag of decisions for each claim is handed to the pure
+    :func:`_resolve_review_chain` per claim.  Missing keys are absent from the
+    map and resolve to an empty chain (sparse projection fallback).
+    """
+    grouped: dict[str, list[models.ClaimReviewDecision]] = {}
+    if not result_claim_ids:
+        return grouped
+    rows = session.scalars(
+        select(models.ClaimReviewDecision).where(
+            models.ClaimReviewDecision.result_claim_id.in_(list(result_claim_ids))
+        )
+    )
+    for decision in rows:
+        grouped.setdefault(decision.result_claim_id, []).append(decision)
+    return grouped
+
+
+def _claim_review_chain(
+    session: Session, result_claim_id: str
+) -> list[models.ClaimReviewDecision]:
+    """Return the one effective review chain, ordered leaf to root.
+
+    Review decisions are evidence, not a mutable status field.  A branch, a
+    foreign parent, or a cycle has no deterministic effective state and must
+    remain fail-closed rather than being picked by timestamp or insertion
+    order.
+    """
+    decisions = list(
+        session.scalars(
+            select(models.ClaimReviewDecision).where(
+                models.ClaimReviewDecision.result_claim_id == result_claim_id
+            )
+        )
+    )
+    return _resolve_review_chain(result_claim_id, decisions)
+
+
 def get_effective_claim_review_decision(
     session: Session, result_claim_id: str
 ) -> models.ClaimReviewDecision | None:
@@ -783,10 +1024,27 @@ def get_effective_claim_review_decision(
 
 
 def get_claim_review_projection(session: Session, claim: models.ResultClaim) -> ClaimReviewProjection:
-    """Resolve reviewed display dimensions without rewriting the captured claim."""
+    """Resolve reviewed display dimensions without rewriting the captured claim.
+
+    Fail-closed, public contract: an unresolvable review chain yields a
+    ``chain_error`` projection (never a raise), so a caller rendering a queue
+    page or inventory report cannot crash on a corrupt chain and the invalid
+    state is preserved and surfaced rather than silently dropped.
+    """
     try:
         chain = _claim_review_chain(session, claim.id)
     except ClaimReviewChainError as exc:
+        return _project_review(claim, [], chain_error=str(exc))
+    return _project_review(claim, chain)
+
+
+def _project_review(
+    claim: models.ResultClaim,
+    chain: list[models.ClaimReviewDecision],
+    chain_error: str | None = None,
+) -> ClaimReviewProjection:
+    """Pure projection of display identity over an already-resolved chain."""
+    if chain_error is not None:
         return ClaimReviewProjection(
             model_entity_id=None,
             benchmark_id=None,
@@ -795,7 +1053,7 @@ def get_claim_review_projection(session: Session, claim: models.ResultClaim) -> 
             setting=None,
             evaluation_version=None,
             effective_decision_id=None,
-            chain_error=str(exc),
+            chain_error=chain_error,
         )
 
     # Identity decisions are sparse: later validation/quarantine decisions do
@@ -832,23 +1090,17 @@ def get_claim_review_projection(session: Session, claim: models.ResultClaim) -> 
     )
 
 
-def _claim_publication_chain(
-    session: Session, result_claim_id: str
+def _resolve_publication_chain(
+    result_claim_id: str, decisions: Sequence[models.ClaimPublicationDecision]
 ) -> list[models.ClaimPublicationDecision]:
-    """Return the one effective publication chain, ordered leaf to root.
+    """Pure, fail-closed resolution of one effective publication chain.
 
-    Publication history follows the same fail-closed semantics as review
-    history.  A branching or foreign-parent chain has no safe current state,
-    so callers receive an explicit error rather than a timestamp-derived
-    answer.
+    Mirrors :func:`_resolve_review_chain`.  ``decisions`` must already be
+    filtered to ``result_claim_id``.  Publication history follows the same
+    fail-closed semantics as review history: a branching or non-leaf chain has
+    no safe current state, so callers receive an explicit error rather than a
+    timestamp-derived answer.
     """
-    decisions = list(
-        session.scalars(
-            select(models.ClaimPublicationDecision).where(
-                models.ClaimPublicationDecision.result_claim_id == result_claim_id
-            )
-        )
-    )
     if not decisions:
         return []
 
@@ -884,6 +1136,38 @@ def _claim_publication_chain(
         chain.append(current)
         current = by_id.get(current.supersedes_decision_id) if current.supersedes_decision_id else None
     return chain
+
+
+def _load_publication_decisions(
+    session: Session, result_claim_ids: Sequence[str]
+) -> dict[str, list[models.ClaimPublicationDecision]]:
+    """Group-load publication decisions for a bounded claim window in one IN query."""
+    grouped: dict[str, list[models.ClaimPublicationDecision]] = {}
+    if not result_claim_ids:
+        return grouped
+    rows = session.scalars(
+        select(models.ClaimPublicationDecision).where(
+            models.ClaimPublicationDecision.result_claim_id.in_(list(result_claim_ids))
+        )
+    )
+    for decision in rows:
+        grouped.setdefault(decision.result_claim_id, []).append(decision)
+    return grouped
+
+
+def _claim_publication_chain(
+    session: Session, result_claim_id: str
+) -> list[models.ClaimPublicationDecision]:
+    """Return the one effective element, in the same order as the legacy
+    walker."""
+    decisions = list(
+        session.scalars(
+            select(models.ClaimPublicationDecision).where(
+                models.ClaimPublicationDecision.result_claim_id == result_claim_id
+            )
+        )
+    )
+    return _resolve_publication_chain(result_claim_id, decisions)
 
 
 def get_effective_claim_publication_decision(
@@ -1075,6 +1359,24 @@ def create_ingestion_run(
     return row
 
 
+#: The only counters ``finish_ingestion_run`` may persist.  Every key must be an
+#: exact allowlisted column name; anything else (metadata payload, a renamed
+#: column) is rejected rather than silently ignored via ``hasattr``.
+INGESTION_RUN_COUNTER_KEYS = frozenset(
+    {
+        "sources_checked",
+        "snapshots_created",
+        "snapshots_reused",
+        "claims_extracted",
+        "claims_inserted",
+        "claims_unchanged",
+        "claims_needing_review",
+    }
+)
+#: The only terminal statuses a run may be finalized into.
+INGESTION_RUN_TERMINAL_STATUSES = frozenset({"completed", "partial", "failed"})
+
+
 def finish_ingestion_run(
     session: Session,
     run: models.IngestionRun,
@@ -1084,13 +1386,28 @@ def finish_ingestion_run(
     counters: dict[str, int] | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> None:
+    if status not in INGESTION_RUN_TERMINAL_STATUSES:
+        raise ValueError(
+            f"ingestion run terminal status must be one of "
+            f"{sorted(INGESTION_RUN_TERMINAL_STATUSES)}, got {status!r}"
+        )
+    if run.status != "running" or run.finished_at is not None:
+        raise ValueError(
+            "ingestion run identity/history is immutable; only one terminal finalization is allowed"
+        )
+    counters = counters or {}
+    for key, value in counters.items():
+        if key not in INGESTION_RUN_COUNTER_KEYS:
+            raise ValueError(f"unknown ingestion run counter: {key!r}")
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"ingestion run counter {key!r} must be a non-negative integer, got {value!r}")
+        if value < 0:
+            raise ValueError(f"ingestion run counter {key!r} must be a non-negative integer, got {value!r}")
     run.status = status
-    run.finished_at = datetime.now(timezone.utc)
+    run.finished_at = func.current_timestamp()
     run.error_message = error_message
-    if counters:
-        for k, v in counters.items():
-            if hasattr(run, k):
-                setattr(run, k, v)
+    for key, value in counters.items():
+        setattr(run, key, value)
     if metadata is not None:
         run.metadata_json = metadata
     session.flush()
@@ -1151,26 +1468,250 @@ def mark_parser_verified(session: Session, claim_id: str) -> models.ResultClaim 
     )
 
 
-def list_review_queue(session: Session, limit: int = 100) -> list[models.ResultClaim]:
-    # Identity can now be resolved by an immutable review decision, so SQL on
-    # the captured FK alone would keep a manually corrected claim falsely
-    # labelled unresolved.  The bounded CLI queue is intentionally evaluated
-    # in Python until LDR-08 introduces an explicit deterministic projection.
+def _validate_bounded(name: str, value: int) -> int:
+    """Strict positive bounded validation for page sizing.
+
+    A review-queue page is claimed *bounded*: ``limit`` (the requested output
+    count, which is also the SQL window) is capped at ``REVIEW_QUEUE_MAX_SCAN``
+    (10,000 rows).  This is the proven acceptance-fixture upper bound: the
+    window is at most 10,000 rows, the in-memory projection pass is bounded by
+    it, and the output list can never exceed it, so output <= limit <= max.
+    """
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{name} must be a positive integer, got {value!r}")
+    if value < 1:
+        raise ValueError(f"{name} must be a positive integer, got {value!r}")
+    if value > REVIEW_QUEUE_MAX_SCAN:
+        raise ValueError(
+            f"{name} exceeds the documented review-queue maximum of {REVIEW_QUEUE_MAX_SCAN}, "
+            f"got {value!r}"
+        )
+    return value
+
+
+#: Proven conservative cap for a single review-queue window and ``limit``.  The
+#: 10,000-row acceptance fixture runs at exactly this bound; the in-memory
+#: projection pass and output list are bounded by it.
+REVIEW_QUEUE_MAX_SCAN = 10_000
+#: Version this cursor format so a breaking token change is explicit.  The
+#: token ``v1.<...>`` is base64url-text (no whitespace/quotes), so it is safe to
+#: embed in a shell command line or URL without quoting.
+_REVIEW_CURSOR_PREFIX = "v1."
+_REVIEW_TIMESTAMP_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:[+-]\d{2}:?\d{2}|Z)?$"
+)
+
+
+def _cursor_datetime_str(created_at) -> str:
+    """Render a boundary ``created_at`` preserving full timestamp precision.
+
+    SQLite persists ``DateTime`` as the same text the ORM bound on insert
+    (``YYYY-MM-DD HH:MM:SS`` at second precision from ``CURRENT_TIMESTAMP``, or
+    with ``.ffffff`` microseconds for a Python-side value).  Rendering the
+    boundary with :meth:`datetime.isoformat` (dropping the trailing ``+00:00``
+    when naive) reproduces that exact stored text so the ``(created_at, id)``
+    comparator matches precisely instead of silently losing microseconds.
+    """
+    if isinstance(created_at, datetime):
+        if created_at.tzinfo is not None:
+            # Convert to a common UTC instant *before* dropping tz, so the
+            # persisted wall-clock text is the UTC time regardless of the
+            # original offset; never gut the tzinfo outright.
+            created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
+        return created_at.isoformat(sep=" ")
+    if hasattr(created_at, "isoformat"):
+        return created_at.isoformat(sep=" ")
+    return str(created_at)
+
+
+def _serialize_cursor(created_at, claim_id: str) -> str:
+    """Serialize a concrete (created_at, id) cursor to an opaque token.
+
+    Format: ``v1.<base64url(canonical JSON of {"created_at", "id"})>``.
+    ``created_at`` keeps full precision; ``claim_id`` is a 36-char UUID, so the
+    token is canonical and shell-safe.
+    """
+    created = _cursor_datetime_str(created_at)
+    payload = _canonical_json({"created_at": created, "id": claim_id})
+    token = base64.urlsafe_b64encode(payload.encode("utf-8")).decode("ascii").rstrip("=")
+    return _REVIEW_CURSOR_PREFIX + token
+
+
+def _parse_review_cursor(cursor: str) -> tuple[str, str] | None:
+    """Parse a next_cursor token back to (created_at_str, id).
+
+    Strict, canonical, fail-closed.  Validates the base64url token, decodes it,
+    enforces exactly the two canonical keys, validates the timestamp format and
+    UUID shape, and finally requires that re-serializing the validated
+    (created_at, id) reproduces the *original* base64url token byte-for-byte.
+    Truncated, extra-key, invalid-time, invalid-id, and non-canonical tokens all
+    return ``None`` so the caller rejects them fail-closed.
+    """
+    if not cursor or not isinstance(cursor, str) or not cursor.startswith(_REVIEW_CURSOR_PREFIX):
+        return None
+    token_b64 = cursor[len(_REVIEW_CURSOR_PREFIX):]
+    try:
+        raw = base64.urlsafe_b64decode(token_b64.encode("ascii") + b"=" * (-len(token_b64) % 4))
+    except (ValueError, TypeError):
+        return None
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    created_raw = payload.get("created_at")
+    claim_id = payload.get("id")
+    if not isinstance(created_raw, str) or not isinstance(claim_id, str) or not claim_id:
+        return None
+    # Exactly two keys; extra or missing keys are non-canonical.
+    if set(payload) != {"created_at", "id"}:
+        return None
+    # Validate the timestamp is a real, parseable ISO datetime in the full
+    # precision the serializer emits.
+    try:
+        parsed = datetime.fromisoformat(created_raw.replace(" ", "T"))
+    except ValueError:
+        return None
+    if not _REVIEW_TIMESTAMP_RE.match(created_raw):
+        return None
+    # Strict UUID: ``UUID(claim_id)`` accepts several spellings (braces, urn,
+    # hex-without-hyphens); require the canonical ``str()`` form back.
+    try:
+        if str(UUID(claim_id)) != claim_id:
+            return None
+    except (ValueError, AttributeError, TypeError):
+        return None
+    # Canonical timestamp: re-serializing the *parsed* datetime through the same
+    # UTC-normalized renderer must reproduce ``created_raw`` exactly.  This is
+    # stronger than the whitespace/duplicate-key byte check alone: it rejects any
+    # non-canonical or non-UTC-normalized spelling of an otherwise-valid time.
+    if _cursor_datetime_str(parsed) != created_raw:
+        return None
+    # Canonical byte check: the validated (created_at, id) must reproduce the
+    # exact base64url body the caller sent.  Because ``json.loads`` would
+    # otherwise tolerate extra whitespace or duplicate keys, this strict compare
+    # rejects any non-canonical spelling of an otherwise-valid cursor.
+    canonical = _canonical_json({"created_at": created_raw, "id": claim_id}).encode("utf-8")
+    canonical_b64 = base64.urlsafe_b64encode(canonical).decode("ascii").rstrip("=")
+    if canonical_b64 != token_b64:
+        return None
+    return created_raw, claim_id
+
+
+def list_review_queue_page(
+    session: Session,
+    *,
+    limit: int = 50,
+    cursor: str | None = None,
+) -> ReviewQueuePage:
+    """Return exactly one bounded review-queue page.
+
+    The page loads at most ``limit`` (== the SQL window) ``ResultClaim`` rows in
+    a single ordered query using a stable ``(created_at, id)`` descending
+    cursor, then resolves each window claim's review projection from one grouped
+    IN query (no per-row ``SELECT``).  ``limit`` is the requested output count
+    and is also the SQL window, so ``scanned <= limit <= REVIEW_QUEUE_MAX_SCAN``
+    and ``len(items) <= limit``.  SQLite compares the timestamp against the
+    exact persisted text (cast to text to match); PostgreSQL binds a native
+    ``timestamptz`` literal.
+
+    ``exhausted`` is true only when no more rows remain.  Because the window and
+    the output cap are the same ``limit``, an exact-full final window is not
+    distinguishable from "more rows remain" without a second query, so a caller
+    that reaches an exact-full page fires one more page; that page returns zero
+    rows with ``exhausted=True``.  This one extra empty page at the true end is
+    documented and the CLI renders it truthfully, never as a running queue.
+    """
+    limit = _validate_bounded("limit", limit)
+
+    concurrency_cursor = _parse_review_cursor(cursor) if cursor is not None else None
+    if cursor is not None and concurrency_cursor is None:
+        raise ValueError(f"Invalid review-queue cursor: {cursor!r}")
+
+    q = select(models.ResultClaim)
+    if concurrency_cursor is not None:
+        created_str, claim_id = concurrency_cursor
+        if session.bind is not None and session.bind.dialect.name == "sqlite":
+            # SQLite persists ``DateTime`` as the exact bound text; compare the
+            # stored column (cast to text) against that same text string.
+            created_col = cast(models.ResultClaim.created_at, String)
+            q = q.where(
+                (created_col < created_str)
+                | ((created_col == created_str) & (models.ResultClaim.id < claim_id))
+            )
+        else:
+            # PostgreSQL stores ``timestamptz``; bind a native UTC-aware datetime
+            # literal so the comparison is instant-accurate (never naive).
+            created_value = datetime.fromisoformat(created_str.replace(" ", "T")).replace(
+                tzinfo=timezone.utc
+            )
+            q = q.where(
+                (models.ResultClaim.created_at < created_value)
+                | (
+                    (models.ResultClaim.created_at == created_value)
+                    & (models.ResultClaim.id < claim_id)
+                )
+            )
     rows = list(
-        session.scalars(select(models.ResultClaim).order_by(models.ResultClaim.created_at.desc()))
+        session.scalars(
+            q.order_by(models.ResultClaim.created_at.desc(), models.ResultClaim.id.desc()).limit(
+                limit
+            )
+        )
     )
-    queue: list[models.ResultClaim] = []
+    scanned = len(rows)
+
+    decisions_by_claim = _load_review_decisions(
+        session, [claim.id for claim in rows]
+    )
+    items: list[ReviewQueueItem] = []
     for claim in rows:
-        projection = get_claim_review_projection(session, claim)
+        try:
+            chain = _resolve_review_chain(claim.id, decisions_by_claim.get(claim.id, ()))
+        except ClaimReviewChainError as exc:
+            projection = _project_review(claim, [], chain_error=str(exc))
+        else:
+            projection = _project_review(claim, chain)
         if (
             projection.chain_error is not None
             or projection.model_entity_id is None
             or claim.capture_status == "needs_review"
         ):
-            queue.append(claim)
-        if len(queue) >= limit:
-            break
-    return queue
+            items.append(ReviewQueueItem(claim=claim, projection=projection))
+
+    # ``exhausted`` means the claims table is fully consumed.  The window equals
+    # ``limit``: a window shorter than ``limit`` proves depletion; a window that
+    # fills ``limit`` exactly only *may* have more, so the caller makes one final
+    # empty page to confirm.  A continuation is only meaningful when a future
+    # page could hold rows.
+    exhausted = scanned < limit
+    if not exhausted:
+        last = rows[-1]
+        next_cursor = _serialize_cursor(last.created_at, last.id)
+    else:
+        next_cursor = None
+
+    return ReviewQueuePage(
+        items=items,
+        next_cursor=next_cursor,
+        exhausted=exhausted,
+        scanned=scanned,
+        projected=len(rows),
+    )
+
+
+def list_review_queue(session: Session, limit: int = 100) -> list[models.ResultClaim]:
+    """Compatibility wrapper returning the first bounded review-queue page.
+
+    This is the pre-existing public helper with identical first-page semantics:
+    it returns the first ``limit`` eligible claims using the same bounded SQL
+    window as :func:`list_review_queue_page`.  It deliberately does **not**
+    page; callers that need continuation metadata should use the explicit page
+    API.
+    """
+    page = list_review_queue_page(session, limit=limit, cursor=None)
+    return [item.claim for item in page.items]
 
 
 def list_snapshots(session: Session, source_id: str, limit: int = 50) -> list[models.SourceSnapshot]:

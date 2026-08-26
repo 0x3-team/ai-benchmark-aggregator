@@ -25,7 +25,7 @@ export function CatalogSharePie({ benchmarks }: CatalogSharePieProps) {
       className="h-[300px] w-full"
     >
       <Tooltip variant="frosted-glass" />
-      <Legend isClickable />
+      <Legend />
       <Pie variant="gradient" />
     </EvilPieChart>
   );

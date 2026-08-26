@@ -59,6 +59,27 @@ from .stores import (
 
 _STABLE_ID = re.compile(r"[a-z0-9][a-z0-9._-]{0,127}")
 
+#: Conservative cumulative budget for unique immutable SNAPSHOT object bytes
+#: copied during ONE checkpoint or ONE restore.  Each unique object
+#: (deduplicated by content digest, so duplicate references count exactly
+#: once) contributes its verified byte length; exceeding the budget fails
+#: closed before a partial success receipt is produced, so a runaway capture
+#: set cannot yield an over-large immutable object set.  Relational ARTIFACT
+#: bytes are owned by the F9/F19 paths and are deliberately NOT included.
+#
+#   Rationale for 512 MiB: the storage layer already bounds EVERY SNAPSHOT
+#   object from above at ``MAX_SNAPSHOT_BYTES`` = 64 MiB.  A cumulative budget
+#   of 512 MiB (exactly 8x that per-object cap) is a rounded, production-sensible
+#   ceiling: it always admits at least eight distinct snapshot objects per
+#   checkpoint/restore unit, and it bounds the durable disk cost of one unit's
+#   unique raw evidence to half a gigabyte regardless of how many historical
+#   snapshot rows a capture set cites or how many times any object is
+#   de-duplicated.  1 GiB was rejected as too permissive with no added safety: a
+#   run-away manual capture that cites thousands of distinct large snapshots
+#   should fail closed before it writes a full gigabyte of immutable-copy disk
+#   within a single operation.
+MAX_UNIQUE_SNAPSHOT_BYTES = 512 * 1024 * 1024
+
 
 def _authority() -> dict[str, Any]:
     return {
@@ -183,6 +204,39 @@ def _copy_bytes(
         "writePrecondition": receipt.write_precondition,
         "verificationReceiptId": read_back.verification.receipt_id,
     }
+
+
+def _charge_snapshot_bytes(
+    *,
+    key: tuple[str, str],
+    verified_byte_length: int,
+    charged: dict[tuple[str, str], int],
+    charging_bytes: int,
+) -> int:
+    """Charge one unique SNAPSHOT object against the cumulative budget.
+
+    ``charged`` maps a deduplication key ``(uri, content_sha256)`` to the
+    verified byte length already charged for that exact object.  ``charging_bytes``
+    is the caller's O(1) running total of unique charged bytes; the same total is
+    returned so the charge never recomputes ``sum(charged.values())`` (which
+    would be O(n) per unique copy and O(n^2) overall).  A duplicate reference to
+    the same object contributes its bytes exactly once (the first time it is
+    seen) and returns the running total unchanged, so a manifest that cites one
+    snapshot many times is not amplified.  The budget is a hard ceiling: once it
+    would be exceeded, one redacted partial failure aborts the whole
+    checkpoint/restore before a success receipt is produced.  Artifact
+    (relational) objects never flow through this helper because the caller only
+    invokes it for SNAPSHOT-kind copies.
+    """
+    if key in charged:
+        return charging_bytes
+    if charging_bytes + verified_byte_length > MAX_UNIQUE_SNAPSHOT_BYTES:
+        raise _redacted_partial_failure(
+            "RECOVERY_OBJECT_BYTE_BUDGET_OVERFLOW",
+            phase="immutable_object_budget",
+        )
+    charged[key] = verified_byte_length
+    return charging_bytes + verified_byte_length
 
 
 def _verified_manifest_copy(
@@ -725,6 +779,8 @@ def create_checkpoint_with_driver(
 
     objects: list[dict[str, Any]] = []
     copy_cache: dict[tuple[str, str], tuple[dict[str, Any], int]] = {}
+    budget_charged: dict[tuple[str, str], int] = {}
+    budget_total = 0
     for reference in inspection.referenced_objects:
         if reference.reference_type != "source_snapshot_raw" or reference.object_kind != "snapshot":
             raise UnsupportedRecoveryArtifact("Database contains an unsupported opaque artifact reference.")
@@ -736,6 +792,17 @@ def create_checkpoint_with_driver(
                 uri=reference.source_logical_uri,
                 content_sha256=reference.content_sha256,
                 expected_kind=StorageObjectKind.SNAPSHOT,
+            )
+            # Charge the unique verified byte length BEFORE this copy's durable
+            # write so an over-budget checkpoint aborts without writing the
+            # current over-budget object.  (Earlier unique copies already made
+            # before the overflow remain: R2 documents them as bounded immutable
+            # partial copies, not a false "no partial set" claim.)
+            budget_total = _charge_snapshot_bytes(
+                key=cache_key,
+                verified_byte_length=len(source_read.raw_bytes),
+                charged=budget_charged,
+                charging_bytes=budget_total,
             )
             recovery_copy = _copy_bytes(
                 recovery,
@@ -1098,6 +1165,8 @@ def restore_checkpoint_with_driver(
 
     restored_objects: list[dict[str, Any]] = []
     restore_cache: dict[tuple[str, str], tuple[dict[str, Any], int]] = {}
+    budget_charged: dict[tuple[str, str], int] = {}
+    budget_total = 0
     for item in document["objectManifest"]["objects"]:
         recovery_object = item["recoveryCopy"]
         cache_key = (recovery_object["uri"], item["contentSha256"])
@@ -1110,6 +1179,17 @@ def restore_checkpoint_with_driver(
                 expected_sha256=item["contentSha256"],
                 phase="object_recovery_read",
                 target_created=True,
+            )
+            # Charge the unique verified byte length BEFORE this copy's durable
+            # write so an over-budget restore aborts without writing the current
+            # over-budget object.  (Earlier unique copies already made before the
+            # overflow remain: R2 documents them as bounded immutable partial
+            # copies, not a false "no partial set" claim.)
+            budget_total = _charge_snapshot_bytes(
+                key=cache_key,
+                verified_byte_length=len(recovered.raw_bytes),
+                charged=budget_charged,
+                charging_bytes=budget_total,
             )
             restored_copy = _copy_bytes(
                 target_store,

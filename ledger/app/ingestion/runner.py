@@ -17,6 +17,7 @@ from app.ingestion.admission import (
 )
 from app.ingestion.adapters import get_adapter
 from app.ingestion.extractors.normalize import compute_claim_fingerprint
+from app.ingestion.parquet_cells import ParquetEvidenceResolver
 from app.ingestion.policy import can_ingest_source, source_admission_reason
 from app.ingestion.safe_fetch import SafeFetchClient, SafeFetchError, build_fetch_plan
 from app.matching.aliases import resolve_benchmark, resolve_model_entity
@@ -62,6 +63,12 @@ class IngestionSummary:
 
 class IngestionBlockedError(RuntimeError):
     """Raised before a run record or snapshot is written for denied sources."""
+
+
+def _safe_fetch_failure_detail(exc: SafeFetchError) -> str:
+    """Return a stable fetch failure token without retaining exception detail."""
+
+    return f"{type(exc).__name__}({exc.code})"
 
 
 def _row_to_source(row: OfficialSourceRow) -> OfficialSource:
@@ -334,96 +341,132 @@ def _run_one_source(
                 source_summary.snapshots_reused += 1
 
     raw_bytes = snap_input.raw_bytes
-    claims = adapter.extract_claims(source, snapshot, raw_bytes)
-    source_summary.claims_extracted += len(claims)
-
-    if source_admission.source_revision_decision_id is None:
-        raise RuntimeError("Admitted source is missing an immutable source-revision decision id.")
-
-    for claim_index, claim in enumerate(claims):
-        # Every persistable claim is bound to the exact certification decision
-        # that admitted its snapshot revision.  The decision is immutable and
-        # the database trigger rejects an unbound future insert.
-        claim.source_snapshot_id = UUID(str(snapshot.id))
-        claim.source_revision_decision_id = UUID(str(source_admission.source_revision_decision_id))
-        model_match = resolve_model_entity(session, claim.model_raw)
-        benchmark_match = resolve_benchmark(session, claim.benchmark_raw, source.benchmark_id)
-        claim.model_entity_id = model_match.entity_id
-        claim.benchmark_id = benchmark_match.entity_id
-        admission = resolve_claim_admission(
-            source_admission=source_admission,
-            source=source,
-            claim=claim,
-            raw_bytes=raw_bytes,
-            model_match=model_match,
-            benchmark_match=benchmark_match,
-        )
-        if not admission.verdict.accepted:
-            source_summary.claims_rejected += 1
-            source_summary.claim_rejections.append(
-                {
-                    "source_id": source.id,
-                    "claim_index": str(claim_index),
-                    "reason_code": admission.verdict.reason_code or "CLAIM_REJECTED",
-                }
+    # A snapshot is opened/decoded once per source run and reused across
+    # extraction, central claim admission, and adapter validation when the
+    # adapter resolves typed ``parquet_cell_v1`` evidence.  The resolver is
+    # run-scoped — never process-global — and keyed by immutable bytes/digest,
+    # not object identity.  It is always closed in a ``finally`` so every exit
+    # (success, extraction failure, missing-decision, admission rejection,
+    # validation failure, or persistence exception) releases the decoded
+    # snapshot rather than pinning it for the process lifetime.
+    parquet_resolver: ParquetEvidenceResolver | None = None
+    try:
+        if getattr(adapter, "uses_parquet_evidence_resolver", False):
+            parquet_resolver = ParquetEvidenceResolver(raw_bytes)
+        if parquet_resolver is not None:
+            claims = adapter.extract_claims(
+                source, snapshot, raw_bytes, parquet_resolver=parquet_resolver
             )
-            continue
-
-        claim.score_numeric = admission.score_numeric
-        claim.score_unit = admission.score_unit
-        needs_review = admission.verdict.disposition == "quarantine"
-        if needs_review:
-            # An ambiguous/unregistered model is still a verbatim evidence
-            # candidate. Preserve its raw name and require later review rather
-            # than assigning the first matching alias.
-            claim.model_entity_id = None
-            claim.capture_status = "needs_review"
         else:
-            # The adapter does not decide status; exact central evidence
-            # admission does. Publication remains separately disabled.
-            claim.capture_status = "parser_verified"
+            claims = adapter.extract_claims(source, snapshot, raw_bytes)
+        source_summary.claims_extracted += len(claims)
 
-        validations = adapter.validate_claim(claim, raw_bytes)
-        if any(validation.outcome == "fail" for validation in validations) or not any(
-            validation.outcome == "pass" for validation in validations
-        ):
-            needs_review = True
-            claim.capture_status = "needs_review"
-        validations.append(
-            ClaimValidationInput(
-                validation_type="central_claim_admission",
-                outcome="pass",
-                validator="claim-admission-v1",
-                notes=admission.verdict.reason_code or "exact_evidence_and_identity",
+        if source_admission.source_revision_decision_id is None:
+            raise RuntimeError(
+                "Admitted source is missing an immutable source-revision decision id."
             )
-        )
-        if needs_review:
-            source_summary.claims_needing_review += 1
 
-        # Fingerprints exercise the same admission-bound identity in preview,
-        # but the detached preview object never reaches session or storage.
-        claim.claim_fingerprint = compute_claim_fingerprint(claim)
-
-        if dry_run:
-            source_summary.dry_run_claims.append(
-                {
-                    "model_raw": claim.model_raw,
-                    "benchmark_raw": claim.benchmark_raw,
-                    "score_raw": claim.score_raw,
-                    "capture_status": claim.capture_status,
-                    "evidence_location": claim.evidence_location,
-                    "admission": admission.verdict.disposition,
-                    "admission_reason": admission.verdict.reason_code,
-                }
+        for claim_index, claim in enumerate(claims):
+            # Every persistable claim is bound to the exact certification decision
+            # that admitted its snapshot revision.  The decision is immutable and
+            # the database trigger rejects an unbound future insert.
+            claim.source_snapshot_id = UUID(str(snapshot.id))
+            claim.source_revision_decision_id = UUID(
+                str(source_admission.source_revision_decision_id)
             )
-            continue
+            model_match = resolve_model_entity(session, claim.model_raw)
+            benchmark_match = resolve_benchmark(
+                session, claim.benchmark_raw, source.benchmark_id
+            )
+            claim.model_entity_id = model_match.entity_id
+            claim.benchmark_id = benchmark_match.entity_id
+            admission = resolve_claim_admission(
+                source_admission=source_admission,
+                source=source,
+                claim=claim,
+                raw_bytes=raw_bytes,
+                model_match=model_match,
+                benchmark_match=benchmark_match,
+                parquet_resolver=parquet_resolver,
+            )
+            if not admission.verdict.accepted:
+                source_summary.claims_rejected += 1
+                source_summary.claim_rejections.append(
+                    {
+                        "source_id": source.id,
+                        "claim_index": str(claim_index),
+                        "reason_code": admission.verdict.reason_code or "CLAIM_REJECTED",
+                    }
+                )
+                continue
 
-        row_claim, inserted = repo.insert_claim_if_new(session, claim)
-        if inserted:
-            source_summary.claims_inserted += 1
-            repo.insert_validations(session, row_claim.id, validations)
-        else:
-            source_summary.claims_unchanged += 1
+            claim.score_numeric = admission.score_numeric
+            claim.score_unit = admission.score_unit
+            needs_review = admission.verdict.disposition == "quarantine"
+            if needs_review:
+                # An ambiguous/unregistered model is still a verbatim evidence
+                # candidate. Preserve its raw name and require later review
+                # rather than assigning the first matching alias.
+                claim.model_entity_id = None
+                claim.capture_status = "needs_review"
+            else:
+                # The adapter does not decide status; exact central evidence
+                # admission does. Publication remains separately disabled.
+                claim.capture_status = "parser_verified"
+
+            if parquet_resolver is not None:
+                validations = adapter.validate_claim(
+                    claim, raw_bytes, parquet_resolver=parquet_resolver
+                )
+            else:
+                validations = adapter.validate_claim(claim, raw_bytes)
+            if any(
+                validation.outcome == "fail" for validation in validations
+            ) or not any(validation.outcome == "pass" for validation in validations):
+                needs_review = True
+                claim.capture_status = "needs_review"
+            validations.append(
+                ClaimValidationInput(
+                    validation_type="central_claim_admission",
+                    outcome="pass",
+                    validator="claim-admission-v1",
+                    notes=admission.verdict.reason_code or "exact_evidence_and_identity",
+                )
+            )
+            if needs_review:
+                source_summary.claims_needing_review += 1
+
+            # Fingerprints exercise admission-bound identity in preview, but
+            # the detached preview object never reaches session or storage.
+            claim.claim_fingerprint = compute_claim_fingerprint(claim)
+
+            if dry_run:
+                source_summary.dry_run_claims.append(
+                    {
+                        "model_raw": claim.model_raw,
+                        "benchmark_raw": claim.benchmark_raw,
+                        "score_raw": claim.score_raw,
+                        "capture_status": claim.capture_status,
+                        "evidence_location": claim.evidence_location,
+                        "admission": admission.verdict.disposition,
+                        "admission_reason": admission.verdict.reason_code,
+                    }
+                )
+                continue
+
+            row_claim, inserted = repo.insert_claim_if_new(session, claim)
+            if inserted:
+                source_summary.claims_inserted += 1
+                repo.insert_validations(session, row_claim.id, validations)
+            else:
+                source_summary.claims_unchanged += 1
+    finally:
+        # The snapshot's decoded form is released on every exit path, not just
+        # the happy one.  A long-lived process must not pin each source run's
+        # evidence bytes.
+        if parquet_resolver is not None:
+            parquet_resolver.close()
+            parquet_resolver = None
 
     return source_summary
 
@@ -596,7 +639,10 @@ def run_ingestion(
             else:
                 summary.source_outcomes.append({"source_id": source.id, "outcome": "succeeded"})
         except Exception as exc:  # noqa: BLE001 - per-source isolation
-            detail = str(exc).strip() or exc.__class__.__name__
+            if isinstance(exc, SafeFetchError):
+                detail = _safe_fetch_failure_detail(exc)
+            else:
+                detail = str(exc).strip() or exc.__class__.__name__
             msg = f"{source.id}: {detail}"
             summary.errors.append(msg)
             summary.source_outcomes.append(

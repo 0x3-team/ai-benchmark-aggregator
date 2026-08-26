@@ -1,25 +1,17 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import type { BenchmarkCategory } from "./types";
-import { models as catalogModels } from "./data/models";
-import { benchmarks as catalogBenchmarks } from "./data/benchmarks";
-import { getScores } from "./data/scores";
 import {
   DatasetProvider,
   useDataset,
-  type DatasetInput,
   type DatasetModel,
 } from "./data/dataset";
 import { loadOfficialData, type OfficialLoadResult } from "./data/official";
-import { selectDataset } from "./data/dataSelection";
+import { selectOfficialDataset } from "./data/dataSelection";
 import { computeRanking, sortModels, type RankRow } from "./lib/aggregate";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ScoreTable } from "./components/ScoreTable";
-import { BenchmarkCard } from "./components/BenchmarkCard";
 import { CategoryLeaders } from "./components/CategoryLeaders";
-import { CatalogSharePie } from "./components/charts/CatalogSharePie";
-import { ModelDetail } from "./components/ModelDetail";
-import { ModelComparison } from "./components/ModelComparison";
 import { GlossaryDialog } from "./components/GlossaryDialog";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import {
@@ -28,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
-import { DATA_MODE_LABEL, type DataMode } from "./data/dataMode";
 import {
   Sheet,
   SheetContent,
@@ -46,11 +37,37 @@ import {
 import { useToast } from "./components/ui/use-toast";
 
 const MAX_COMPARE = 6;
-const DEMO_DATASET: DatasetInput = {
-  models: catalogModels,
-  benchmarks: catalogBenchmarks,
-  scores: getScores(),
-};
+
+/**
+ * Chart-heavy secondary surfaces are code-split with React.lazy so the
+ * deferred chunk (recharts/motion/evilcharts chart layer) is not part of the
+ * primary table workflow's eager load, and so the loading/error/trust UI —
+ * Header, Filters, ScoreTable, ClaimEvidence — stays in the eager entry. Each
+ * is only ever *rendered* while its owning Sheet/dialog is open (conditional),
+ * so the fallback briefly appears only on cold open, never on the primary
+ * path. The primary workflow and accessibility are untouched: the Suspense
+ * boundary drops the loading state into the already-conditional Sheet content.
+ */
+const ModelComparison = lazy(() =>
+  import("./components/ModelComparison").then((m) => ({ default: m.ModelComparison }))
+);
+const ModelDetail = lazy(() =>
+  import("./components/ModelDetail").then((m) => ({ default: m.ModelDetail }))
+);
+const BenchmarkCard = lazy(() =>
+  import("./components/BenchmarkCard").then((m) => ({ default: m.BenchmarkCard }))
+);
+// The "Benchmark catalog" share-of-categories pie is a chart-heavy secondary
+// surface inside the primary table view. Splitting it moves the recharts Pie
+// core to a deferred chunk so the primary table workflow's eager load stays
+// under the approved 1,100,000-byte budget. It keeps its Card chrome eager,
+// so layout stays stable; only the pie body suspends on cold render with an
+// accessible `role="status"` fallback.
+const CatalogSharePie = lazy(() =>
+  import("./components/charts/CatalogSharePie").then((m) => ({
+    default: m.CatalogSharePie,
+  }))
+);
 
 function Toaster() {
   const { toasts } = useToast();
@@ -72,46 +89,33 @@ function Toaster() {
 
 export default function App() {
   const officialLoadResult = useMemo(() => loadOfficialData(), []);
-  return (
-    <AppWithDataSources
-      demoData={DEMO_DATASET}
-      officialLoadResult={officialLoadResult}
-    />
-  );
+  return <AppWithDataSources officialLoadResult={officialLoadResult} />;
 }
 
 /**
- * The production App supplies only the fixed containment loader above. This
- * exported seam lets UI tests exercise a previously verified published result
- * without giving the runtime a second artifact import or a fallback path.
+ * The production App supplies only the fixed Official loader above. This seam
+ * lets UI tests exercise a previously verified published result without giving
+ * the runtime a second artifact import, sample path, or fallback dataset.
  */
 export function AppWithDataSources({
-  demoData,
   officialLoadResult,
 }: {
-  demoData: DatasetInput;
   officialLoadResult: OfficialLoadResult;
 }) {
-  // The discriminated selection is intentionally above DatasetProvider: every
-  // commit receives one matching mode label and immutable data snapshot. The
-  // current loader returns the tracked unavailable artifact, so `official`
-  // can never become selected without a later REL-05 release authorization.
-  const [requestedDataMode, setRequestedDataMode] = useState<DataMode>("demo");
   const selection = useMemo(
-    () => selectDataset(requestedDataMode, demoData, officialLoadResult),
-    [requestedDataMode, demoData, officialLoadResult]
+    () => selectOfficialDataset(officialLoadResult),
+    [officialLoadResult]
   );
 
   return (
     <AppErrorBoundary
       resetKey={selection.data}
-      sourceLabel={DATA_MODE_LABEL[selection.mode]}
+      sourceLabel="Official"
     >
-      <DatasetProvider data={selection.data}>
+      <DatasetProvider key={selection.key} data={selection.data}>
         <AppContent
-          dataMode={selection.mode}
+          dataStatus={selection.status}
           officialLoadResult={selection.official}
-          onRequestedDataModeChange={setRequestedDataMode}
         />
       </DatasetProvider>
     </AppErrorBoundary>
@@ -119,15 +123,13 @@ export function AppWithDataSources({
 }
 
 interface AppContentProps {
-  dataMode: DataMode;
+  dataStatus: "awaiting-publication" | "official";
   officialLoadResult: OfficialLoadResult;
-  onRequestedDataModeChange: (mode: DataMode) => void;
 }
 
 function AppContent({
-  dataMode,
+  dataStatus,
   officialLoadResult,
-  onRequestedDataModeChange,
 }: AppContentProps) {
   const [view, setView] = useState<"table" | "compare">("table");
   const [search, setSearch] = useState("");
@@ -139,10 +141,6 @@ function AppContent({
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const [officialUnavailableAnnouncement, setOfficialUnavailableAnnouncement] = useState<string | null>(
-    null
-  );
-  const [officialUnavailableAnnouncementId, setOfficialUnavailableAnnouncementId] = useState(0);
   const [showAllBenchmarks, setShowAllBenchmarks] = useState(false);
   const { toast } = useToast();
 
@@ -155,8 +153,8 @@ function AppContent({
       ? officialLoadResult.artifact
       : undefined;
 
-  // Every data-dependent render reads the atomic provider snapshot selected
-  // above this component. No handler can relabel a Demo snapshot as Official.
+  // Every data-dependent render reads the atomic Official provider snapshot
+  // selected above this component.
   const {
     models: activeModels,
     benchmarks: activeBenchmarks,
@@ -256,7 +254,12 @@ function AppContent({
       if (prev?.benchmarkId === benchmarkId) {
         return { benchmarkId, dir: prev.dir === "asc" ? "desc" : "asc" };
       }
-      return { benchmarkId, dir: "desc" };
+      const benchmark = activeBenchmarks.find((b) => b.id === benchmarkId);
+      return {
+        benchmarkId,
+        // Default to the direction that puts the best score first.
+        dir: benchmark?.higherIsBetter === false ? "asc" : "desc",
+      };
     });
   }
 
@@ -300,32 +303,6 @@ function AppContent({
     setSort(null);
   }
 
-  function resetDataDependentState() {
-    // React batches this event's state work with the selected dataset change.
-    // A future Official release may have different ids, categories, and
-    // availability, so no old filter, sort, selection, or Compare view may
-    // survive the trust-boundary transition.
-    setView("table");
-    clearFilters();
-    setSelectedBenchmarkId(null);
-    setSelectedModelId(null);
-    setSelectedModels([]);
-  }
-
-  function handleDataModeChange(next: DataMode) {
-    if (next === "official" && officialLoadResult.availability !== "published") {
-      const message = `Official claims are not yet available. ${officialLoadResult.reason}`;
-      setOfficialUnavailableAnnouncement(message);
-      setOfficialUnavailableAnnouncementId((current) => current + 1);
-      toast({ description: message });
-      return;
-    }
-    if (next === dataMode) return;
-    setOfficialUnavailableAnnouncement(null);
-    onRequestedDataModeChange(next);
-    resetDataDependentState();
-  }
-
   function openModel(id: string) {
     setSelectedModelId(id);
   }
@@ -346,13 +323,9 @@ function AppContent({
             onViewChange={setView}
             selectedCount={selectedModels.length}
             onOpenGlossary={() => setGlossaryOpen(true)}
-            dataModeLabel={DATA_MODE_LABEL[dataMode]}
-            dataMode={dataMode}
-            onDataModeChange={handleDataModeChange}
+            dataStatus={dataStatus}
             officialUnavailableReason={officialUnavailableReason}
             officialArtifact={officialArtifact}
-            officialUnavailableAnnouncement={officialUnavailableAnnouncement}
-            officialUnavailableAnnouncementId={officialUnavailableAnnouncementId}
           />
 
           {view === "table" ? (
@@ -360,11 +333,11 @@ function AppContent({
               {activeModels.length === 0 ? (
                 <div className="glass-strong flex flex-col items-center justify-center gap-3 rounded-xl px-6 py-24 text-center">
                   <p className="text-lg font-semibold text-foreground">
-                    No benchmark data yet
+                    Awaiting Official publication
                   </p>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    This platform displays only verified, source-backed benchmark results.
-                    Data will appear here once official source captures are published.
+                    No benchmark claims are published in this build. Data will appear here only
+                    after a governed Official release is approved and bundled.
                   </p>
                 </div>
               ) : (
@@ -396,7 +369,15 @@ function AppContent({
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <CatalogSharePie benchmarks={activeBenchmarks} />
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+                        Loading chart…
+                      </div>
+                    }
+                  >
+                    <CatalogSharePie benchmarks={activeBenchmarks} />
+                  </Suspense>
                 </CardContent>
               </Card>
               {sortedModels.length === 0 ? (
@@ -419,6 +400,7 @@ function AppContent({
                 <>
                 <ScoreTable
                   models={sortedModels}
+                  cohortModels={activeModels}
                   benchmarks={visibleBenchmarks}
                   sort={sort}
                   onSort={handleSort}
@@ -459,12 +441,20 @@ function AppContent({
             </main>
           ) : (
             <main id="main-content">
-              <ModelComparison
-                models={selectedModelObjects}
-                benchmarks={activeBenchmarks}
-                allModels={activeModels}
-                onOpenModel={openModel}
-              />
+              <Suspense
+                fallback={
+                  <div role="status" className="glass-strong flex items-center justify-center rounded-xl px-6 py-24 text-sm text-muted-foreground">
+                    Loading comparison…
+                  </div>
+                }
+              >
+                <ModelComparison
+                  models={selectedModelObjects}
+                  benchmarks={activeBenchmarks}
+                  allModels={activeModels}
+                  onOpenModel={openModel}
+                />
+              </Suspense>
             </main>
           )}
 
@@ -483,10 +473,19 @@ function AppContent({
                   <SheetHeader className="sr-only">
                     <SheetTitle>{selectedBenchmark.fullName}</SheetTitle>
                   </SheetHeader>
-                  <BenchmarkCard
-                    benchmark={selectedBenchmark}
-                    models={sortedModels}
-                  />
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+                        Loading benchmark…
+                      </div>
+                    }
+                  >
+                    <BenchmarkCard
+                      benchmark={selectedBenchmark}
+                      models={sortedModels}
+                      cohortModels={activeModels}
+                    />
+                  </Suspense>
                 </>
               )}
             </SheetContent>
@@ -507,13 +506,22 @@ function AppContent({
                   <SheetHeader className="sr-only">
                     <SheetTitle>{selectedModel.name}</SheetTitle>
                   </SheetHeader>
-                  <ModelDetail
-                    model={selectedModel}
-                    models={sortedModels}
-                    benchmarks={visibleBenchmarks}
-                    selectedModels={selectedModels}
-                    onToggleModelSelect={toggleModelSelect}
-                  />
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+                        Loading model…
+                      </div>
+                    }
+                  >
+                    <ModelDetail
+                      model={selectedModel}
+                      models={sortedModels}
+                      cohortModels={activeModels}
+                      benchmarks={visibleBenchmarks}
+                      selectedModels={selectedModels}
+                      onToggleModelSelect={toggleModelSelect}
+                    />
+                  </Suspense>
                 </>
               )}
             </SheetContent>

@@ -28,6 +28,7 @@ import {
 interface ModelDetailProps {
   model: DatasetModel;
   models: readonly DatasetModel[];
+  cohortModels?: readonly DatasetModel[];
   benchmarks: readonly DatasetBenchmark[];
   selectedModels: string[];
   onToggleModelSelect: (id: string) => void;
@@ -36,6 +37,7 @@ interface ModelDetailProps {
 export function ModelDetail({
   model,
   models,
+  cohortModels = models,
   benchmarks,
   selectedModels,
   onToggleModelSelect,
@@ -47,16 +49,16 @@ export function ModelDetail({
     const map: Record<string, ReturnType<typeof columnStats>> = {};
     for (const b of benchmarks) {
       map[b.id] = columnStats(
-        models.map((m) => getValue(m.id, b.id)),
+        cohortModels.map((m) => getValue(m.id, b.id)),
         b
       );
     }
     return map;
-  }, [models, benchmarks, getValue]);
+  }, [cohortModels, benchmarks, getValue]);
 
   const leaders = useMemo(
-    () => categoryLeader(models, benchmarks, getValue),
-    [models, benchmarks, getValue]
+    () => categoryLeader(cohortModels, benchmarks, getValue),
+    [cohortModels, benchmarks, getValue]
   );
   const leadsCats = leaders
     .filter((l) => l.modelId === model.id)
@@ -100,7 +102,6 @@ export function ModelDetail({
             key={mod}
             variant="outline"
             className="border-white/10 bg-white/5 text-muted-foreground"
-            onClick={(e) => e.preventDefault()}
           >
             {mod}
           </Badge>
@@ -143,7 +144,7 @@ export function ModelDetail({
         <CardContent>
           <ModelScoreProfileLine
             model={model}
-            allModels={models}
+            allModels={cohortModels}
             benchmarks={benchmarks}
           />
         </CardContent>

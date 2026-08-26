@@ -43,6 +43,341 @@ OFFICIAL_FEED_POLICY_VERSION = "official-feed-projection-v1"
 OFFICIAL_FEED_AVAILABILITY = "candidate"
 CANONICAL_JSON_ALGORITHM = "sha256-canonical-json-v1"
 
+#: Conservative hard cardinality caps that bound output and heap for the
+#: offline candidate projection and legacy inventory.
+#:
+#: These are deliberately conservative production values, not test-sized: a
+#: nested JSON report with 250k claims / 2M related rows can consume several
+#: GB once serialized, so the caps are set well below that while retaining
+#: headroom above realistic local capture ledgers (tens of thousands of
+#: claims).  Each cap is versioned and documented; loading at most ``cap + 1``
+#: rows (via SQL ``LIMIT``) lets the loader fail closed on the first row past
+#: the cap before any per-claim processing, so a partial report is never
+#: produced.
+MAX_CLAIMS = 50_000
+MAX_SNAPSHOTS = 20_000
+MAX_RELATED_ROWS = 200_000
+
+#: Maximum elements per ``IN (...)`` chunk, kept far below the SQLite 999 /
+#: PostgreSQL 32767 parameter ceilings so bounded batch loading is portable.
+_BATCH_CHUNK = 500
+
+
+class FeedResourceLimitError(ValueError):
+    """Raised when a bounded read-model resource cap would be exceeded.
+
+    The candidate/inventory paths are all-or-nothing: exceeding a cap must
+    fail closed before any per-claim processing and must never emit a partial
+    report.
+    """
+
+
+def _batch_ids(values: Iterable[str]) -> list[list[str]]:
+    """Split an ID collection into bounded ``IN`` chunks."""
+    ids = list(values)
+    return [ids[index : index + _BATCH_CHUNK] for index in range(0, len(ids), _BATCH_CHUNK)]
+
+
+def _grouped_by(rows: Iterable[Any], key_attr: str) -> dict[str, list[Any]]:
+    """Group ORM rows by one attribute into ``{value: [rows]}``."""
+    grouped: dict[str, list[Any]] = {}
+    for row in rows:
+        grouped.setdefault(getattr(row, key_attr), []).append(row)
+    return grouped
+
+
+def _load_plain_by_ids(
+    session: Session,
+    model: type[models.Base],
+    id_attr: Any,
+    ids: Iterable[str],
+) -> list[Any]:
+    """Load rows by a column in bounded IN chunks (no per-id query, no budget).
+
+    The result set is inherently bounded: each IN chunk holds at most
+    ``_BATCH_CHUNK`` distinct IDs, so a chunk returns at most that many rows.
+    Deterministic primary-key ordering keeps results stable.
+    """
+    rows: list[Any] = []
+    for chunk in _batch_ids(sorted(set(ids))):
+        if not chunk:
+            continue
+        statement = (
+            select(model)
+            .where(id_attr.in_(chunk))
+            .order_by(id_attr, model.id)
+        )
+        rows.extend(session.scalars(statement).all())
+    return rows
+
+
+def _load_budgeted_by_ids(
+    session: Session,
+    model: type[models.Base],
+    id_attr: Any,
+    ids: Iterable[str],
+    *,
+    budget: _Budget,
+) -> list[Any]:
+    """Load rows in bounded, deterministically ordered IN chunks against one
+    persistent cross-chunk budget.
+
+    IDs are sorted and deduplicated before chunking, each chunk query carries
+    a deterministic primary-key ordering plus ``LIMIT budget.remaining + 1``,
+    and if a chunk returns more than the remaining budget the loader fails
+    closed immediately (with the budget's stable label).  The budget is then
+    decremented by the actual row count before the next chunk, so it persists
+    across all chunks and all related-row types.
+    """
+    rows: list[Any] = []
+    ordered_ids = sorted(set(ids))
+    for chunk in _batch_ids(ordered_ids):
+        if not chunk:
+            continue
+        budget_remaining = budget.remaining
+        statement = (
+            select(model)
+            .where(id_attr.in_(chunk))
+            # Deterministic ordering: for non-unique id columns the model
+            # primary key breaks ties so results are stable.
+            .order_by(id_attr, model.id)
+            .limit(budget_remaining + 1)
+        )
+        chunk_rows = list(session.scalars(statement).all())
+        if len(chunk_rows) > budget_remaining:
+            raise FeedResourceLimitError(
+                f"{budget.label} exceed the documented cap of {budget.cap}"
+            )
+        budget.consume(len(chunk_rows))
+        rows.extend(chunk_rows)
+    return rows
+
+
+class _Budget:
+    """A persistent remaining-row budget with an aggregate cap and stable label."""
+
+    def __init__(self, cap: int, label: str) -> None:
+        self.cap = cap
+        self.label = label
+        self.remaining = cap
+
+    def consume(self, count: int) -> None:
+        if count > self.remaining:
+            raise FeedResourceLimitError(
+                f"{self.label} exceed the documented cap of {self.cap}"
+            )
+        self.remaining -= count
+
+
+class FeedBatch:
+    """One bounded, preloaded read-model context for the candidate projection.
+
+    Loads every related row the eligibility policy needs in a bounded number
+    of batch SELECTs (chunked below the SQLite/PostgreSQL parameter ceilings)
+    so per-claim processing is pure and issues no queries.
+
+    Two load shapes are used:
+
+    - Unique-ID loads (sources, revisions, models, benchmarks): each IN chunk
+      holds at most ``_BATCH_CHUNK`` distinct IDs, so a chunk returns at most
+      that many rows and no SQL ``LIMIT`` is needed.  These do not consume the
+      related-row budget.
+    - Budgeted loads (snapshots and decision/validation rows): each chunk
+      carries an SQL ``LIMIT`` at ``remaining budget + 1`` with a stable
+      label, and the budget persists across all chunks and all related types,
+      so a single oversized chunk cannot materialize an unbounded result;
+      overflow is detected by actual ORM row count before per-claim
+      processing.
+
+    All fail-closed chain semantics are preserved by resolving chains in
+    memory with the same pure resolution rules.
+    """
+
+    def __init__(
+        self,
+        session: Session,
+        claims: list[models.ResultClaim],
+    ) -> None:
+        # Defensive shared-cap boundary: even when a caller passes a prebuilt
+        # batch (bypassing analyze's own claim load), an oversized claim set
+        # must fail closed before any related load.
+        if len(claims) > MAX_CLAIMS:
+            raise FeedResourceLimitError(
+                f"claim count exceeds the documented cap of {MAX_CLAIMS}"
+            )
+        self.claims = claims
+        claim_ids = [claim.id for claim in claims]
+        snapshot_ids = list({claim.source_snapshot_id for claim in claims})
+        revision_ids: set[str] = set()
+        source_ids = {claim.official_source_id for claim in claims}
+        decision_ids = {
+            claim.source_revision_decision_id
+            for claim in claims
+            if claim.source_revision_decision_id
+        }
+
+        # Snapshots: aggregate cross-chunk budget with a stable label.
+        snapshot_budget = _Budget(MAX_SNAPSHOTS, "snapshot count")
+        self.snapshots = {
+            snapshot.id: snapshot
+            for snapshot in _load_budgeted_by_ids(
+                session,
+                models.SourceSnapshot,
+                models.SourceSnapshot.id,
+                snapshot_ids,
+                budget=snapshot_budget,
+            )
+        }
+        revision_ids.update(
+            snapshot.source_revision_id for snapshot in self.snapshots.values()
+        )
+        # Sources/revisions/models/benchmarks are bounded by the claims and
+        # snapshots already loaded (one row per referenced id), so they are
+        # plain bounded IN-chunk loads and do NOT consume the related budget.
+        self.revisions = {
+            revision.id: revision
+            for revision in _load_plain_by_ids(
+                session,
+                models.OfficialSourceRevision,
+                models.OfficialSourceRevision.id,
+                revision_ids,
+            )
+        }
+        self.sources = {
+            source.id: source
+            for source in _load_plain_by_ids(
+                session,
+                models.OfficialSourceRow,
+                models.OfficialSourceRow.id,
+                source_ids,
+            )
+        }
+
+        # Related decision/validation rows share ONE persistent budget across
+        # all chunks and all types.  Source-revision decisions are loaded by
+        # referenced revision id FIRST (covering superseded predecessors and
+        # the capture-time chain), then only exact decision ids missing from
+        # that map are queried — so a durable row is never materialized or
+        # charged twice and an under-cap ledger is never falsely rejected.
+        related_budget = _Budget(MAX_RELATED_ROWS, "related decision/validation rows")
+        self.source_decisions: dict[str, models.SourceRevisionDecision] = {}
+        if revision_ids:
+            for chunk in _batch_ids(sorted(revision_ids)):
+                budget_remaining = related_budget.remaining
+                chunk_rows = list(
+                    session.scalars(
+                        select(models.SourceRevisionDecision)
+                        .where(models.SourceRevisionDecision.source_revision_id.in_(chunk))
+                        .order_by(
+                            models.SourceRevisionDecision.source_revision_id,
+                            models.SourceRevisionDecision.id,
+                        )
+                        .limit(budget_remaining + 1)
+                    )
+                )
+                if len(chunk_rows) > budget_remaining:
+                    raise FeedResourceLimitError(
+                        f"{related_budget.label} exceed the documented cap of {related_budget.cap}"
+                    )
+                related_budget.consume(len(chunk_rows))
+                for decision in chunk_rows:
+                    self.source_decisions.setdefault(decision.id, decision)
+        missing_decision_ids = [
+            decision_id
+            for decision_id in decision_ids
+            if decision_id not in self.source_decisions
+        ]
+        for decision in _load_budgeted_by_ids(
+            session,
+            models.SourceRevisionDecision,
+            models.SourceRevisionDecision.id,
+            missing_decision_ids,
+            budget=related_budget,
+        ):
+            self.source_decisions.setdefault(decision.id, decision)
+
+        self.validations = _grouped_by(
+            _load_budgeted_by_ids(
+                session,
+                models.ClaimValidation,
+                models.ClaimValidation.result_claim_id,
+                claim_ids,
+                budget=related_budget,
+            ),
+            "result_claim_id",
+        )
+        self.review_decisions = _grouped_by(
+            _load_budgeted_by_ids(
+                session,
+                models.ClaimReviewDecision,
+                models.ClaimReviewDecision.result_claim_id,
+                claim_ids,
+                budget=related_budget,
+            ),
+            "result_claim_id",
+        )
+        self.publication_decisions = _grouped_by(
+            _load_budgeted_by_ids(
+                session,
+                models.ClaimPublicationDecision,
+                models.ClaimPublicationDecision.result_claim_id,
+                claim_ids,
+                budget=related_budget,
+            ),
+            "result_claim_id",
+        )
+        self.review_decisions_by_id = {
+            decision.id: decision
+            for decisions in self.review_decisions.values()
+            for decision in decisions
+        }
+        self.publication_decisions_by_id = {
+            decision.id: decision
+            for decisions in self.publication_decisions.values()
+            for decision in decisions
+        }
+        model_ids = {claim.model_entity_id for claim in claims if claim.model_entity_id}
+        benchmark_ids = {
+            claim.benchmark_id for claim in claims if claim.benchmark_id
+        }
+        for decisions in self.review_decisions.values():
+            for decision in decisions:
+                if decision.model_entity_id:
+                    model_ids.add(decision.model_entity_id)
+                if decision.benchmark_id:
+                    benchmark_ids.add(decision.benchmark_id)
+        self.models = {
+            model.id: model
+            for model in _load_plain_by_ids(
+                session,
+                models.ModelEntity,
+                models.ModelEntity.id,
+                model_ids,
+            )
+        }
+        self.benchmarks = {
+            benchmark.id: benchmark
+            for benchmark in _load_plain_by_ids(
+                session,
+                models.Benchmark,
+                models.Benchmark.id,
+                benchmark_ids,
+            )
+        }
+
+    def review_chain(self, claim: models.ResultClaim) -> list[models.ClaimReviewDecision]:
+        return repo._resolve_review_chain(
+            claim.id, self.review_decisions.get(claim.id, [])
+        )
+
+    def publication_chain(
+        self, claim: models.ResultClaim
+    ) -> list[models.ClaimPublicationDecision]:
+        return repo._resolve_publication_chain(
+            claim.id, self.publication_decisions.get(claim.id, [])
+        )
+
+
 _HEX_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _TOP_LEVEL_KEYS = frozenset(
     {
@@ -161,51 +496,6 @@ def _is_finite_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
 
 
-def _effective_source_revision_decision(
-    session: Session, source_revision_id: str
-) -> tuple[models.SourceRevisionDecision | None, str | None]:
-    """Resolve one source-revision decision leaf without requiring it be current.
-
-    A claim is bound to a capture-time source revision.  Replacing a logical
-    source's current revision therefore must not make an old, still-certified
-    capture unreadable.  A later decision *on that same revision* can revoke
-    it, however, and then no candidate cell may use it.
-    """
-    decisions = list(
-        session.scalars(
-            select(models.SourceRevisionDecision).where(
-                models.SourceRevisionDecision.source_revision_id == source_revision_id
-            )
-        )
-    )
-    if not decisions:
-        return None, "SOURCE_DECISION_MISSING"
-
-    by_id = {decision.id: decision for decision in decisions}
-    superseded: set[str] = set()
-    for decision in decisions:
-        parent_id = decision.supersedes_decision_id
-        if parent_id is None:
-            continue
-        parent = by_id.get(parent_id)
-        if parent is None or parent.source_revision_id != source_revision_id:
-            return None, "SOURCE_DECISION_CHAIN_INVALID"
-        superseded.add(parent_id)
-
-    leaves = [decision for decision in decisions if decision.id not in superseded]
-    if len(leaves) != 1:
-        return None, "SOURCE_DECISION_CHAIN_AMBIGUOUS"
-
-    current: models.SourceRevisionDecision | None = leaves[0]
-    visited: set[str] = set()
-    while current is not None:
-        if current.id in visited:
-            return None, "SOURCE_DECISION_CHAIN_CYCLIC"
-        visited.add(current.id)
-        current = by_id.get(current.supersedes_decision_id) if current.supersedes_decision_id else None
-    return leaves[0], None
-
-
 def _capture_time_policy_is_complete(
     decision: models.SourceRevisionDecision,
     revision: models.OfficialSourceRevision,
@@ -293,27 +583,22 @@ def _capture_time_policy_is_complete(
     return True
 
 
-def _claim_locator_matches_capture_policy(session: Session, claim: models.ResultClaim) -> bool:
-    if not claim.source_revision_decision_id:
-        return False
-    decision = session.get(models.SourceRevisionDecision, claim.source_revision_decision_id)
-    basis = decision.basis_json if decision is not None and isinstance(decision.basis_json, dict) else {}
-    policy = basis.get("source_admission")
-    return isinstance(policy, dict) and _locator_matches_contract(claim.evidence_location, policy)
-
-
-def _source_provenance(
-    session: Session, claim: models.ResultClaim
+def _source_provenance_batched(
+    batch: FeedBatch, claim: models.ResultClaim
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Return complete capture-time provenance or one stable exclusion reason."""
+    """Batch-context counterpart of :func:`_source_provenance`.
+
+    Identical fail-closed semantics and stable exclusion reasons, resolved
+    entirely from the preloaded batch (no per-claim queries).
+    """
     if not claim.source_revision_decision_id:
         return None, "SOURCE_DECISION_MISSING"
-    snapshot = session.get(models.SourceSnapshot, claim.source_snapshot_id)
-    decision = session.get(models.SourceRevisionDecision, claim.source_revision_decision_id)
+    snapshot = batch.snapshots.get(claim.source_snapshot_id)
+    decision = batch.source_decisions.get(claim.source_revision_decision_id)
     if snapshot is None or decision is None:
         return None, "SOURCE_PROVENANCE_MISSING"
-    revision = session.get(models.OfficialSourceRevision, snapshot.source_revision_id)
-    source = session.get(models.OfficialSourceRow, claim.official_source_id)
+    revision = batch.revisions.get(snapshot.source_revision_id)
+    source = batch.sources.get(claim.official_source_id)
     if revision is None or source is None:
         return None, "SOURCE_PROVENANCE_MISSING"
     if (
@@ -322,7 +607,9 @@ def _source_provenance(
         or decision.source_revision_id != snapshot.source_revision_id
     ):
         return None, "SOURCE_PROVENANCE_LINK_MISMATCH"
-    effective_decision, decision_error = _effective_source_revision_decision(session, revision.id)
+    effective_decision, decision_error = _effective_source_revision_decision_batched(
+        batch, revision.id
+    )
     if decision_error is not None:
         return None, decision_error
     assert effective_decision is not None
@@ -357,40 +644,106 @@ def _source_provenance(
     }, None
 
 
-def _eligible_claim(session: Session, claim: models.ResultClaim) -> tuple[_EligibleClaim | None, str | None]:
-    provenance, reason = _source_provenance(session, claim)
+def _effective_source_revision_decision_batched(
+    batch: FeedBatch, source_revision_id: str
+) -> tuple[models.SourceRevisionDecision | None, str | None]:
+    """Batch-context counterpart of :func:`_effective_source_revision_decision`.
+
+    The claim binds a specific source-revision decision id, so the effective
+    decision for the claim is that exact decision; the batch preloads every
+    decision by id and the capture-time policy re-check below is unchanged.
+    """
+    decisions = [
+        decision
+        for decision in batch.source_decisions.values()
+        if decision.source_revision_id == source_revision_id
+    ]
+    if not decisions:
+        return None, "SOURCE_DECISION_MISSING"
+    by_id = {decision.id: decision for decision in decisions}
+    superseded: set[str] = set()
+    for decision in decisions:
+        parent_id = decision.supersedes_decision_id
+        if parent_id is None:
+            continue
+        parent = by_id.get(parent_id)
+        if parent is None or parent.source_revision_id != source_revision_id:
+            return None, "SOURCE_DECISION_CHAIN_INVALID"
+        superseded.add(parent_id)
+    leaves = [decision for decision in decisions if decision.id not in superseded]
+    if len(leaves) != 1:
+        return None, "SOURCE_DECISION_CHAIN_AMBIGUOUS"
+    current: models.SourceRevisionDecision | None = leaves[0]
+    visited: set[str] = set()
+    while current is not None:
+        if current.id in visited:
+            return None, "SOURCE_DECISION_CHAIN_CYCLIC"
+        visited.add(current.id)
+        current = (
+            by_id.get(current.supersedes_decision_id)
+            if current.supersedes_decision_id
+            else None
+        )
+    return leaves[0], None
+
+
+def _claim_locator_matches_capture_policy_batched(
+    batch: FeedBatch, claim: models.ResultClaim
+) -> bool:
+    """Batch-context counterpart of :func:`_claim_locator_matches_capture_policy`."""
+    if not claim.source_revision_decision_id:
+        return False
+    decision = batch.source_decisions.get(claim.source_revision_decision_id)
+    basis = decision.basis_json if decision is not None and isinstance(decision.basis_json, dict) else {}
+    policy = basis.get("source_admission")
+    return isinstance(policy, dict) and _locator_matches_contract(claim.evidence_location, policy)
+
+
+def _eligible_claim_batched(
+    batch: FeedBatch, claim: models.ResultClaim
+) -> tuple[_EligibleClaim | None, str | None]:
+    """Batch-context counterpart of :func:`_eligible_claim` (no per-claim query)."""
+    provenance, reason = _source_provenance_batched(batch, claim)
     if reason is not None:
         return None, reason
     assert provenance is not None
 
-    validations = list(
-        session.scalars(
-            select(models.ClaimValidation).where(models.ClaimValidation.result_claim_id == claim.id)
-        )
-    )
+    validations = batch.validations.get(claim.id, [])
     if not validations:
         return None, "VALIDATION_MISSING"
     if any(validation.outcome != "pass" for validation in validations):
         return None, "VALIDATION_NOT_ALL_PASS"
 
-    review = repo.get_claim_review_projection(session, claim)
-    if review.chain_error is not None:
+    try:
+        review_chain = batch.review_chain(claim)
+    except repo.ClaimReviewChainError:
         return None, "REVIEW_CHAIN_INVALID"
-    if review.effective_decision_id is None:
+    if not review_chain:
         return None, "REVIEW_DECISION_MISSING"
-    effective_review = session.get(models.ClaimReviewDecision, review.effective_decision_id)
-    if effective_review is None or effective_review.outcome != "validation_reviewed":
+    effective_review = review_chain[0]
+    if effective_review.outcome != "validation_reviewed":
         return None, "REVIEW_NOT_VALIDATION_REVIEWED"
-    if review.model_entity_id is None or review.benchmark_id is None:
+    reviewed_model = next(
+        (decision.model_entity_id for decision in review_chain if decision.model_entity_id is not None),
+        claim.model_entity_id,
+    )
+    reviewed_benchmark = next(
+        (decision.benchmark_id for decision in review_chain if decision.benchmark_id is not None),
+        claim.benchmark_id,
+    )
+    if reviewed_model is None or reviewed_benchmark is None:
         return None, "DISPLAY_IDENTITY_UNRESOLVED"
 
-    publication = repo.get_claim_publication_projection(session, claim)
-    if publication.chain_error is not None:
+    try:
+        publication_chain = batch.publication_chain(claim)
+    except repo.ClaimReviewChainError:
         return None, "PUBLICATION_CHAIN_INVALID"
+    if not publication_chain:
+        return None, "PUBLICATION_NOT_APPROVED"
+    publication = publication_chain[0]
     if (
         publication.outcome != "approved"
-        or publication.effective_decision_id is None
-        or publication.claim_review_decision_id != review.effective_decision_id
+        or publication.claim_review_decision_id != effective_review.id
     ):
         return None, "PUBLICATION_NOT_APPROVED"
 
@@ -405,26 +758,40 @@ def _eligible_claim(session: Session, claim: models.ResultClaim) -> tuple[_Eligi
         claim.evidence_location.get("type")
     ):
         return None, "EVIDENCE_LOCATION_INCOMPLETE"
-    if not _claim_locator_matches_capture_policy(session, claim):
+    if not _claim_locator_matches_capture_policy_batched(batch, claim):
         return None, "EVIDENCE_LOCATION_CONTRACT_MISMATCH"
 
-    model = session.get(models.ModelEntity, review.model_entity_id)
-    benchmark = session.get(models.Benchmark, review.benchmark_id)
+    model = batch.models.get(reviewed_model)
+    benchmark = batch.benchmarks.get(reviewed_benchmark)
     if model is None or benchmark is None:
         return None, "DISPLAY_IDENTITY_MISSING"
+
+    reviewed_metric = next(
+        (decision.metric for decision in review_chain if decision.metric is not None), claim.metric_raw
+    )
+    reviewed_split = next(
+        (decision.split for decision in review_chain if decision.split is not None), claim.split_raw
+    )
+    reviewed_setting = next(
+        (decision.setting for decision in review_chain if decision.setting is not None), claim.setting_raw
+    )
+    reviewed_evaluation_version = next(
+        (decision.evaluation_version for decision in review_chain if decision.evaluation_version is not None),
+        claim.evaluation_version_raw,
+    )
 
     cell: dict[str, str | None] = {
         "modelId": model.id,
         "benchmarkId": benchmark.id,
-        "metric": review.metric,
-        "split": review.split,
-        "setting": review.setting,
-        "evaluationVersion": review.evaluation_version,
+        "metric": reviewed_metric,
+        "split": reviewed_split,
+        "setting": reviewed_setting,
+        "evaluationVersion": reviewed_evaluation_version,
     }
     full_provenance = {
         **provenance,
-        "claimReviewDecisionId": review.effective_decision_id,
-        "claimPublicationDecisionId": publication.effective_decision_id,
+        "claimReviewDecisionId": effective_review.id,
+        "claimPublicationDecisionId": publication.id,
         "captureMethod": claim.capture_method,
     }
     return _EligibleClaim(
@@ -521,20 +888,43 @@ def _conflict_report(
     }
 
 
-def analyze_official_feed_candidates(session: Session) -> FeedCandidateAnalysis:
+def analyze_official_feed_candidates(
+    session: Session, *, batch: FeedBatch | None = None
+) -> FeedCandidateAnalysis:
     """Account for every claim under the deterministic candidate policy.
 
     This is an offline read model.  It does not choose a winner for a
     conflicting display cell and it does not write an assessment back to the
     ledger.  Callers that need a candidate feed must reject conflicts rather
     than treating this analysis as a partial export.
+
+    Cardinality is hard-bounded: claims are loaded with an SQL
+    ``LIMIT MAX_CLAIMS + 1`` (overflow is detected before per-claim
+    processing), and related decision/validation rows are batch-loaded in
+    bounded chunks with per-chunk remaining-budget limits.  Any overflow
+    raises :class:`FeedResourceLimitError` before per-claim processing, so a
+    partial candidate/inventory artifact is never produced.  A caller may pass
+    a prebuilt ``batch`` (built once) so a report call shares one bounded
+    context instead of building a duplicate.
     """
     with session.no_autoflush:
-        claims = list(session.scalars(select(models.ResultClaim).order_by(models.ResultClaim.id)))
+        if batch is None:
+            claims = list(
+                session.scalars(
+                    select(models.ResultClaim)
+                    .order_by(models.ResultClaim.id)
+                    .limit(MAX_CLAIMS + 1)
+                )
+            )
+            if len(claims) > MAX_CLAIMS:
+                raise FeedResourceLimitError(
+                    f"claim count exceeds the documented cap of {MAX_CLAIMS}"
+                )
+            batch = FeedBatch(session, claims)
         eligible_by_cell: dict[str, list[_EligibleClaim]] = defaultdict(list)
         excluded_claims: list[dict[str, str]] = []
-        for claim in claims:
-            candidate, reason = _eligible_claim(session, claim)
+        for claim in batch.claims:
+            candidate, reason = _eligible_claim_batched(batch, claim)
             if candidate is None:
                 assert reason is not None
                 excluded_claims.append({"claimId": claim.id, "reasonCode": reason})

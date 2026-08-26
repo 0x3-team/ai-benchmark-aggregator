@@ -1,0 +1,205 @@
+import assert from "node:assert/strict";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const requiredFiles = ["404.html", "robots.txt", "_headers"];
+const requiredAssets = [
+  "favicon.svg",
+  "favicon-32x32.png",
+  "apple-touch-icon.png",
+  "social-preview.png",
+];
+
+async function isFile(filePath) {
+  try {
+    return (await stat(filePath)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function isDirectory(directoryPath) {
+  try {
+    return (await stat(directoryPath)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function readRequiredFiles(directory, label) {
+  const contents = new Map();
+  for (const file of requiredFiles) {
+    const filePath = join(directory, file);
+    assert.ok(await isFile(filePath), `${label} is missing required ${file}`);
+    contents.set(file, await readFile(filePath, "utf8"));
+  }
+  return contents;
+}
+
+async function readRequiredAssets(directory, label) {
+  const contents = new Map();
+  for (const file of requiredAssets) {
+    const filePath = join(directory, file);
+    assert.ok(await isFile(filePath), `${label} is missing required ${file}`);
+    contents.set(file, await readFile(filePath));
+  }
+  return contents;
+}
+
+function assertRobots(robots, label) {
+  assert.doesNotMatch(robots, /<\/?(?:!doctype|html|head|body)\b/i, `${label} must be plain text`);
+  assert.match(robots, /^User-agent:\s*\*\s*$/m, `${label} needs User-agent`);
+  assert.match(robots, /^Allow:\s*\/\s*$/m, `${label} needs Allow`);
+  assert.doesNotMatch(robots, /^Sitemap:\s*$/im, `${label} has an empty Sitemap`);
+  assert.ok(!robots.includes("\0"), `${label} must not contain NUL bytes`);
+}
+
+function assertNotFound(notFound, label) {
+  assert.match(notFound, /^<!doctype html>/i, `${label} must be HTML`);
+  assert.match(notFound, /<html\s+lang=["']en["']/i, `${label} needs lang=en`);
+  assert.match(notFound, /<title>[^<]*Page not found/i, `${label} needs a not-found title`);
+  assert.match(notFound, /\b404\b/, `${label} needs a 404 marker`);
+  assert.match(notFound, /href=["']\/["']/, `${label} needs a root link`);
+  assert.doesNotMatch(notFound, /id=["']root["']/i, `${label} must not be the SPA shell`);
+}
+
+function assertHeaders(headers, label) {
+  for (const expected of [
+    "X-Content-Type-Options: nosniff",
+    "Referrer-Policy: strict-origin-when-cross-origin",
+    "X-Frame-Options: DENY",
+    "Permissions-Policy:",
+    "Content-Security-Policy-Report-Only:",
+    "https://:project.pages.dev/*",
+    "https://:version.:project.pages.dev/*",
+    "X-Robots-Tag: noindex",
+  ]) {
+    assert.ok(headers.includes(expected), `${label} is missing ${expected}`);
+  }
+  assert.doesNotMatch(headers, /^\s*Strict-Transport-Security:/im, `${label} must not add HSTS`);
+  assert.match(
+    headers,
+    /^\s*Content-Security-Policy-Report-Only:\s*default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'\s*$/im,
+    `${label} needs the complete report-only CSP policy`,
+  );
+  assert.doesNotMatch(
+    headers,
+    /^\s*Content-Security-Policy:/im,
+    `${label} must not ship enforcing CSP before provider/browser evidence`,
+  );
+  assert.match(headers, /HOST-03 keeps enforcing CSP and HSTS staged in comments(?:\s+#)?\s+only/i);
+  assert.doesNotMatch(headers, /_worker\.js|functions\//i, `${label} must not add a Worker`);
+}
+
+function assertCanonical(index, label) {
+  const canonical = index.match(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i);
+  assert.ok(canonical, `${label} must declare rel=canonical`);
+  assert.equal(canonical[1], "https://benchmark.0x3.dev/", `${label} has the wrong canonical`);
+  assert.doesNotMatch(canonical[1], /\.pages\.dev\//i, `${label} must not canonicalize a preview host`);
+  assert.match(
+    index,
+    /<meta\s+name=["']robots["']\s+content=["']index,\s*follow["']/i,
+    `${label} needs index/follow metadata`,
+  );
+}
+
+function assertMetadata(index, label) {
+  for (const expected of [
+    /<meta\s+name=["']description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']theme-color["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:title["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:url["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/["'][^>]*>/i,
+    /<meta\s+property=["']og:image["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/social-preview\.png["'][^>]*>/i,
+    /<meta\s+property=["']og:image:width["']\s+content=["']1200["'][^>]*>/i,
+    /<meta\s+property=["']og:image:height["']\s+content=["']630["'][^>]*>/i,
+    /<meta\s+property=["']og:image:alt["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:card["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:url["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/["'][^>]*>/i,
+    /<meta\s+name=["']twitter:title["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:image["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/social-preview\.png["'][^>]*>/i,
+    /<meta\s+name=["']twitter:image:alt["']\s+content=["'][^"']+[^>]*>/i,
+    /<link\s+rel=["']icon["'][^>]+href=["']\/favicon\.svg["']/i,
+    /<link\s+rel=["']icon["'][^>]+href=["']\/favicon-32x32\.png["']/i,
+    /<link\s+rel=["']apple-touch-icon["'][^>]+href=["']\/apple-touch-icon\.png["']/i,
+  ]) {
+    assert.match(index, expected, `${label} is missing production metadata or favicon wiring`);
+  }
+}
+
+/**
+ * Validate source Pages controls and, when requested/present, their built copy.
+ * Unit tests can omit `requireDist`; the public CLI/package command passes
+ * `--require-dist`, so a missing or stale dist is always fatal in CI.
+ */
+export async function verifyPagesStatic({ rootDir = repoRoot, requireDist = false } = {}) {
+  const publicDir = join(rootDir, "public");
+  const source = await readRequiredFiles(publicDir, "public/");
+  assertNotFound(source.get("404.html"), "public/404.html");
+  assertRobots(source.get("robots.txt"), "public/robots.txt");
+  assertHeaders(source.get("_headers"), "public/_headers");
+  const index = await readFile(join(rootDir, "index.html"), "utf8");
+  assertCanonical(index, "index.html");
+  assertMetadata(index, "index.html");
+  const sourceAssets = await readRequiredAssets(publicDir, "public/");
+  assert.equal(sourceAssets.get("social-preview.png").readUInt32BE(0), 0x89504e47, "social-preview.png must be PNG");
+  assert.equal(sourceAssets.get("social-preview.png").readUInt32BE(16), 1200, "social preview must be 1200px wide");
+  assert.equal(sourceAssets.get("social-preview.png").readUInt32BE(20), 630, "social preview must be 630px tall");
+
+  const distDir = join(rootDir, "dist");
+  const distPresent = await isDirectory(distDir);
+  if (requireDist || distPresent) {
+    assert.ok(await isFile(join(distDir, "index.html")), "dist/ is missing built index.html");
+    const built = await readRequiredFiles(distDir, "dist/");
+    for (const file of requiredFiles) {
+      assert.equal(built.get(file), source.get(file), `dist/${file} is missing or stale`);
+    }
+    const builtAssets = await readRequiredAssets(distDir, "dist/");
+    for (const file of requiredAssets) {
+      assert.deepEqual(builtAssets.get(file), sourceAssets.get(file), `dist/${file} is missing or stale`);
+    }
+    const builtIndex = await readFile(join(distDir, "index.html"), "utf8");
+    assertCanonical(builtIndex, "dist/index.html");
+    assertMetadata(builtIndex, "dist/index.html");
+  }
+
+  return { sourceChecked: true, distChecked: requireDist || distPresent };
+}
+
+function parseCliArgs(args) {
+  let rootDir = repoRoot;
+  let requireDist = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--require-dist") {
+      requireDist = true;
+    } else if (arg === "--root-dir") {
+      const value = args[index + 1];
+      assert.ok(value, "--root-dir requires a path");
+      rootDir = resolve(value);
+      index += 1;
+    } else if (arg === "--help" || arg === "-h") {
+      console.log("Usage: node scripts/verify-pages-static.mjs [--require-dist] [--root-dir PATH]");
+      return null;
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+  return { rootDir, requireDist };
+}
+
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  try {
+    const options = parseCliArgs(process.argv.slice(2));
+    if (!options) process.exit(0);
+    const result = await verifyPagesStatic(options);
+    console.log(`Pages static verification passed (source${result.distChecked ? " + dist" : ""}).`);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  }
+}

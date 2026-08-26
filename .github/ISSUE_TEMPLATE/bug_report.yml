@@ -1,5 +1,5 @@
 name: Bug Report
-about: Report a bug in the ledger, frontend, or data pipeline
+description: Report a bug in the ledger, frontend, or data pipeline
 title: "[Bug] "
 labels: ["bug"]
 assignees: []

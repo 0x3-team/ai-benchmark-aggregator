@@ -17,14 +17,16 @@ import {
 interface BenchmarkCardProps {
   benchmark: DatasetBenchmark;
   models: readonly DatasetModel[];
+  /** Full immutable dataset cohort used for global claims and field stats. */
+  cohortModels?: readonly DatasetModel[];
 }
 
-export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
+export function BenchmarkCard({ benchmark, models, cohortModels = models }: BenchmarkCardProps) {
   const { getValue, getScoreEntry } = useDataset();
-  const values = models.map((m) => getValue(m.id, benchmark.id));
+  const values = cohortModels.map((m) => getValue(m.id, benchmark.id));
   const stats = columnStats(values, benchmark);
 
-  const ranked = models
+  const ranked = cohortModels
     .map((m) => ({
       m,
       v: getValue(m.id, benchmark.id),
@@ -42,7 +44,6 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
       <div>
         <Badge
           className="border-transparent bg-[hsl(258_90%_66%)] text-white"
-          onClick={(e) => e.preventDefault()}
         >
           {CATEGORY_LABELS[benchmark.category]}
         </Badge>
@@ -64,7 +65,7 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
           { label: "Best", value: fmt(stats.best), tone: "text-emerald-300" },
           { label: "Avg", value: fmt(stats.avg), tone: "text-foreground" },
           { label: "Worst", value: fmt(stats.worst), tone: "text-amber-300" },
-          { label: "Coverage", value: `${stats.count}/${models.length}`, tone: "text-foreground" },
+          { label: "Coverage", value: `${stats.count}/${cohortModels.length}`, tone: "text-foreground" },
         ].map((cell) => (
           <div
             key={cell.label}
@@ -92,7 +93,7 @@ export function BenchmarkCard({ benchmark, models }: BenchmarkCardProps) {
           </p>
         </CardHeader>
         <CardContent>
-          <BenchmarkSpreadArea benchmark={benchmark} models={models} />
+          <BenchmarkSpreadArea benchmark={benchmark} models={cohortModels} />
         </CardContent>
       </Card>
 

@@ -337,8 +337,8 @@ No worker changed the product, dependencies, database, credentials, or cloud sta
 - [ADR-005: Official publication governance](../adr/ADR-005-official-publication-governance.md)
 - [ADR-006: Versioned ledger migrations](../adr/ADR-006-versioned-ledger-migrations.md)
 - [Official-mode remediation implementation plan](2026-07-13-official-mode-remediation-implementation-plan.md)
-- [Implementation ledger](2026-07-13-official-mode-remediation-implementation-plan-implementation-ledger.jsonl)
-- [Local model guideline ledger](../local-model-guideline-ledger.md)
+- Historical implementation ledger (removed from the repository; no live link retained)
+- Historical local model guideline ledger (removed from the repository; no live link retained)
 
 ### Provider documentation to re-check during provider selection
 

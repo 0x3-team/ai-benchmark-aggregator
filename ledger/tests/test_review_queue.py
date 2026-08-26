@@ -1,4 +1,6 @@
 from pathlib import Path
+import os
+import pwd
 
 import pytest
 from sqlalchemy import func, select
@@ -94,13 +96,25 @@ def test_manual_model_mapping_cli_is_registered_and_preserves_claim_fields(
         before_status = claim.capture_status
 
     help_result = runner.invoke(app, ["review", "map-model", "--help"])
-    result = runner.invoke(app, ["review", "map-model", claim_id, "fake_model_1", "--actor", "operator"])
+    # F17: caller-supplied --actor must be rejected before any row is written.
+    forged = runner.invoke(
+        app,
+        ["review", "map-model", claim_id, "fake_model_1", "--actor", "operator"],
+        env={"USER": "forged-user", "LOGNAME": "forged-logname"},
+    )
+    result = runner.invoke(
+        app,
+        ["review", "map-model", claim_id, "fake_model_1"],
+        env={"USER": "forged-user", "LOGNAME": "forged-logname"},
+    )
     claim_detail = runner.invoke(app, ["claims", "show", claim_id])
     blocked_human = runner.invoke(app, ["review", "mark-human-verified", claim_id])
     blocked_bulk = runner.invoke(app, ["review", "auto-verify-matched"])
 
     assert help_result.exit_code == 0
     assert "Append a manual model-identity decision" in help_result.output
+    assert forged.exit_code == 2
+    assert "No such option" in forged.output
     assert result.exit_code == 0
     assert "Recorded manual model mapping" in result.output
     assert "captured claim and validation status are unchanged" in result.output
@@ -125,7 +139,13 @@ def test_manual_model_mapping_cli_is_registered_and_preserves_claim_fields(
             )
         )
         assert len(decisions) == 1
-        assert decisions[0].actor == "operator"
+        # F17: the persisted actor is the canonical OS-bound principal
+        # (posix:euid=<euid>;name=<name>), not the forged USER/LOGNAME value.
+        euid = os.geteuid()
+        expected_actor = f"posix:euid={euid};name={pwd.getpwuid(euid).pw_name}"
+        assert decisions[0].actor == expected_actor
+        assert decisions[0].actor != "forged-user"
+        assert decisions[0].actor != "forged-logname"
         assert decisions[0].model_entity_id == "fake_model_1"
 
 
@@ -200,3 +220,81 @@ def test_review_chain_requires_a_new_effective_decision_before_a_publication_rec
                 outcome="needs_review",
                 reason_code="parallel_branch",
             )
+
+
+def test_cli_queue_shows_continuation_for_empty_but_unexhausted_page(
+    seeded_db, allow_quarantined_fixture_ingestion, tmp_path: Path
+):
+    """CLI renders continuation when a bounded page yields zero eligible items.
+
+    Regression for the defect where the CLI printed "Review queue empty" and
+    returned as soon as a bounded page had no eligible items, hiding later work.
+    """
+    from app.db import repositories as _repo
+    from app.db import models as _models
+    from app.db.engine import get_session
+
+    # Create claims via the institutional ingestion path, then resolve the model
+    # identity of enough claims so the first page (limit=3) is a zero-eligible
+    # but non-exhausted page, proving the CLI surfaces a usable continuation.
+    with get_session() as session:
+        run_ingestion(session, source_id="fake_local_fixture", fixture_path=FIXTURE)
+
+    # Resolve only the single newest claim so limit=1 yields a zero-eligible
+    # first window while an older eligible row remains -> a usable cursor.
+    with get_session() as session:
+        newest = session.scalars(
+            select(_models.ResultClaim)
+            .order_by(_models.ResultClaim.created_at.desc(), _models.ResultClaim.id.desc())
+            .limit(1)
+        ).first()
+        assert newest is not None
+        if session.get(_models.ModelEntity, "cli-resolved-model") is None:
+            session.add(
+                _models.ModelEntity(
+                    id="cli-resolved-model",
+                    canonical_name="cli-resolved",
+                    display_name="CLI resolved",
+                    entity_type="model",
+                )
+            )
+        session.flush()
+        _repo.append_manual_model_mapping(
+            session, result_claim_id=newest.id, model_entity_id="cli-resolved-model", actor="pytest"
+        )
+        session.flush()
+
+    result = runner.invoke(app, ["review", "queue", "--limit", "1"])
+    assert result.exit_code == 0
+    # The first window reads 1 (newest, now ineligible) but older rows remain.
+    assert "Next cursor" in result.output
+    assert "Continuation available" in result.output
+    assert "Review queue empty." not in result.output
+
+    # Continue with the cursor.  The remaining rows may be ineligible too, so
+    # drain until an eligible "Claim ID" appears.  A truly exhausted page prints
+    # "Review queue empty." and emits no cursor — that is only reached at the
+    # true end of the queue and is the *correct* terminal rendering, never a
+    # false early "empty" while ``Next cursor`` remained available.
+    import re as _re
+
+    m = _re.search(r"Next cursor: (\S+)", result.output)
+    assert m is not None
+    nxt = m.group(1)
+    found_eligible = False
+    result2 = result
+    for _ in range(8):
+        result2 = runner.invoke(app, ["review", "queue", "--limit", "1", "--cursor", nxt])
+        assert result2.exit_code == 0
+        if "Claim ID:" in result2.output:
+            found_eligible = True
+            break
+        m2 = _re.search(r"Next cursor: (\S+)", result2.output)
+        if m2 is None:
+            # No cursor -> truly exhausted; only allowed as the terminal state.
+            assert "Review queue empty." in result2.output or "exhausted" in result2.output
+            break
+        nxt = m2.group(1)
+    # We reached an eligible claim (regression goal) OR legitimately drained the
+    # whole queue through continuation pages without ever a stale early "empty".
+    assert found_eligible or "Next cursor" not in result2.output

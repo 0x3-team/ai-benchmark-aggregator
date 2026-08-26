@@ -16,6 +16,7 @@ import { ModelDetail } from "./ModelDetail";
 import { ScoreHeatmap } from "./ScoreHeatmap";
 import { ScoreTable } from "./ScoreTable";
 import { TooltipProvider } from "./ui/tooltip";
+import type { RankRow } from "../lib/aggregate";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -288,6 +289,7 @@ describe("ClaimEvidence", () => {
         <TooltipProvider>
           <ScoreTable
             models={[model]}
+            cohortModels={data.models}
             benchmarks={[benchmark]}
             sort={null}
             onSort={vi.fn()}
@@ -296,7 +298,19 @@ describe("ClaimEvidence", () => {
             onClearSort={vi.fn()}
             onToggleModelSelect={vi.fn()}
             selectedModels={[]}
-            rankMap={{ [model.id]: 1 }}
+            rankMap={{
+              [model.id]: {
+                model,
+                rank: 1,
+                avgRank: 1,
+                firsts: 1,
+                coverage: 1,
+                covered: 1,
+                total: 1,
+                unrankedReason: null,
+              } satisfies RankRow,
+            }}
+            rankCohortTotal={1}
           />
           <ScoreHeatmap models={[model]} benchmarks={[benchmark]} onOpenModel={vi.fn()} />
           <ModelDetail

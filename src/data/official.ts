@@ -63,6 +63,13 @@ export interface OfficialReleaseAuthorization {
   readonly contentSha256: string;
 }
 
+export interface AuthorizedOfficialReleaseInput {
+  /** Exact canonical v2 JSON bytes; parsed objects are not release identities. */
+  readonly artifactBytes: string;
+  /** Separately governed record; validated as an exact closed shape. */
+  readonly authorization: unknown;
+}
+
 const UNAVAILABLE_SCHEMA_VERSION = "1.0.0";
 const UNAVAILABLE_POLICY_VERSION = "official-release-artifact-v1";
 const PUBLISHED_SCHEMA_VERSION = "2.0.0";
@@ -73,6 +80,20 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+const CREDENTIAL_QUERY_KEYS = new Set([
+  "access_token",
+  "api_key",
+  "apikey",
+  "credential",
+  "password",
+  "secret",
+  "signature",
+  "token",
+  "x-amz-credential",
+  "x-amz-signature",
+  "x-goog-credential",
+  "x-goog-signature",
+]);
 
 const UNAVAILABLE_ARTIFACT_KEYS = new Set([
   "schemaVersion",
@@ -109,6 +130,12 @@ const MANIFEST_KEYS = new Set([
   "scoreCount",
 ]);
 const RELEASE_APPROVAL_KEYS = new Set(["decisionId", "policyVersion", "approvedAt"]);
+const RELEASE_AUTHORIZATION_KEYS = new Set([
+  "artifactId",
+  "contentSha256",
+  "releaseApprovalDecisionId",
+  "policyVersion",
+]);
 const MODEL_KEYS = new Set([
   "id",
   "name",
@@ -281,7 +308,20 @@ function isSafeHttpsUrl(value: unknown): value is string {
   if (!hasNonemptyString(value)) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.length > 0 && !url.username && !url.password;
+    return (
+      url.protocol === "https:" &&
+      url.hostname.length > 0 &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      ![...value].some((character) => {
+        const codePoint = character.codePointAt(0)!;
+        return codePoint < 0x20 || codePoint === 0x7f;
+      }) &&
+      [...url.searchParams.keys()].every(
+        (key) => !CREDENTIAL_QUERY_KEYS.has(key.toLocaleLowerCase("en-US"))
+      )
+    );
   } catch {
     return false;
   }
@@ -835,6 +875,10 @@ function canonicalizeJson(value: unknown): unknown {
   throw new PublishedArtifactParseError("Canonical JSON contains an unsupported value.");
 }
 
+export function canonicalPublishedArtifactJson(payload: unknown): string {
+  return JSON.stringify(canonicalizeJson(payload));
+}
+
 /**
  * Canonical digest used by the future v2 contract. It is intentionally public
  * for offline release tooling and test fixtures, not an authorization API.
@@ -854,19 +898,38 @@ export async function publishedArtifactDigest(payload: unknown): Promise<string>
   }
   const digest = await subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(JSON.stringify(canonicalizeJson(digestInput)))
+    new TextEncoder().encode(canonicalPublishedArtifactJson(digestInput))
   );
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function parseReleaseAuthorization(input: unknown): OfficialReleaseAuthorization | null {
+  if (!isRecord(input) || !hasExactKeys(input, RELEASE_AUTHORIZATION_KEYS)) return null;
+  if (
+    !hasIdentifier(input.artifactId) ||
+    !hasIdentifier(input.releaseApprovalDecisionId) ||
+    input.policyVersion !== PUBLISHED_POLICY_VERSION ||
+    !isSha256(input.contentSha256)
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    artifactId: input.artifactId,
+    releaseApprovalDecisionId: input.releaseApprovalDecisionId,
+    policyVersion: PUBLISHED_POLICY_VERSION,
+    contentSha256: input.contentSha256,
+  });
+}
+
 function authorizationMatches(
-  authorization: OfficialReleaseAuthorization,
+  authorizationInput: unknown,
   artifactId: string,
   approval: OfficialReleaseApproval,
   digest: string
 ): boolean {
+  const authorization = parseReleaseAuthorization(authorizationInput);
   return (
-    isRecord(authorization) &&
+    authorization !== null &&
     authorization.artifactId === artifactId &&
     authorization.releaseApprovalDecisionId === approval.decisionId &&
     authorization.policyVersion === PUBLISHED_POLICY_VERSION &&
@@ -876,19 +939,31 @@ function authorizationMatches(
 }
 
 /**
- * Parse a separately supplied, release-authorized v2 artifact. This function
- * is deliberately dormant during containment: `loadOfficialData()` never
- * calls it and the repository contains no v2 artifact or authorization.
+ * Parse a separately supplied, release-authorized v2 artifact. The standard
+ * loader reaches this only when its caller supplies canonical bytes and an
+ * external authorization record. The repository supplies neither.
  */
 export async function parsePublishedOfficialArtifact(
   input: unknown,
-  authorization: OfficialReleaseAuthorization
+  authorization: unknown
 ): Promise<OfficialLoadResult> {
   let artifactId: string | undefined;
   try {
-    const parsed = parsePublishedArtifact(input);
+    if (typeof input !== "string") {
+      parseError("Official published artifact must be supplied as canonical JSON bytes.");
+    }
+    let document: unknown;
+    try {
+      document = JSON.parse(input);
+    } catch {
+      parseError("Official published artifact is not valid JSON.");
+    }
+    if (input !== canonicalPublishedArtifactJson(document)) {
+      parseError("Official published artifact bytes are not canonical JSON.");
+    }
+    const parsed = parsePublishedArtifact(document);
     artifactId = parsed.artifactId;
-    const digest = await publishedArtifactDigest(input);
+    const digest = await publishedArtifactDigest(document);
     if (digest !== parsed.manifest.contentSha256) {
       return unavailable("The Official artifact integrity digest does not match its content.", artifactId);
     }
@@ -984,7 +1059,24 @@ export function parseOfficialArtifact(input: unknown): OfficialLoadResult {
   return unavailable(artifact.reason, artifact.artifactId);
 }
 
-/** The runtime containment loader has exactly one tracked input. */
-export function loadOfficialData(): OfficialLoadResult {
-  return parseOfficialArtifact(unavailableArtifact);
+/**
+ * The shipped runtime calls this with no argument and therefore keeps exactly
+ * one tracked unavailable input. A future release composition root may supply
+ * canonical v2 bytes plus an external authorization record; both are required
+ * and the parser fails closed on any mismatch. This module imports neither.
+ */
+export function loadOfficialData(): OfficialLoadResult;
+export function loadOfficialData(
+  release: AuthorizedOfficialReleaseInput
+): Promise<OfficialLoadResult>;
+export function loadOfficialData(
+  release?: AuthorizedOfficialReleaseInput
+): OfficialLoadResult | Promise<OfficialLoadResult> {
+  if (release === undefined) return parseOfficialArtifact(unavailableArtifact);
+  if (!isRecord(release) || !hasExactKeys(release, new Set(["artifactBytes", "authorization"]))) {
+    return Promise.resolve(
+      unavailable("The Official release input has an invalid activation shape.")
+    );
+  }
+  return parsePublishedOfficialArtifact(release.artifactBytes, release.authorization);
 }

@@ -29,6 +29,10 @@ src/data/official/export.from-ledger.json
 .grok/
 .hermes/
 
+# Internal discovery data (not for public repo)
+ledger/app/registry/discovery/
+IDEA.md
+
 # IDE/editor
 *.swp
 *.swo

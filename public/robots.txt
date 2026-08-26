@@ -1,0 +1,3 @@
+# Static Cloudflare Pages artifact. Preview pages.dev hosts are noindexed by _headers.
+User-agent: *
+Allow: /

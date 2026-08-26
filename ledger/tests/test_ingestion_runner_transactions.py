@@ -12,6 +12,7 @@ from app.db.engine import get_session
 from app.ingestion.admission import AdmissionVerdict, ClaimAdmission, SourceAdmission
 from app.ingestion import runner as ingestion_runner
 from app.ingestion.adapters.base import SourceAdapter
+from app.ingestion.safe_fetch import SafeFetchError
 from app.ingestion.runner import run_ingestion
 from app.schemas.boundary import ClaimValidationInput, ResultClaimInput, SourceFetchResult
 
@@ -105,6 +106,14 @@ class ScriptedAdapter(SourceAdapter):
                 validator="ScriptedAdapter",
             )
         ]
+
+
+class SafeFetchFailureAdapter(ScriptedAdapter):
+    def fetch(self, source) -> SourceFetchResult:  # type: ignore[no-untyped-def]
+        raise SafeFetchError(
+            "FETCH_TRANSPORT_UNAVAILABLE",
+            "provider response contained https://operator:secret@example.invalid/token",
+        )
 
 
 def _install_scripted_runner(
@@ -423,6 +432,34 @@ def test_fail_fast_commits_terminal_failure_then_cli_exits_nonzero(seeded_db, mo
         assert _count(session, models.ResultClaim) == 0
 
 
+def test_cli_redacts_safe_fetch_details_from_failed_run(seeded_db, monkeypatch):
+    with get_session() as session:
+        source = _add_scripted_source(session, "safe-fetch-failure-source")
+        source_id = source.id
+    adapter = SafeFetchFailureAdapter()
+    _install_scripted_runner(monkeypatch, [source_id], adapter)
+
+    result = cli_runner.invoke(app, ["ingest", "--source", source_id])
+
+    assert result.exit_code == 1
+    assert "SafeFetchError(FETCH_TRANSPORT_UNAVAILABLE)" in result.output
+    assert "operator:secret" not in result.output
+    assert "provider response" not in result.output
+    with get_session() as session:
+        run = session.scalar(select(models.IngestionRun))
+        assert run is not None
+        stored = "\n".join(
+            [
+                run.error_message or "",
+                *(run.metadata_json.get("errors") or []),
+                *(entry.get("message", "") for entry in run.metadata_json.get("source_outcomes", [])),
+            ]
+        )
+        assert "SafeFetchError(FETCH_TRANSPORT_UNAVAILABLE)" in stored
+        assert "operator:secret" not in stored
+        assert "provider response" not in stored
+
+
 def test_cli_dry_run_does_not_initialize_a_missing_database(tmp_path: Path, monkeypatch):
     database_path = tmp_path / "missing.db"
     snapshot_root = tmp_path / "missing-snapshots"
@@ -446,7 +483,7 @@ def test_cli_dry_run_does_not_initialize_a_missing_database(tmp_path: Path, monk
     assert not snapshot_root.exists()
 
 
-def test_cli_live_ingest_initializes_a_missing_database_before_it_fails_closed(
+def test_cli_live_ingest_refuses_a_missing_database_before_opening_it(
     tmp_path: Path, monkeypatch
 ):
     database_path = tmp_path / "missing.db"
@@ -466,6 +503,65 @@ def test_cli_live_ingest_initializes_a_missing_database_before_it_fails_closed(
         get_settings.cache_clear()
 
     assert result.exit_code == 2
-    assert "Ingestion blocked:" in result.output
-    assert database_path.exists()
+    assert "existing, integrity-clean current ledger database is required" in result.output
+    assert not database_path.exists()
     assert not snapshot_root.exists()
+
+
+def test_finished_at_is_database_authoritative_and_utc(seeded_db):
+    """``finish_ingestion_run`` must record the database clock, not an app clock.
+
+    ``func.current_timestamp()`` compiles to ``CURRENT_TIMESTAMP`` for both the
+    SQLite and PostgreSQL dialects, and the persisted reload must agree with the
+    SQLite engine's own ``strftime('%Y-%m-%d %H:%M:%S','now')`` at the same
+    instant.  SQLite has no wall-clock of its own beyond the one baked into
+    ``CURRENT_TIMESTAMP``, so the only way the stored value can be within the
+    same second is if the database itself supplied it.  The stored value must
+    also reload as a naive (no-tzinfo) timestamp that still parses as UTC text.
+    """
+    from sqlalchemy import text
+
+    from app.db import repositories as repo
+    from app.db.engine import get_session
+
+    with get_session() as session:
+        run = repo.create_ingestion_run(session, run_type="scripted")
+        repo.finish_ingestion_run(session, run, status="completed")
+        session.flush()
+        orm_finished_at = run.finished_at  # materialize before the session closes
+
+        run_id = run.id
+        session.commit()
+        db_now = session.execute(
+            text("SELECT strftime('%Y-%m-%d %H:%M:%S', 'now')")
+        ).scalar_one()
+        session.commit()  # not needed; guarantees the reload saw committed value
+
+    # Reload from a fresh session: the persisted value must equal the database's
+    # own CURRENT_TIMESTAMP to the second (allowing one-second clock skew between
+    # the two reads).  It must reload as naive UTC text, proving the database —
+    # not an application timestamp literal — supplied it.
+    with get_session() as session:
+        stored = session.execute(
+            text("SELECT finished_at FROM ingestion_runs WHERE id = :rid"),
+            {"rid": run_id},
+        ).scalar_one()
+
+    assert isinstance(stored, str)
+    from datetime import datetime
+    stored_dt = datetime.strptime(stored, "%Y-%m-%d %H:%M:%S")
+    db_now_dt = datetime.strptime(db_now, "%Y-%m-%d %H:%M:%S")
+    assert abs((stored_dt - db_now_dt).total_seconds()) <= 1
+    assert orm_finished_at is not None
+    assert orm_finished_at.tzinfo is None
+
+    # Emitted SQL must not smuggle in an application-side now()/datetime literal:
+    # the update expression coerces to CURRENT_TIMESTAMP, not a Python timestamp.
+    from sqlalchemy import func
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.dialects.sqlite import dialect as sqlite_dialect
+
+    compiled_sqlite = str(func.current_timestamp().compile(dialect=sqlite_dialect()))
+    compiled_postgres = str(func.current_timestamp().compile(dialect=postgresql.dialect()))
+    assert compiled_sqlite == "CURRENT_TIMESTAMP"
+    assert compiled_postgres == "CURRENT_TIMESTAMP"

@@ -56,7 +56,7 @@ export type GetScoreEntry = (modelId: string, benchmarkId: string) => ScoreProve
 export interface DatasetAccess {
   readonly models: readonly DatasetModel[];
   readonly benchmarks: readonly DatasetBenchmark[];
-  /** Release policy/source context; null for Demo and any non-governed data. */
+  /** Release policy/source context; null while publication is unavailable. */
   readonly officialRelease: DatasetOfficialRelease | null;
   readonly getValue: GetValue;
   readonly getScoreEntry: GetScoreEntry;
@@ -82,21 +82,31 @@ function immutableBenchmarks(
   benchmarks: readonly Benchmark[]
 ): readonly DatasetBenchmark[] {
   return Object.freeze(
-    benchmarks.map((benchmark): DatasetBenchmark => Object.freeze({ ...benchmark }))
+    benchmarks.map((benchmark): DatasetBenchmark =>
+      Object.freeze({
+        ...benchmark,
+        normalization: benchmark.normalization
+          ? Object.freeze({ ...benchmark.normalization })
+          : benchmark.normalization,
+      })
+    )
   );
 }
 
 function immutableScores(scores: readonly Score[]): readonly Score[] {
-  return scores.map((score) =>
-    score.evidenceLocation || score.officialProvenance
-      ? Object.freeze({
-          ...score,
-          evidenceLocation: score.evidenceLocation
-            ? Object.freeze({ ...score.evidenceLocation })
-            : score.evidenceLocation,
-          officialProvenance: immutableOfficialProvenance(score.officialProvenance),
-        })
-      : score
+  // Always clone and freeze each score row. Keeping an input object by
+  // reference would let a caller mutate the private index after construction
+  // and silently change later getValue results.
+  return Object.freeze(
+    scores.map((score) =>
+      Object.freeze({
+        ...score,
+        evidenceLocation: score.evidenceLocation
+          ? Object.freeze({ ...score.evidenceLocation })
+          : score.evidenceLocation,
+        officialProvenance: immutableOfficialProvenance(score.officialProvenance),
+      })
+    )
   );
 }
 
@@ -206,7 +216,8 @@ interface DatasetProviderProps {
 /**
  * The app's active dataset boundary. A provider receives one immutable
  * snapshot, and every consumer gets the same scoped accessors on its first
- * render. There is intentionally no default/demo fallback outside a provider.
+ * render. There is intentionally no default or sample fallback outside a
+ * provider.
  */
 export function DatasetProvider({ data, children }: DatasetProviderProps) {
   const dataset = useMemo(() => createDatasetAccess(data), [data]);

@@ -4,7 +4,7 @@
 
 This repository is the **AI Benchmark Platform**:
 
-1. **Frontend** (`src/*`) — React SPA for model benchmark comparison (demo synthetic data + planned official mode).
+1. **Frontend** (`src/*`) — React SPA that shows a governed Official release or an honest awaiting-publication state.
 2. **Ledger** (`ledger/*`) — Python CLI that captures official benchmark results as immutable source-backed claims.
 
 The ledger does **not** run benchmarks and does **not** recalculate scores.
@@ -63,10 +63,10 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 - Fixture tests for every adapter.
 - Run ledger tests: `cd ledger && pytest -q`.
 - Run frontend: `npm run typecheck` and `npm run build`.
+- This repository is public. Keep it public; do not change visibility as a CI workaround. Treat any future CI failure as a workflow, runner, or account issue and diagnose the exact check evidence.
 - Update README/AGENTS when CLI or trust UI changes.
 
 ## Local model orchestration
 
-- Before delegating project work across local model harnesses, consult `docs/local-model-guideline-ledger.md` and record the routing decision.
-- Treat the guideline ledger as local operational evidence only; it is never an official benchmark claim or frontend data source.
-- The parent agent must review every delegated result, run the relevant verification, and append the task outcome and lesson to the guideline ledger.
+- Before delegating project work across local model harnesses, record the routing decision and review every delegated result.
+- Treat local operational evidence as internal only; it is never an official benchmark claim or frontend data source.

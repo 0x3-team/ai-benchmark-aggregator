@@ -1,0 +1,92 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "5f3d1ec7ec5dc48e126cc1a15bd64891bd8cdab56f259f1b073860496c65ad69"
+      },
+      {
+        "mediaType": "application/json",
+        "path": "coverage.json",
+        "sha256": "92ec8903075f843f7bf6557d8e56fa03dfb73d7b8d13745b4bdc1097552b57b5"
+      }
+    ],
+    "completedAt": "2026-08-10T14:58:59.406369Z",
+    "coverageRef": "coverage.json",
+    "findingsRef": "findings.json",
+    "id": "55e2b883-85b9-4eb3-8124-6c158bd96b13",
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.18"
+    },
+    "scope": {
+      "artifactsReviewed": [
+        "coordinator-manifest.json",
+        "in_scope_files.txt",
+        "candidate_ledger.jsonl",
+        "artifacts/01_context/threat_model.md",
+        "60 ordered worker threat-model artifacts",
+        "404 canonical review items",
+        "120 canonical candidates"
+      ],
+      "context": "Comprehensive repository-wide security audit requested by the user, preserving exact userContext as untrusted analysis data.",
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ],
+      "limitations": [
+        "Discovery terminal reason was capped at maxDiscoveryRuns=60 with noNewStreak=4.",
+        "Live provider, deployment, database, network, and authenticated runtime state were intentionally excluded.",
+        "No exploit execution or external source read was performed."
+      ],
+      "runtimeStatus": "Source review and centralized semantic validation only; no live Cloudflare, GitHub, database, deployment, paid service, Official publication, external account, authenticated browser, or external URL mutation/read.",
+      "summary": "Read-only repository analysis across frontend trust boundaries, Python ledger/backend, services and integrations, business logic/data flows, tests/supply chain, and local Cloudflare Pages implementation.",
+      "validationMode": "Deep Scan compact candidate validation and centralized attack-path analysis"
+    },
+    "sealedAt": "2026-08-10T14:58:59.406369Z",
+    "startedAt": "2026-08-10T11:11:20.830234Z",
+    "status": "completed",
+    "target": {
+      "displayName": "ai-benchmark-aggregator",
+      "kind": "git_worktree",
+      "revision": "5eb3b35e35867e6b56837d7fc9b67e120c423b45",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:98c204ee7a725ad579ff8094d80bf962a181e6ffd2e6fd07f4376bfad26c2ee4",
+      "targetId": "target_sha256_84edfa7af9b45f8e095a021ce2a62a522a2cbddde35225e5f0fc50667e6292ed"
+    },
+    "threatModel": {
+      "assets": [
+        "Raw source snapshots and claims",
+        "Append-only governance and publication decisions",
+        "Ledger databases, recovery bytes, credentials, and operator paths",
+        "Demo/awaiting/Official UI state and published artifacts",
+        "CI, dependency, workflow, and Pages release integrity"
+      ],
+      "attackerCapabilities": [
+        "Anonymous browser control",
+        "Malicious remote source content and network metadata",
+        "Hostile pull requests, dependencies, actions, fixtures, and build inputs",
+        "Mistaken or over-privileged local operators and same-host filesystem races",
+        "Compromised provider, database, storage, or CI execution boundary"
+      ],
+      "securityObjectives": [
+        "Preserve exact provenance and raw values",
+        "Prevent unauthorized claim/publication authority",
+        "Bound resource use and prevent code/data disclosure",
+        "Keep Official selection and release artifacts fail-closed",
+        "Maintain append-only, attributable governance and recovery evidence"
+      ],
+      "summary": "Repository-wide validation threat model covering browser/Pages, governed Official artifacts, hostile source ingestion, CLI/operator inputs, SQLite/PostgreSQL and storage/recovery, CI/dependencies, and inert future operations. Preserve raw claims and append-only authority; fail closed when source, authorization, provenance, bounds, or activation proof is absent.",
+      "trustBoundaries": [
+        "Browser to static Pages",
+        "Remote source/network to ingestion and snapshots",
+        "Operator/CLI to filesystems and databases",
+        "Ledger to storage/recovery providers",
+        "Repository/build/CI to Pages publication",
+        "Separate governance authorities"
+      ]
+    }
+  },
+  "schemaVersion": "1.0"
+}

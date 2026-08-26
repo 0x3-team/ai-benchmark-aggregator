@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 
-import { StrictMode, useLayoutEffect } from "react";
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { selectDataset } from "./dataSelection";
-import { DatasetProvider, useDataset, type DatasetInput } from "./dataset";
 import {
+  canonicalPublishedArtifactJson,
   loadOfficialData,
   parseOfficialArtifact,
   parsePublishedOfficialArtifact,
@@ -16,9 +12,6 @@ import {
   type OfficialLoadResult,
   type OfficialReleaseAuthorization,
 } from "./official";
-import { fixtureModel, fixtureBenchmark, fixtureScore, fixtureDataset } from "./testFixtures";
-
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 interface PublishedArtifactFixture {
   schemaVersion: string;
@@ -46,9 +39,12 @@ interface PublishedArtifactFixture {
   [key: string]: unknown;
 }
 
-function demoFixture(): DatasetInput {
-  return fixtureDataset();
-}
+type MalformedPublishedArtifactFixture = Omit<
+  PublishedArtifactFixture,
+  "releaseApproval"
+> & {
+  releaseApproval?: PublishedArtifactFixture["releaseApproval"];
+};
 
 function publishedArtifactFixture(): PublishedArtifactFixture {
   const sourceManifest = {
@@ -172,13 +168,16 @@ async function parsedPublishedFixture(
 ): Promise<OfficialLoadResult> {
   const artifact = publishedArtifactFixture();
   mutate?.(artifact);
+  let artifactBytes: string;
   try {
     await seal(artifact);
+    artifactBytes = canonicalPublishedArtifactJson(artifact);
   } catch {
     // A non-finite value cannot be canonicalized; the parser still needs to
     // demonstrate its fail-closed result for that malformed in-memory input.
+    artifactBytes = JSON.stringify(artifact);
   }
-  return parsePublishedOfficialArtifact(artifact, {
+  return parsePublishedOfficialArtifact(artifactBytes, {
     artifactId: artifact.artifactId,
     releaseApprovalDecisionId: artifact.releaseApproval?.decisionId ?? "missing-approval",
     policyVersion: artifact.policyVersion,
@@ -255,15 +254,60 @@ describe("future governed v2 Official artifact parser", () => {
   it("requires an independently pinned release authorization and an unmodified canonical digest", async () => {
     const artifact = await seal(publishedArtifactFixture());
     const authorization = authorizationFor(artifact);
+    const artifactBytes = canonicalPublishedArtifactJson(artifact);
     expectUnavailable(
-      await parsePublishedOfficialArtifact(artifact, {
+      await parsePublishedOfficialArtifact(artifactBytes, {
         ...authorization,
         contentSha256: "f".repeat(64),
       })
     );
 
     artifact.scores[0].scoreRaw = "tampered after approval";
-    expectUnavailable(await parsePublishedOfficialArtifact(artifact, authorization));
+    expectUnavailable(
+      await parsePublishedOfficialArtifact(canonicalPublishedArtifactJson(artifact), authorization)
+    );
+    expectUnavailable(await parsePublishedOfficialArtifact(`${artifactBytes} `, authorization));
+  });
+
+  it("requires an exact closed authorization record for every activation pin", async () => {
+    const artifact = await seal(publishedArtifactFixture());
+    const artifactBytes = canonicalPublishedArtifactJson(artifact);
+    const authorization = authorizationFor(artifact);
+    const mutations: unknown[] = [
+      { ...authorization, artifactId: "other-artifact" },
+      { ...authorization, releaseApprovalDecisionId: "other-approval" },
+      { ...authorization, policyVersion: "other-policy" },
+      { ...authorization, contentSha256: "f".repeat(64) },
+      { ...authorization, localOverride: true },
+      undefined,
+    ];
+
+    for (const mutation of mutations) {
+      expectUnavailable(await parsePublishedOfficialArtifact(artifactBytes, mutation));
+    }
+
+    const artifactMutations: Array<(value: PublishedArtifactFixture) => void> = [
+      (value) => {
+        value.artifactId = "other-artifact";
+      },
+      (value) => {
+        value.releaseApproval.decisionId = "other-approval";
+      },
+      (value) => {
+        value.policyVersion = "other-policy";
+      },
+    ];
+    for (const mutate of artifactMutations) {
+      const changed = structuredClone(artifact);
+      mutate(changed);
+      await seal(changed);
+      expectUnavailable(
+        await parsePublishedOfficialArtifact(
+          canonicalPublishedArtifactJson(changed),
+          authorization
+        )
+      );
+    }
   });
 
   it("rejects every current containment, candidate, report, sample-like, and extra-key shape", async () => {
@@ -317,7 +361,9 @@ describe("future governed v2 Official artifact parser", () => {
     };
 
     for (const input of [unavailableV1, candidate, legacyReport, sampleLike]) {
-      expectUnavailable(await parsePublishedOfficialArtifact(input, authorization));
+      expectUnavailable(
+        await parsePublishedOfficialArtifact(JSON.stringify(input), authorization)
+      );
     }
     expectUnavailable(
       await parsedPublishedFixture((artifact) => {
@@ -326,7 +372,7 @@ describe("future governed v2 Official artifact parser", () => {
     );
     expectUnavailable(
       await parsedPublishedFixture((artifact) => {
-        delete artifact.releaseApproval;
+        delete (artifact as MalformedPublishedArtifactFixture).releaseApproval;
       })
     );
   });
@@ -438,11 +484,69 @@ describe("future governed v2 Official artifact parser", () => {
     }
   });
 
-  it("keeps the containment loader separate from the dormant published parser", () => {
+  it("admits only public canonical HTTPS URLs for governed benchmark and source links", async () => {
+    const unsafeUrls = [
+      "https://official.example.test/benchmarks?token=secret",
+      "https://official.example.test/benchmarks?api_key=secret",
+      "https://official.example.test/benchmarks?X-Amz-Signature=secret",
+      "https://user:password@official.example.test/benchmarks",
+      "https://official.example.test/benchmarks#results",
+    ];
+
+    const targets: Array<[
+      string,
+      (artifact: PublishedArtifactFixture, url: string) => void
+    ]> = [
+      [
+        "benchmark source",
+        (artifact, url) => {
+          artifact.benchmarks[0].sourceUrl = url;
+        },
+      ],
+      [
+        "source manifest",
+        (artifact, url) => {
+          artifact.sourceManifest[0].sourceUrl = url;
+          (artifact.scores[0].provenance as Record<string, unknown>).sourceUrl = url;
+        },
+      ],
+    ];
+
+    for (const [target, mutate] of targets) {
+      for (const unsafeUrl of unsafeUrls) {
+        const result = await parsedPublishedFixture((artifact) => mutate(artifact, unsafeUrl));
+        expect(result.availability, `${target}: ${unsafeUrl}`).toBe("unavailable");
+      }
+    }
+
+    const validUrl = "https://official.example.test/benchmarks/public?view=full";
+    const valid = await parsedPublishedFixture((artifact) => {
+      artifact.benchmarks[0].sourceUrl = validUrl;
+      artifact.sourceManifest[0].sourceUrl = validUrl;
+      (artifact.scores[0].provenance as Record<string, unknown>).sourceUrl = validUrl;
+    });
+    expect(valid.availability).toBe("published");
+  });
+
+  it("keeps the no-input loader unavailable and activates v2 only for an exact external pin", async () => {
     expect(loadOfficialData()).toMatchObject({ availability: "unavailable" });
     expect(parseOfficialArtifact(publishedArtifactFixture())).toMatchObject({
       availability: "unavailable",
     });
+
+    const artifact = await seal(publishedArtifactFixture());
+    const artifactBytes = canonicalPublishedArtifactJson(artifact);
+    const authorized = await loadOfficialData({
+      artifactBytes,
+      authorization: authorizationFor(artifact),
+    });
+    expect(authorized.availability).toBe("published");
+
+    const absentAuthorization = await loadOfficialData({
+      artifactBytes,
+      authorization: undefined,
+    });
+    expectUnavailable(absentAuthorization);
   });
 
   it("contains no runtime import or glob fallback for sample, ignored local, candidate, or report data", async () => {
@@ -452,126 +556,5 @@ describe("future governed v2 Official artifact parser", () => {
     expect(source).not.toContain("export.from-ledger.json");
     expect(source).not.toContain("import.meta.glob");
     expect(source).not.toContain("as OfficialExport");
-  });
-});
-
-interface SelectionCommit {
-  mode: string;
-  modelId: string;
-  benchmarkId: string;
-  value: number | null;
-  provenanceSource: string | null;
-}
-
-function SelectionProbe({
-  mode,
-  commits,
-}: {
-  mode: string;
-  commits: SelectionCommit[];
-}) {
-  const { models, benchmarks, getValue, getScoreEntry } = useDataset();
-  const model = models[0];
-  const benchmark = benchmarks[0];
-  const entry = getScoreEntry(model.id, benchmark.id);
-  useLayoutEffect(() => {
-    commits.push({
-      mode,
-      modelId: model.id,
-      benchmarkId: benchmark.id,
-      value: getValue(model.id, benchmark.id),
-      provenanceSource: entry?.officialProvenance?.source.officialSourceId ?? null,
-    });
-  });
-  return null;
-}
-
-function SelectionHarness({
-  requestedMode,
-  demo,
-  official,
-  commits,
-}: {
-  requestedMode: "demo" | "official";
-  demo: DatasetInput;
-  official: OfficialLoadResult;
-  commits: SelectionCommit[];
-}) {
-  const selection = selectDataset(requestedMode, demo, official);
-  return (
-    <DatasetProvider data={selection.data}>
-      <SelectionProbe mode={selection.mode} commits={commits} />
-    </DatasetProvider>
-  );
-}
-
-describe("atomic Official dataset selection", () => {
-  it("retains Demo data and mode when the tracked artifact is unavailable", () => {
-    const demo = demoFixture();
-    const selection = selectDataset("official", demo, loadOfficialData());
-    expect(selection.mode).toBe("demo");
-    expect(selection.data).toBe(demo);
-    expect(selection.official.availability).toBe("unavailable");
-  });
-
-  it("commits matching mode, values, and provenance across Demo → parsed Official → Demo", async () => {
-    const official = await parsedPublishedFixture();
-    expect(official.availability).toBe("published");
-    const demo = demoFixture();
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    const commits: SelectionCommit[] = [];
-
-    function render(requestedMode: "demo" | "official") {
-      act(() => {
-        root.render(
-          <StrictMode>
-            <SelectionHarness
-              requestedMode={requestedMode}
-              demo={demo}
-              official={official}
-              commits={commits}
-            />
-          </StrictMode>
-        );
-      });
-    }
-
-    render("demo");
-    const demoInitial = [...commits];
-    render("official");
-    const officialCommits = commits.slice(demoInitial.length);
-    render("demo");
-    const demoReturned = commits.slice(demoInitial.length + officialCommits.length);
-    act(() => root.unmount());
-
-    const demoScore = demo.scores[0];
-    for (const entry of demoInitial) {
-      expect(entry).toMatchObject({
-        mode: "demo",
-        modelId: demo.models[0].id,
-        benchmarkId: demo.benchmarks[0].id,
-        value: demoScore.value,
-        provenanceSource: null,
-      });
-    }
-    for (const entry of officialCommits) {
-      expect(entry).toMatchObject({
-        mode: "official",
-        modelId: "official-model-001",
-        benchmarkId: "official-benchmark-001",
-        value: 0,
-        provenanceSource: "official-source-001",
-      });
-    }
-    for (const entry of demoReturned) {
-      expect(entry).toMatchObject({
-        mode: "demo",
-        modelId: demo.models[0].id,
-        benchmarkId: demo.benchmarks[0].id,
-        value: demoScore.value,
-        provenanceSource: null,
-      });
-    }
   });
 });

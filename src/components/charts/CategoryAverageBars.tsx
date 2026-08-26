@@ -44,7 +44,7 @@ export function CategoryAverageBars({ models, benchmarks }: CategoryAverageBarsP
       />
       <XAxis type="number" domain={[0, 100]} />
       <Tooltip variant="frosted-glass" />
-      <Legend isClickable />
+      <Legend />
       {models.map((m, i) => (
         <Bar key={m.id} dataKey={seriesKey(i)} variant="gradient" />
       ))}

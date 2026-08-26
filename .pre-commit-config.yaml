@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b # v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -8,26 +8,26 @@ repos:
       - id: check-toml
       - id: check-json
       - id: check-merge-conflict
-      - id: debug-logger
+      - id: debug-statements
       - id: mixed-line-ending
         args: ['--fix=lf']
 
   - repo: https://github.com/psf/black
-    rev: 24.4.2
+    rev: 3702ba224ecffbcec30af640c149f231d90aebdb # 24.4.2
     hooks:
       - id: black
         args: ['--line-length=100']
         files: ^ledger/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.6
+    rev: 06206113ba0dbcd25603cb18e0fc191206bbea02 # v0.4.6
     hooks:
       - id: ruff
         args: ['--fix', '--line-length=100']
         files: ^ledger/
 
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.2.5
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: 21186b5a6118e3756912037cbac0eeb3f860c283 # v3.2.5
     hooks:
       - id: prettier
         args: ['--single-quote', '--print-width=100']

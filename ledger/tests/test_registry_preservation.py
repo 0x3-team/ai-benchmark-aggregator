@@ -385,6 +385,245 @@ def test_malformed_source_document_cannot_retire_managed_sources(tmp_db, tmp_pat
         assert _source_count(session, source.id) == before_count
 
 
+def _write_twin_registry(tmp_path: Path, *, duplicate: str) -> tuple[Path, Path, Path]:
+    """Write benchmark + model manifests split across two files each.
+
+    ``duplicate`` selects which kind carries a cross-file, genuinely-*different*
+    duplicate ID (``"models"`` or ``"benchmarks"``); the other kind is
+    collision-free so the collision under test is isolated.
+    """
+    benchmarks = tmp_path / "benchmarks.yaml"
+    benchmarks_curated = tmp_path / "benchmarks_curated.yaml"
+    models = tmp_path / "models.yaml"
+    models_frontier = tmp_path / "models_frontier.yaml"
+    sources = tmp_path / "sources.yaml"
+
+    benchmarks.write_text(
+        "benchmarks:\n  - id: b1\n    canonical_name: b1-apex\n", encoding="utf-8"
+    )
+    benchmarks_curated.write_text(
+        "benchmarks:\n  - id: b2\n    canonical_name: b2\n", encoding="utf-8"
+    )
+    if duplicate == "benchmarks":
+        # Real duplicate AND it differs from the earlier definition.
+        benchmarks_curated.write_text(
+            "benchmarks:\n  - id: b1\n    canonical_name: b1-fron\n", encoding="utf-8"
+        )
+
+    models.write_text(
+        yaml.safe_dump(
+            {
+                "models": [
+                    {
+                        "id": "deepseek_v3",
+                        "canonical_name": "DeepSeek-V3",
+                        "display_name": "DeepSeek V3",
+                        "entity_type": "chat_model",
+                        "access_type": "api",
+                    }
+                ]
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    models_frontier.write_text(
+        yaml.safe_dump(
+            {
+                "models": [
+                    {
+                        "id": "deepseek_v3" if duplicate == "models" else "claude_3_7_sonnet",
+                        "canonical_name": "DeepSeek-V3",
+                        "display_name": "DeepSeek V3",
+                        "entity_type": "chat_model",
+                        "access_type": (
+                            "open_weights" if duplicate == "models" else "api"
+                        ),
+                    }
+                ]
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    sources.write_text("sources: []\n", encoding="utf-8")
+    return benchmarks, models, sources
+
+
+def test_cross_file_duplicate_model_id_is_rejected_before_any_write(tmp_db, tmp_path: Path):
+    benchmarks, models_path, sources = _write_twin_registry(tmp_path, duplicate="models")
+    with get_session() as session:
+        with pytest.raises(ValueError, match="deepseek_v3"):
+            seed_registry(
+                session,
+                benchmarks_path=benchmarks,
+                models_path=models_path,
+                sources_path=sources,
+                retire_missing=True,
+            )
+        session.expire_all()
+        assert _count(session, models.ModelEntity) == 0
+        assert _count(session, models.Benchmark) == 0
+
+
+def test_cross_file_duplicate_benchmark_id_is_rejected_with_both_filenames(tmp_db, tmp_path: Path):
+    benchmarks, models_path, sources = _write_twin_registry(tmp_path, duplicate="benchmarks")
+    with get_session() as session:
+        with pytest.raises(ValueError, match="b1"):
+            seed_registry(
+                session,
+                benchmarks_path=benchmarks,
+                models_path=models_path,
+                sources_path=sources,
+                retire_missing=True,
+            )
+        session.expire_all()
+        assert _count(session, models.Benchmark) == 0
+        assert _count(session, models.ModelEntity) == 0
+
+
+def test_byte_identical_duplicate_model_id_is_rejected_too(tmp_db, tmp_path: Path):
+    """Even byte-identical duplicates are rejected — no first-file-wins."""
+    benchmarks = tmp_path / "benchmarks.yaml"
+    models_path = tmp_path / "models.yaml"
+    models_frontier = tmp_path / "models_frontier.yaml"
+    sources = tmp_path / "sources.yaml"
+    benchmarks.write_text("benchmarks: []\n", encoding="utf-8")
+    models_path.write_text("models:\n  - id: m1\n    access_type: api\n", encoding="utf-8")
+    models_frontier.write_text("models:\n  - id: m1\n    access_type: api\n", encoding="utf-8")
+    sources.write_text("sources: []\n", encoding="utf-8")
+    with get_session() as session:
+        with pytest.raises(ValueError, match="m1"):
+            seed_registry(
+                session,
+                benchmarks_path=benchmarks,
+                models_path=models_path,
+                sources_path=sources,
+            )
+        session.expire_all()
+        assert _count(session, models.ModelEntity) == 0
+
+
+def test_default_seed_loads_canonical_and_frontier_but_excludes_review_and_hf_seed(
+    tmp_db, tmp_path: Path
+):
+    """Finding 1: review-only / incidental model output must never be promoted.
+
+    The canonical default model seed must load exactly ``models.yaml`` and the
+    explicit ``models_frontier.yaml`` overlay while excluding ``models_hf_seed.yaml``
+    and an arbitrary ``models_review.yaml`` sibling. This is an authoritative
+    allowlist, not a ``models*.yaml`` glob: no incidental file becomes
+    ``ModelEntity`` input.
+    """
+    benchmarks = tmp_path / "benchmarks.yaml"
+    benchmarks.write_text("benchmarks: []\n", encoding="utf-8")
+    models_path = tmp_path / "models.yaml"
+    def _model_entry(model_id: str) -> str:
+        return (
+            f"models:\n  - id: {model_id}\n    canonical_name: {model_id}\n"
+            f"    display_name: {model_id}\n    entity_type: chat_model\n"
+            f"    access_type: api\n"
+        )
+
+    models_path.write_text(_model_entry("canonical_model"), encoding="utf-8")
+    (tmp_path / "models_frontier.yaml").write_text(_model_entry("frontier_model"), encoding="utf-8")
+    (tmp_path / "models_hf_seed.yaml").write_text(_model_entry("hf_seed_model"), encoding="utf-8")
+    (tmp_path / "models_review.yaml").write_text(_model_entry("review_model"), encoding="utf-8")
+    sources = tmp_path / "sources.yaml"
+    sources.write_text("sources: []\n", encoding="utf-8")
+
+    with get_session() as session:
+        seed_registry(
+            session,
+            benchmarks_path=benchmarks,
+            models_path=models_path,
+            sources_path=sources,
+            retire_missing=False,
+        )
+        seeded = set(session.scalars(select(models.ModelEntity.id)))
+        assert {"canonical_model", "frontier_model"} <= seeded
+        assert "hf_seed_model" not in seeded
+        assert "review_model" not in seeded
+
+
+def test_default_canonical_registry_seed_is_collision_free_and_preserves_identity(
+    tmp_db, tmp_path: Path
+):
+    """Finding 2: duplicate model IDs must not fail the default seed closed.
+
+    The authoritative default model seed (models.yaml + models_frontier.yaml) must
+    reconcile without an ID collision, each formerly duplicated ID must exist
+    exactly once with its canonical (models.yaml-first) fields preserved, the
+    frontier's non-conflicting aliases must be merged so identity coverage is not
+    lost, and every remaining frontier model must still be seeded.
+    """
+    reg = Path(__file__).resolve().parents[1] / "app" / "registry"
+    sources = tmp_path / "sources.yaml"
+    sources.write_text("sources: []\n", encoding="utf-8")
+    benchmarks = tmp_path / "benchmarks.yaml"
+    benchmarks.write_text("benchmarks: []\n", encoding="utf-8")
+    # The authoritative default model file pair from the real tree, exactly as
+    # the CLI resolves them (models.yaml + explicit models_frontier.yaml).
+    import shutil
+
+    models_path = tmp_path / "models.yaml"
+    shutil.copy(reg / "models.yaml", models_path)
+    frontier_path = tmp_path / "models_frontier.yaml"
+    shutil.copy(reg / "models_frontier.yaml", frontier_path)
+
+    with get_session() as session:
+        seed_registry(
+            session,
+            benchmarks_path=tmp_path / "benchmarks.yaml",
+            models_path=models_path,
+            sources_path=sources,
+            retire_missing=False,
+        )
+
+        # Previously-colliding IDs each exist exactly once.
+        for model_id in ("deepseek_v3", "gpt_4o_mini", "claude_3_7_sonnet"):
+            rows = list(session.scalars(select(models.ModelEntity).where(models.ModelEntity.id == model_id)))
+            assert len(rows) == 1, f"{model_id} should exist exactly once, got {len(rows)}"
+            row = rows[0]
+            # Canonical (models.yaml-first) non-alias fields are preserved.
+            if model_id == "deepseek_v3":
+                assert row.access_type == "api"  # canonical holds api; frontier's open_weights dropped
+            # Universal canonical fields survive the merge.
+            assert row.canonical_name
+            assert row.display_name
+            assert row.status == "active"
+
+        # Frontier-only aliases merged in without losing canonical coverage.
+        def _alias_texts(model_id: str) -> set[str]:
+            return set(
+                session.scalars(
+                    select(models.Alias.alias_text).where(
+                        models.Alias.entity_type == "model_entity",
+                        models.Alias.entity_id == model_id,
+                    )
+                )
+            )
+
+        assert "deepseek-v3" in _alias_texts("deepseek_v3")
+        assert {"GPT-4o Mini", "openai/gpt-4o-mini"} <= _alias_texts("gpt_4o_mini")
+        a37 = _alias_texts("claude_3_7_sonnet")
+        assert "anthropic/claude-3.7-sonnet" in a37
+
+        # Every remaining frontier model (distinct from the canonical set) is seeded.
+        frontier_ids = {
+            str(entry["id"])
+            for entry in yaml.safe_load(frontier_path.read_text(encoding="utf-8")).get("models") or []
+        }
+        canon_ids = {
+            str(entry["id"])
+            for entry in yaml.safe_load(models_path.read_text(encoding="utf-8")).get("models") or []
+        }
+        distinct_frontier = frontier_ids - canon_ids
+        seeded = set(session.scalars(select(models.ModelEntity.id)))
+        assert not (frontier_ids & canon_ids)  # cross-file duplicates are gone from source
+        assert distinct_frontier <= seeded
+
+
 def test_duplicate_source_manifest_is_rejected_before_any_registry_write(tmp_db, tmp_path: Path):
     benchmarks = tmp_path / "benchmarks.yaml"
     models_path = tmp_path / "models.yaml"

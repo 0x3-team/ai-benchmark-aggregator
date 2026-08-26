@@ -52,6 +52,44 @@ def _json_value(value: Any, default: Any) -> Any:
     return value
 
 
+_FALSE_LEXEMES = frozenset(("false", "0"))
+_TRUE_LEXEMES = frozenset(("true", "1"))
+
+
+class _LegacyBooleanError(ValueError):
+    """A legacy boolean cell did not parse under the strict canonical grammar."""
+
+
+def _strict_legacy_bool(field: str, value: Any) -> bool:
+    """Deterministically normalize one legacy boolean column, fail closed on ambiguity.
+
+    ``bool(value)`` is unsafe here: ``bool("false") is True``, which silently
+    flips an immutable, hash-bound source-revision identity.  This strict parser
+    accepts only canonical lexemes and rejects everything else:
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value in (0, 1):
+            return bool(value)
+        raise _LegacyBooleanError(
+            f"legacy {field} must be a canonical boolean; got integer {value!r}"
+        )
+    if isinstance(value, str):
+        lexeme = value.strip().lower()
+        if lexeme in _FALSE_LEXEMES:
+            return False
+        if lexeme in _TRUE_LEXEMES:
+            return True
+        raise _LegacyBooleanError(
+            f"legacy {field} must be a canonical boolean (true/false or 0/1, "
+            f"case-insensitive); got {value!r}"
+        )
+    raise _LegacyBooleanError(
+        f"legacy {field} must be a canonical boolean; got {type(value).__name__} {value!r}"
+    )
+
+
 def _canonical_json(value: dict[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, default=str)
 
@@ -151,7 +189,9 @@ def _backfill_legacy_evidence() -> None:
         definition = {field: _json_value(source[field], {}) if field == "parser_config" else source[field] for field in _SOURCE_FIELDS}
         definition["parser_config"] = _json_value(definition["parser_config"], {})
         for boolean_field in ("machine_readable", "requires_auth", "supports_history"):
-            definition[boolean_field] = bool(definition[boolean_field])
+            definition[boolean_field] = _strict_legacy_bool(
+                boolean_field, _json_value(definition[boolean_field], None)
+            )
         encoded_definition = _canonical_json(definition)
         definition_hash = hashlib.sha256(encoded_definition.encode("utf-8")).hexdigest()
         revision_id = _legacy_id("source-revision", f"{source['id']}:{definition_hash}")

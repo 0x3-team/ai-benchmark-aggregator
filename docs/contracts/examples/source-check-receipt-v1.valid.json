@@ -8,8 +8,8 @@
     "sourceRevisionId": "example-source-revision-r1",
     "contractId": "example-source-contract",
     "contractRevisionId": "example-source-contract-r1",
-    "contractDigestSha256": "e7f4834955b89a1cfc88d40b5c4d87684185b2ecb68a4f2dc753c9c3fe4db9e6",
-    "contractDefinitionSha256": "aee8fc2d60a18bc88c1e8685eb41fcf15ae0dab969c5f27b9f15551c6d5bc1e5",
+    "contractDigestSha256": "f95e110518c5ea4615ab14d67078d3a535f0dbb7b680949e3bc116ec4d0aebcc",
+    "contractDefinitionSha256": "934e7e07df324adbca1b2afd569bc643a6cfdbe031d52fca5db328db7b902625",
     "certificationDecisionId": null,
     "certificationDecisionDigestSha256": null,
     "schedulePolicyRevisionId": "example-schedule-policy-r1",
@@ -22,7 +22,7 @@
   },
   "manifest": {
     "algorithm": "sha256-canonical-json-v1",
-    "contentSha256": "fbcfdabe9d1b56afa9fa9e51d32a4cd0a12c460394dbe9c2a24c25efd38fa2fa",
+    "contentSha256": "b18b92b903a6b6360c5be4d1d533a4720489fc16c593eddb241fe0dcf5c7f92d",
     "incidentReferenceCount": 1
   },
   "authority": {
@@ -40,8 +40,8 @@
     "checkedDecisionId": null,
     "checkedDecisionDigestSha256": null,
     "checkedSourceRevisionId": "example-source-revision-r1",
-    "checkedContractDigestSha256": "e7f4834955b89a1cfc88d40b5c4d87684185b2ecb68a4f2dc753c9c3fe4db9e6",
-    "checkedContractDefinitionSha256": "aee8fc2d60a18bc88c1e8685eb41fcf15ae0dab969c5f27b9f15551c6d5bc1e5",
+    "checkedContractDigestSha256": "f95e110518c5ea4615ab14d67078d3a535f0dbb7b680949e3bc116ec4d0aebcc",
+    "checkedContractDefinitionSha256": "934e7e07df324adbca1b2afd569bc643a6cfdbe031d52fca5db328db7b902625",
     "checkedBeforeFetch": true,
     "checkedBeforeClaimWrite": true,
     "effectiveForAttempt": false

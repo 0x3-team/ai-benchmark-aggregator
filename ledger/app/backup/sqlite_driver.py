@@ -7,6 +7,7 @@ used for a racing post-backup count or object-reference query.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import platform
@@ -51,7 +52,7 @@ from .semantic_inspection import (
 )
 
 
-_HEAD_REVISION = "0010_operational_persistence"
+_HEAD_REVISION = "0012_sqlite_ingestion_run_hardening"
 _DRIVER_ID = "sqlite-python-stdlib"
 _DRIVER_VERSION = "1.0.0"
 _FORMAT = "sqlite3_backup_image"
@@ -59,17 +60,35 @@ _FORMAT_VERSION = "sqlite-file-format-3"
 _ARTIFACT_TYPE = "sqlite_database"
 _TOOL_NAME = "python-sqlite3-backup-api"
 _SQLITE_HEADER = b"SQLite format 3\x00"
-# Reviewed Alembic head (0010) executable schema: 36 application/Alembic
-# tables, 66 named indexes, 99 append-only/lineage triggers, and no views.
-# SQLite/SQLAlchemy can serialize the two foreign keys on the reconstructed
-# official_source_revisions table in either order; these are the only two
-# reviewed, semantically identical serializations (confirmed across isolated
-# hash seeds).  Every other sqlite_schema definition is exact.  An extra or
-# weakened trigger/index/view/constraint therefore remains outside the set.
+# Documented bounded resource caps (CWE-400): a SQLite backup artifact must
+# stay within the database byte cap, and inventory row reads are driven only
+# by the fixed-positive batch below.  The byte cap is a real, generous bound
+# for production databases; tests monkeypatch it tiny.
+_DATABASE_BYTES_CAP = 1 * 1024 * 1024 * 1024  # 1 GiB SQLite database max
+_ROW_FETCH_BATCH = 256  # rows per fixed-positive fetchmany request
+_SQLITE_READ_CHUNK = 1024 * 1024  # bounded os.read request size
+# Conservative semantic-row budgets (CWE-400): inventory extraction may
+# materialize at most these many application rows and payload bytes, per table
+# and cumulatively across every table.  One shared _RowBudget (built in
+# _collect_semantic_rows) enforces all four over the full sorted table set;
+# the deterministic payload rule is the per-row utf-8 cell-byte sum.
+_MAX_ROWS_PER_TABLE = 250_000  # rows per application table
+_MAX_ROWS_CUMULATIVE = 1_000_000  # rows across every application table
+_MAX_PAYLOAD_BYTES_PER_TABLE = 128 * 1024 * 1024  # payload bytes per table
+_MAX_PAYLOAD_BYTES_CUMULATIVE = 512 * 1024 * 1024  # payload bytes across all tables
+# Reviewed Alembic head (0012) executable schema: 36 application/Alembic
+# tables, 66 named indexes, 100 append-only/lineage triggers, and zero views.
+# There are exactly two reviewed raw-SQL hashes: both serialize the identical
+# reviewed schema, differing only in the order of the two semantically
+# identical unnamed foreign keys on official_source_revisions, which Alembic
+# 1.18.5 batch.py emits in either reflection order during a fresh-head
+# upgrade. Every other sqlite_schema definition is exact. Do not claim a
+# single serialization; an extra or weakened trigger/index/view/constraint
+# still remains outside the set.
 _HEAD_SCHEMA_SHA256_ALLOWLIST = frozenset(
     {
-        "3747b1abe4e90ae30de795de321766250267084a723c6b0b0f027b1728724292",
-        "8d845810a4fb4d4aa7f3cb1c388140da2137f24d3f27afc83afe9e43b358cac6",
+        "db670c153790c9805f6af46c7f462b2ddd13a49f5a4d7e3294637c646aa068e4",
+        "4602bd3a302274e46180d93839f6cafeaa7863e7b2523c2a76fd4ac7b195e7c9",
     }
 )
 _REQUIRED_TRIGGERS = {
@@ -84,6 +103,7 @@ _REQUIRED_TRIGGERS = {
     "trg_scheduled_cycles_terminal_insert",
     "trg_source_revision_decisions_linear_insert",
     "trg_source_revision_decisions_parent_insert",
+    "trg_ingestion_runs_finalize_once",
 }
 
 
@@ -139,6 +159,11 @@ def _require_regular_source(path: Path) -> Path:
         raise RecoveryTargetError("SQLite backup source does not exist.") from None
     if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
         raise RecoveryTargetError("SQLite backup source must be a regular non-symlink file.")
+    if metadata.st_size > _DATABASE_BYTES_CAP:
+        raise RecoveryIntegrityError(
+            "SQLite backup source exceeds the documented database byte cap of "
+            f"{_DATABASE_BYTES_CAP} bytes."
+        )
     return candidate.resolve()
 
 
@@ -177,6 +202,243 @@ def _quote_identifier(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
 
+@contextmanager
+def _private_regular_file(path: Path, *, cap: int, label: str) -> Iterator[int]:
+    """Open ``path`` descriptor-pinned no-follow read-only and yield the pinned
+    descriptor exactly once; validate regular-file, no-symlink, private-posture,
+    and documented byte-cap size before the first read.  The descriptor is
+    closed exactly once on success and on every failure path, including failed
+    open/fstat/cap/posture rejections.  Filesystem failures map to typed
+    redacted recovery failures (never raw OSError text or control bytes).
+    """
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        if getattr(os, "O_NOFOLLOW", 0) and getattr(exc, "errno", None) == errno.ELOOP:
+            raise RecoveryIntegrityError(
+                f"{label} file/header posture is invalid."
+            ) from None
+        raise RecoveryPartialFailure(
+            "SQLITE_ARCHIVE_OPEN_FAILED", phase="sqlite_archive"
+        ) from None
+    try:
+        metadata = os.fstat(descriptor)
+    except OSError:
+        os.close(descriptor)
+        raise RecoveryPartialFailure(
+            "SQLITE_ARCHIVE_STAT_FAILED", phase="sqlite_archive"
+        ) from None
+    if metadata.st_size > cap:
+        os.close(descriptor)
+        raise RecoveryIntegrityError(
+            f"{label} exceeds the documented database byte cap."
+        )
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or stat.S_ISLNK(metadata.st_mode)
+        or metadata.st_mode & (stat.S_IRWXG | stat.S_IRWXO)
+    ):
+        os.close(descriptor)
+        raise RecoveryIntegrityError(f"{label} file/header posture is invalid.")
+    try:
+        yield descriptor
+    finally:
+        os.close(descriptor)
+
+
+def _iter_bounded_reads(descriptor: int, *, cap: int, label: str) -> Iterator[bytes]:
+    """Yield bounded positive reads of ``descriptor`` through one shared
+    cap+1 clamp.  In-place growth past the fstat size is rejected after at
+    most ``cap+1`` offered bytes, never a full chunk over the cap.
+    """
+    total = 0
+    while total <= cap:
+        remaining = cap + 1 - total
+        request = _SQLITE_READ_CHUNK if remaining > _SQLITE_READ_CHUNK else remaining
+        try:
+            data = os.read(descriptor, request)
+        except OSError:
+            raise RecoveryPartialFailure(
+                "SQLITE_ARCHIVE_READ_FAILED",
+                phase="sqlite_archive",
+            ) from None
+        if not data:
+            return
+        total += len(data)
+        if total > cap:
+            raise RecoveryIntegrityError(
+                f"{label} exceeded the documented database byte cap (cap+1)."
+            )
+        yield data
+
+
+def _read_bounded_bytes(path: Path, *, cap: int, label: str) -> bytes:
+    """Read a private regular file with descriptor-pinned fixed-positive reads.
+
+    Enforces a documented byte cap with an ``fstat`` precheck plus a ``cap+1``
+    growth guard: a file that grows in place past the fstat size must still
+    fail closed after being offered at most ``cap+1`` bytes, never a full
+    chunk over the cap.  A size over the cap raises a stable cap message;
+    symlink/non-regular/private-posture violations raise a posture message.
+    Read failures map to a typed redacted ``RecoveryPartialFailure`` (never a
+    raw OSError).  The descriptor is closed exactly once on every path,
+    including failures.
+    """
+
+    if type(cap) is not int or type(cap) is bool or cap <= 0:
+        raise RecoveryIntegrityError("SQLite database cap is not a positive int.")
+    chunks: list[bytes] = []
+    with _private_regular_file(path, cap=cap, label=label) as descriptor:
+        for data in _iter_bounded_reads(descriptor, cap=cap, label=label):
+            chunks.append(data)
+    return b"".join(chunks)
+
+
+def _stream_path_identity(path: Path, *, cap: int, label: str) -> tuple[int, str]:
+    """Stream ``path``'s byte length and SHA-256 without materializing bytes.
+
+    Uses the same descriptor-pinned no-follow private regular-file reader and
+    bounded ``os.read`` cap+1 clamp as ``_read_bounded_bytes``; returns only
+    ``(byte length, SHA-256 hexdigest)`` and never returns or accumulates the
+    full bytes.  Rejects an exact cap+1 size and in-place growth, maps
+    filesystem failures to typed redacted recovery errors, and closes the
+    descriptor exactly once.
+    """
+    if type(cap) is not int or type(cap) is bool or cap <= 0:
+        raise RecoveryIntegrityError("SQLite database cap is not a positive int.")
+    digest = hashlib.sha256()
+    total = 0
+    with _private_regular_file(path, cap=cap, label=label) as descriptor:
+        for data in _iter_bounded_reads(descriptor, cap=cap, label=label):
+            total += len(data)
+            digest.update(data)
+    return total, digest.hexdigest()
+
+
+class _RowBudget:
+    """Four independent row/payload limits for inventory extraction.
+
+    Each limit is a distinct counter so an overflow names exactly which
+    documented budget was exceeded: per-table rows, cumulative rows,
+    per-table payload bytes, and cumulative payload bytes.  A row's payload
+    bytes equal ``sum(len(str(cell).encode("utf-8")) for cell in row)``.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_rows_per_table: int,
+        max_rows_cumulative: int,
+        max_payload_bytes_per_table: int,
+        max_payload_bytes_cumulative: int,
+    ) -> None:
+        limits = (
+            max_rows_per_table,
+            max_rows_cumulative,
+            max_payload_bytes_per_table,
+            max_payload_bytes_cumulative,
+        )
+        if any(
+            type(limit) is not int or type(limit) is bool or limit <= 0
+            for limit in limits
+        ):
+            raise RecoveryIntegrityError(
+                "Relational row/payload budget limits must be positive ints."
+            )
+        self.max_rows_per_table = max_rows_per_table
+        self.max_rows_cumulative = max_rows_cumulative
+        self.max_payload_bytes_per_table = max_payload_bytes_per_table
+        self.max_payload_bytes_cumulative = max_payload_bytes_cumulative
+        self.rows_per_table: dict[str, int] = {}
+        self.rows_cumulative = 0
+        self.payload_bytes_per_table: dict[str, int] = {}
+        self.payload_bytes_cumulative = 0
+
+    def admit_rows(self, table: str, count: int) -> bool:
+        """Record ``count`` rows for ``table`` or fail closed if any row budget
+        would be exceeded.  Exact bound passes; cap+1 fails."""
+        if type(count) is not int or type(count) is bool or count < 0:
+            raise RecoveryIntegrityError(
+                "Relational row debit is not a non-negative int."
+            )
+        per_table = self.rows_per_table.get(table, 0) + count
+        cumulative = self.rows_cumulative + count
+        if per_table > self.max_rows_per_table or cumulative > self.max_rows_cumulative:
+            raise RecoveryIntegrityError(
+                "Relational row budget exceeded the documented row cap."
+            )
+        self.rows_per_table[table] = per_table
+        self.rows_cumulative = cumulative
+        return True
+
+    def admit_payload(self, table: str, payload_bytes: int) -> bool:
+        """Record ``payload_bytes`` for ``table`` or fail closed if any payload
+        byte budget would be exceeded.  Exact bound passes; cap+1 fails."""
+        if type(payload_bytes) is not int or type(payload_bytes) is bool or payload_bytes < 0:
+            raise RecoveryIntegrityError(
+                "Relational payload debit is not a non-negative int."
+            )
+        per_table = self.payload_bytes_per_table.get(table, 0) + payload_bytes
+        cumulative = self.payload_bytes_cumulative + payload_bytes
+        if (
+            per_table > self.max_payload_bytes_per_table
+            or cumulative > self.max_payload_bytes_cumulative
+        ):
+            raise RecoveryIntegrityError(
+                "Relational payload budget exceeded the documented payload byte cap."
+            )
+        self.payload_bytes_per_table[table] = per_table
+        self.payload_bytes_cumulative = cumulative
+        return True
+
+
+def _row_payload_bytes(row: tuple[Any, ...]) -> int:
+    """Documented deterministic payload byte rule for one row."""
+    return sum(len(str(cell).encode("utf-8")) for cell in row)
+
+
+def _rows(connection: sqlite3.Connection, table: str, budget: _RowBudget) -> list[dict[str, Any]]:
+    """Read every row of ``table`` through fixed-positive ``fetchmany``.
+
+    The cursor is driven only by ``fetchmany(_ROW_FETCH_BATCH)`` — never
+    ``fetchall`` — and the budget is debited from the rows actually returned.
+    """
+    cursor = connection.execute(f"SELECT * FROM {_quote_identifier(table)}")
+    names = [description[0] for description in cursor.description]
+    rows: list[dict[str, Any]] = []
+    while True:
+        chunk = cursor.fetchmany(_ROW_FETCH_BATCH)
+        if not chunk:
+            break
+        budget.admit_rows(table, len(chunk))
+        for row in chunk:
+            budget.admit_payload(table, _row_payload_bytes(row))
+            rows.append(dict(zip(names, row, strict=True)))
+    return rows
+
+
+def _collect_semantic_rows(
+    connection: sqlite3.Connection, expected: dict[str, tuple[str, ...]]
+) -> dict[str, list[dict[str, Any]]]:
+    """Extract every expected table through ONE shared ``_RowBudget``.
+
+    The four budget constants are the only sources of the per-table and
+    cumulative row/payload limits, so cumulative budgets span every table and
+    a cross-table overflow fails closed no matter the per-table counts.
+    """
+    budget = _RowBudget(
+        max_rows_per_table=_MAX_ROWS_PER_TABLE,
+        max_rows_cumulative=_MAX_ROWS_CUMULATIVE,
+        max_payload_bytes_per_table=_MAX_PAYLOAD_BYTES_PER_TABLE,
+        max_payload_bytes_cumulative=_MAX_PAYLOAD_BYTES_CUMULATIVE,
+    )
+    return {
+        table_name: _rows(connection, table_name, budget)
+        for table_name in sorted(expected)
+    }
+
+
 def _schema_sha256(connection: sqlite3.Connection) -> str:
     rows = connection.execute(
         """
@@ -194,15 +456,14 @@ def _schema_sha256(connection: sqlite3.Connection) -> str:
     return hashlib.sha256(canonical_recovery_json(material).encode("ascii")).hexdigest()
 
 
-def _rows(connection: sqlite3.Connection, table: str) -> list[dict[str, Any]]:
-    cursor = connection.execute(f"SELECT * FROM {_quote_identifier(table)}")
-    names = [description[0] for description in cursor.description]
-    return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
-
-
 def _inspect_sqlite_path(path: Path, artifact: RelationalBackupArtifact) -> RelationalInspectionResult:
-    raw_bytes = path.read_bytes()
-    if raw_bytes != artifact.raw_bytes or compute_content_hash(raw_bytes) != compute_content_hash(artifact.raw_bytes):
+    staged_length, staged_sha256 = _stream_path_identity(
+        path, cap=_DATABASE_BYTES_CAP, label="sqlite"
+    )
+    if (
+        staged_length != len(artifact.raw_bytes)
+        or staged_sha256 != compute_content_hash(artifact.raw_bytes)
+    ):
         raise RecoveryIntegrityError("Staged SQLite bytes differ from the typed backup artifact.")
     expected = expected_head_columns()
     with _read_only_connection(path) as connection:
@@ -249,9 +510,7 @@ def _inspect_sqlite_path(path: Path, artifact: RelationalBackupArtifact) -> Rela
             raise RecoveryIntegrityError(
                 "SQLite executable schema does not match the reviewed Alembic head."
             )
-        semantic_rows = {
-            table_name: _rows(connection, table_name) for table_name in sorted(expected)
-        }
+        semantic_rows = _collect_semantic_rows(connection, expected)
         tables = build_table_inventory(semantic_rows)
         lineage = audit_semantic_lineages(semantic_rows)
         cycles, payloads = build_cycle_inventory(semantic_rows["scheduled_cycles"])
@@ -312,13 +571,19 @@ class SQLiteBackupRestoreDriver:
                         source_connection.backup(destination, pages=256, progress=progress)
                     finally:
                         destination.close()
+                # The stdlib SQLite backup API creates the staged file under
+                # the process umask; make it private before the bounded-read
+                # posture check reads it (CWE-400 private-posture rule).
+                os.chmod(staged, 0o600)
             except RecoveryCancelled:
                 raise
             except (sqlite3.DatabaseError, OSError):
                 raise RecoveryPartialFailure(
                     "SQLITE_BACKUP_FAILED", phase="relational_backup"
                 ) from None
-            raw_bytes = staged.read_bytes()
+            raw_bytes = _read_bounded_bytes(
+                staged, cap=_DATABASE_BYTES_CAP, label="sqlite"
+            )
         if not raw_bytes.startswith(_SQLITE_HEADER):
             raise RecoveryIntegrityError("SQLite backup artifact lacks the file-format header.")
         return RelationalBackupArtifact(
@@ -369,6 +634,10 @@ class SQLiteBackupRestoreDriver:
             )
         if not artifact.raw_bytes.startswith(_SQLITE_HEADER):
             raise RecoveryIntegrityError("Relational backup bytes are not a SQLite image.")
+        if len(artifact.raw_bytes) > _DATABASE_BYTES_CAP:
+            raise RecoveryIntegrityError(
+                "Relational backup exceeds the documented database byte cap."
+            )
 
     def inspect_artifact(
         self,
@@ -415,11 +684,12 @@ class SQLiteBackupRestoreDriver:
                 phase="after_relational_restore_write",
                 target_created=True,
             )
-            restored_bytes = target_path.read_bytes()
+            restored_length, restored_sha256 = _stream_path_identity(
+                target_path, cap=_DATABASE_BYTES_CAP, label="sqlite"
+            )
             if (
-                len(restored_bytes) != len(artifact.raw_bytes)
-                or compute_content_hash(restored_bytes)
-                != compute_content_hash(artifact.raw_bytes)
+                restored_length != len(artifact.raw_bytes)
+                or restored_sha256 != compute_content_hash(artifact.raw_bytes)
             ):
                 raise RecoveryIntegrityError(
                     "Fresh SQLite restore target differs in length or full-byte digest."
@@ -435,7 +705,7 @@ class SQLiteBackupRestoreDriver:
                 format=artifact.format,
                 format_version=artifact.format_version,
                 source_database_identity_sha256=artifact.source_database_identity_sha256,
-                raw_bytes=restored_bytes,
+                raw_bytes=artifact.raw_bytes,
             )
             return _inspect_sqlite_path(target_path, restored_artifact)
         except (RecoveryCancelled, RecoveryIntegrityError, RecoveryTargetError):

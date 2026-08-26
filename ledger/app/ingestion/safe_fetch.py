@@ -5,11 +5,10 @@ network requests.  A source-revision admission decision supplies the immutable
 URL allowlist, and this module validates every request/redirect before a
 transport is allowed to see it.
 
-There is deliberately no permissive production transport here.  The eventual
-private runner must supply a transport that can prove the connected peer after
-DNS validation (and enforce its egress policy).  Until that platform decision
-exists, the default transport refuses all outbound traffic rather than relying
-on a best-effort DNS pre-check that could be bypassed by rebinding.
+The ordinary runtime remains live-disabled.  An explicitly authorized runner
+may supply the peer-pinning HTTPS transport from ``live_transport``; the
+validated address set is passed into that transport so it never resolves the
+hostname a second time and cannot be redirected by DNS rebinding.
 """
 
 from __future__ import annotations
@@ -18,7 +17,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import ipaddress
 import math
+from queue import Empty, Queue
 import socket
+from threading import BoundedSemaphore, Thread
+import time
 from typing import TYPE_CHECKING, Callable, Mapping, Protocol, runtime_checkable
 from urllib.parse import parse_qsl, urljoin, urlsplit, urlunsplit
 
@@ -40,6 +42,8 @@ REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 SENSITIVE_QUERY_NAMES = frozenset(
     {"access_token", "api_key", "apikey", "authorization", "key", "password", "secret", "signature", "token"}
 )
+MAX_CONCURRENT_RESOLVERS = 8
+_RESOLVER_SLOTS = BoundedSemaphore(MAX_CONCURRENT_RESOLVERS)
 
 
 class SafeFetchError(RuntimeError):
@@ -49,6 +53,24 @@ class SafeFetchError(RuntimeError):
         super().__init__(f"{code}: {detail}")
         self.code = code
         self.detail = detail
+
+
+@dataclass(frozen=True, slots=True)
+class _FetchDeadline:
+    expires_at: float
+
+    @classmethod
+    def start(cls, timeout_seconds: float) -> _FetchDeadline:
+        return cls(expires_at=time.monotonic() + timeout_seconds)
+
+    def remaining(self) -> float:
+        remaining = self.expires_at - time.monotonic()
+        if remaining <= 0:
+            raise SafeFetchError(
+                "FETCH_TIMEOUT",
+                "HTTPS request exceeded the total timeout",
+            )
+        return remaining
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +133,8 @@ class FetchTransport(Protocol):
         url: str,
         headers: Mapping[str, str],
         timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
     ) -> FetchTransportResponse: ...
 
 
@@ -126,6 +150,8 @@ class DisabledNetworkTransport:
         url: str,
         headers: Mapping[str, str],
         timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
     ) -> FetchTransportResponse:
         raise SafeFetchError(
             "FETCH_TRANSPORT_UNAVAILABLE",
@@ -165,7 +191,14 @@ def _redacted_url(url: str) -> str:
 
 
 def _validate_https_url(url: str) -> tuple[str, int]:
-    parsed = urlsplit(url)
+    if not isinstance(url, str) or any(
+        ord(character) <= 0x20 or ord(character) == 0x7F for character in url
+    ):
+        raise SafeFetchError("FETCH_URL_FORBIDDEN", "URL contains forbidden characters")
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        raise SafeFetchError("FETCH_URL_FORBIDDEN", "URL is invalid") from None
     if parsed.scheme != "https" or not parsed.hostname:
         raise SafeFetchError("FETCH_URL_FORBIDDEN", "only absolute HTTPS URLs are permitted")
     if parsed.username or parsed.password or parsed.fragment:
@@ -190,21 +223,99 @@ def _validate_https_url(url: str) -> tuple[str, int]:
     return parsed.hostname, port or 443
 
 
-def _assert_public_resolution(url: str, resolver: Resolver) -> None:
+def _is_global_unicast_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if (
+        not address.is_global
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_private
+    ):
+        return False
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.is_site_local:
+            return False
+        if address.ipv4_mapped is not None or address.sixtofour is not None or address.teredo is not None:
+            return False
+    return True
+
+
+def _run_resolver_with_deadline(
+    resolver: Resolver,
+    host: str,
+    port: int,
+    deadline: _FetchDeadline,
+) -> list[str]:
+    """Bound blocking resolver calls behind a fixed-size daemon-thread gate."""
+
+    if not _RESOLVER_SLOTS.acquire(blocking=False):
+        raise SafeFetchError("FETCH_DNS_FAILURE", "resolver capacity is unavailable")
+    result_queue: Queue[tuple[bool, object]] = Queue(maxsize=1)
+
+    def resolve() -> None:
+        outcome: tuple[bool, object] | None = None
+        try:
+            outcome = (True, resolver(host, port))
+        except Exception as exc:
+            outcome = (False, exc)
+        finally:
+            try:
+                if outcome is not None:
+                    result_queue.put_nowait(outcome)
+            finally:
+                _RESOLVER_SLOTS.release()
+
+    worker = Thread(target=resolve, name="safe-fetch-resolver", daemon=True)
+    try:
+        worker.start()
+    except RuntimeError:
+        _RESOLVER_SLOTS.release()
+        raise SafeFetchError("FETCH_DNS_FAILURE", "resolver worker could not start") from None
+    try:
+        succeeded, payload = result_queue.get(timeout=deadline.remaining())
+    except Empty:
+        raise SafeFetchError(
+            "FETCH_TIMEOUT",
+            "HTTPS request exceeded the total timeout",
+        ) from None
+    deadline.remaining()
+    if not succeeded:
+        if isinstance(payload, SafeFetchError):
+            raise payload
+        raise SafeFetchError("FETCH_DNS_FAILURE", "hostname resolution failed") from None
+    if not isinstance(payload, list):
+        raise SafeFetchError("FETCH_DNS_INVALID", "resolver returned an invalid address set")
+    return payload
+
+
+def _resolve_global_addresses(
+    url: str,
+    resolver: Resolver,
+    deadline: _FetchDeadline,
+) -> tuple[str, ...]:
     host, port = _validate_https_url(url)
-    addresses = resolver(host, port)
+    addresses = _run_resolver_with_deadline(resolver, host, port, deadline)
     if not addresses:
         raise SafeFetchError("FETCH_DNS_EMPTY", "hostname resolved to no addresses")
+    validated: list[str] = []
     for raw_address in addresses:
+        if not isinstance(raw_address, str):
+            raise SafeFetchError("FETCH_DNS_INVALID", "resolver returned a non-IP address")
         try:
             address = ipaddress.ip_address(raw_address)
         except ValueError as exc:
             raise SafeFetchError("FETCH_DNS_INVALID", "resolver returned a non-IP address") from exc
-        if not address.is_global:
+        if not _is_global_unicast_address(address):
             raise SafeFetchError(
                 "FETCH_PRIVATE_NETWORK_FORBIDDEN",
-                "the source hostname resolved to a non-public address",
+                "the source hostname resolved to a non-public or non-unicast address",
             )
+        canonical = str(address)
+        if canonical not in validated:
+            validated.append(canonical)
+    return tuple(validated)
 
 
 def _content_type_allowed(content_type: str, allowed: frozenset[str]) -> bool:
@@ -328,6 +439,7 @@ class SafeFetchClient:
             "Accept": ", ".join(sorted(plan.accepted_content_types)),
             "User-Agent": self._settings.user_agent,
         }
+        deadline = _FetchDeadline.start(float(self._settings.timeout_seconds))
 
         while True:
             if current_url not in plan.approved_urls:
@@ -350,12 +462,16 @@ class SafeFetchClient:
                 url=current_url,
                 observed_at=observed_at,
             )
-            _assert_public_resolution(current_url, self._resolver)
+            deadline.remaining()
+            resolved_addresses = _resolve_global_addresses(current_url, self._resolver, deadline)
             response = self._transport.request(
                 url=current_url,
                 headers=request_headers,
-                timeout_seconds=float(self._settings.timeout_seconds),
+                timeout_seconds=deadline.remaining(),
+                resolved_addresses=resolved_addresses,
+                max_bytes=plan.max_bytes,
             )
+            deadline.remaining()
             if response.url != current_url:
                 raise SafeFetchError(
                     "FETCH_TRANSPORT_URL_MISMATCH",

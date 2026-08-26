@@ -29,6 +29,10 @@ from app.ingestion.json_lexemes import (
     source_score_lexeme,
     source_text,
 )
+from app.ingestion.parquet_cells import (
+    ParquetEvidenceResolver,
+    read_parquet_record,
+)
 from app.ingestion.policy import source_admission_reason
 from app.matching.aliases import MatchResolution
 from app.schemas.boundary import OfficialSource, ResultClaimInput, SourceFetchResult, SourceSnapshotInput
@@ -36,7 +40,7 @@ from app.schemas.boundary import OfficialSource, ResultClaimInput, SourceFetchRe
 
 ADMISSION_POLICY_SCHEMA = "source-admission-v2"
 CERTIFIED_SOURCE_OUTCOME = "certified"
-SUPPORTED_LOCATOR_TYPES = frozenset({"json_path_v1", "json_script_path_v1", "csv_cell_v1"})
+SUPPORTED_LOCATOR_TYPES = frozenset({"json_path_v1", "json_script_path_v1", "csv_cell_v1", "parquet_cell_v1"})
 MAX_CERTIFIED_FETCH_BYTES = 64 * 1024 * 1024
 _DECIMAL_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\Z")
 
@@ -211,6 +215,10 @@ def _evidence_contract_is_well_formed(locator_type: str, contract: object) -> tu
     if locator_type == "csv_cell_v1":
         if set(contract) != {"fields"}:
             return False, "csv_cell_v1 contract has unsupported keys"
+        return True, ""
+    if locator_type == "parquet_cell_v1":
+        if set(contract) != {"fields"}:
+            return False, "parquet_cell_v1 contract has unsupported keys"
         return True, ""
     return False, f"evidence locator {locator_type!r} is unsupported"
 
@@ -462,6 +470,17 @@ def _locator_matches_contract(locator: object, policy: dict[str, Any]) -> bool:
             and row_index >= 0
             and locator.get("fields") == fields
         )
+    if locator_type == "parquet_cell_v1":
+        row_group = locator.get("row_group")
+        row_index = locator.get("row_index")
+        return (
+            set(locator) == {"type", "row_group", "row_index", "fields"}
+            and type(row_group) is int
+            and row_group >= 0
+            and type(row_index) is int
+            and row_index >= 0
+            and locator.get("fields") == fields
+        )
     return False
 
 
@@ -514,7 +533,12 @@ def _csv_record(raw_bytes: bytes, locator: dict[str, Any]) -> tuple[dict[str, An
     return rows[row_index], None
 
 
-def _evidence_record(raw_bytes: bytes, locator: object) -> tuple[dict[str, Any] | None, str | None]:
+def _evidence_record(
+    raw_bytes: bytes,
+    locator: object,
+    *,
+    parquet_resolver: ParquetEvidenceResolver | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
     if not isinstance(locator, dict):
         return None, "EVIDENCE_LOCATOR_INVALID"
     locator_type = locator.get("type")
@@ -524,6 +548,13 @@ def _evidence_record(raw_bytes: bytes, locator: object) -> tuple[dict[str, Any] 
         return _json_script_record(raw_bytes, locator)
     if locator_type == "csv_cell_v1":
         return _csv_record(raw_bytes, locator)
+    if locator_type == "parquet_cell_v1":
+        return read_parquet_record(
+            raw_bytes,
+            row_group=locator.get("row_group"),
+            row_index=locator.get("row_index"),
+            resolver=parquet_resolver,
+        )
     return None, "EVIDENCE_LOCATOR_UNSUPPORTED"
 
 
@@ -599,6 +630,7 @@ def resolve_claim_admission(
     raw_bytes: bytes,
     model_match: MatchResolution,
     benchmark_match: MatchResolution,
+    parquet_resolver: ParquetEvidenceResolver | None = None,
 ) -> ClaimAdmission:
     """Resolve a candidate claim without mutating its raw source fields."""
     if not source_admission.verdict.accepted:
@@ -636,7 +668,7 @@ def resolve_claim_admission(
             "EVIDENCE_LOCATOR_CONTRACT_MISMATCH",
             "claim locator does not match the exact source-revision evidence contract",
         )
-    record, record_error = _evidence_record(raw_bytes, locator)
+    record, record_error = _evidence_record(raw_bytes, locator, parquet_resolver=parquet_resolver)
     if record_error:
         return _claim_reject(record_error, "claim evidence locator could not resolve one source record")
     assert record is not None

@@ -4,6 +4,7 @@ import type {
   DatasetModel,
   GetValue,
 } from "../data/dataset";
+import { normalizeBenchmarkValue } from "../data/benchmarkNormalization";
 import { CATEGORIES } from "../types";
 
 export interface RankRow {
@@ -26,6 +27,34 @@ function compareModels(a: DatasetModel, b: DatasetModel): number {
 function compareRankNumbers(a: number, b: number): number {
   const difference = a - b;
   return Math.abs(difference) < Number.EPSILON ? 0 : difference;
+}
+
+/**
+ * Convert one raw score to a comparable 0..1 presentation value.
+ *
+ * A benchmark with an explicit bounded domain is delegated to the catalog
+ * normalizer. The legacy test-fixture shape has no normalization metadata; its
+ * historical 0..scaleMax contract remains a compatibility fallback.
+ */
+export function normalizeForPresentation(
+  benchmark: DatasetBenchmark,
+  value: number
+): number | null {
+  const normalized = normalizeBenchmarkValue(benchmark, value);
+  if (normalized != null) {
+    return benchmark.higherIsBetter ? normalized : 1 - normalized;
+  }
+  if (benchmark.normalization) return null;
+  if (!Number.isFinite(value) || benchmark.scaleMax <= 0 || value < 0 || value > benchmark.scaleMax) {
+    return null;
+  }
+  const fallback = value / benchmark.scaleMax;
+  return benchmark.higherIsBetter ? fallback : 1 - fallback;
+}
+
+/** Raw-only catalog metrics are not eligible for normalized aggregates. */
+export function isNormalizableBenchmark(benchmark: DatasetBenchmark): boolean {
+  return benchmark.normalization?.kind !== "raw_only";
 }
 
 // Rank a list of models for a single benchmark (best first; missing last).
@@ -168,7 +197,8 @@ export function radarAverages(
   for (const bench of benchmarks) {
     const v = getValue(modelId, bench.id);
     if (v == null) continue;
-    const norm = bench.scaleMax > 0 ? v / bench.scaleMax : 0;
+    const norm = normalizeForPresentation(bench, v);
+    if (norm == null) continue;
     const arr = byCat.get(bench.category) ?? [];
     arr.push(norm);
     byCat.set(bench.category, arr);
@@ -252,7 +282,9 @@ export function categoryAverages(
   for (const cat of CATEGORIES) result[cat] = [];
 
   for (const cat of CATEGORIES) {
-    const catBenches = visible.filter((b) => b.category === cat);
+    const catBenches = visible.filter(
+      (b) => b.category === cat && isNormalizableBenchmark(b)
+    );
     if (catBenches.length === 0) continue;
     for (const m of models) {
       let sum = 0;
@@ -260,7 +292,9 @@ export function categoryAverages(
       for (const b of catBenches) {
         const v = getValue(m.id, b.id);
         if (v == null) continue;
-        sum += b.scaleMax > 0 ? v / b.scaleMax : 0;
+        const normalized = normalizeForPresentation(b, v);
+        if (normalized == null) continue;
+        sum += normalized;
         n += 1;
       }
       if (n !== catBenches.length) continue;
@@ -295,7 +329,9 @@ export function categoryLeader(
   return (Object.keys(avgs) as BenchmarkCategory[])
     .map((cat) => {
       const top = avgs[cat][0];
-      const total = visible.filter((benchmark) => benchmark.category === cat).length;
+      const total = visible.filter(
+        (benchmark) => benchmark.category === cat && isNormalizableBenchmark(benchmark)
+      ).length;
       if (!top) return { category: cat, modelId: null, avg: null, n: 0, total };
       return {
         category: cat,

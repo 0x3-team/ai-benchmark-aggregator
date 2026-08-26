@@ -11,6 +11,11 @@ authorization to fetch them.
   existing unavailable Official artifact.
 - The default ledger transport refuses outbound traffic. A future fetch needs an
   approved private runner with peer-pinning and egress controls.
+- Before H4 activation, repository owners must configure the
+  `private-ledger-production` GitHub environment with required reviewers. The
+  manual private-runner workflow admits only `refs/heads/main`; its fine-grained
+  cross-repository data token is released after that environment gate and is
+  scoped to the private data checkout and artifact push path.
 - Source admission policy version source-admission-v2 binds the exact source
   revision, final URLs, one bounded fetch size, dimensions, numeric semantics,
   and an immutable typed-evidence contract.

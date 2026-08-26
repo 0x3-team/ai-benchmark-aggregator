@@ -1,420 +1,204 @@
-import sys
-import urllib.request
-import json
+#!/usr/bin/env python3
+"""OFFLINE, review-only candidate generator for Hugging Face model identities.
+
+This is a deliberate replacement for the previous live-fetch rewriter. It no
+longer:
+
+  * performs any outbound ``urllib.request.urlopen`` / ``httpx.get`` call,
+  * or pulls the top-N downloads from the Hugging Face API,
+
+and it NEVER writes an active registry file (``models_frontier.yaml``,
+``models.yaml``, ``models_hf_seed.yaml``). It reads an already-exported,
+committed candidate snapshot as input, and emits a brand-new review file with
+`O_EXCL`-style no-overwrite semantics so it cannot clobber existing work.
+
+Exit codes:
+  0  candidates written (or reviewed as empty)
+  2  an input/output/collision precondition was not met (fail closed)
+"""
+
+from __future__ import annotations
+
+import argparse
 from pathlib import Path
+from typing import Any
+
 import yaml
 
-def extract_base_model(model_raw: str) -> str | None:
-    lower = model_raw.lower()
-    
-    # OpenAI o3/o4
-    if "o4-mini" in lower or "o4 mini" in lower or "o4_mini" in lower:
-        return "o4_mini"
-    if "o3-mini" in lower or "o3 mini" in lower or "o3_mini" in lower or "o3" in lower:
-        return "o3_mini"
-    if "o1-mini" in lower or "o1 mini" in lower or "o1_mini" in lower:
-        return "o1_mini"
-    if "o1" in lower:
-        return "o1"
-        
-    # OpenAI GPT-5
-    if "gpt-5.6" in lower or "gpt 5.6" in lower or "gpt5.6" in lower:
-        return "gpt_5_6"
-    if "gpt-5.5" in lower or "gpt 5.5" in lower or "gpt5.5" in lower:
-        return "gpt_5_5"
-    if "gpt-5.4" in lower or "gpt 5.4" in lower or "gpt5.4" in lower:
-        return "gpt_5_4"
-    if "gpt-5.3" in lower or "gpt 5.3" in lower or "gpt5.3" in lower:
-        return "gpt_5_3_codex"
-    if "gpt-5.2" in lower or "gpt 5.2" in lower or "gpt5.2" in lower:
-        return "gpt_5_2"
-    if "gpt-5.1" in lower or "gpt 5.1" in lower or "gpt5.1" in lower:
-        return "gpt_5_1"
-    if "gpt-5" in lower or "gpt 5" in lower or "gpt5" in lower:
-        if "nano" in lower:
-            return "gpt_5_nano"
-        if "mini" in lower:
-            return "gpt_5_mini"
-        return "gpt_5"
-        
-    # OpenAI GPT-4
-    if "gpt-4.1" in lower or "gpt 4.1" in lower or "gpt4.1" in lower:
-        if "mini" in lower:
-            return "gpt_4_1_mini"
-        return "gpt_4_1"
-    if "gpt-4o-mini" in lower or "gpt 4o mini" in lower or "gpt4o-mini" in lower or "gpt4o mini" in lower:
-        return "gpt_4o_mini"
-    if "gpt-4o" in lower or "gpt 4o" in lower or "gpt4o" in lower:
-        return "gpt_4o"
-    if "gpt-4-turbo" in lower or "gpt 4 turbo" in lower or "gpt4-turbo" in lower or "gpt4 turbo" in lower:
-        return "gpt_4_turbo"
-    if "gpt-4" in lower or "gpt 4" in lower or "gpt4" in lower:
-        return "gpt_4"
-        
-    # Anthropic Claude 5
-    if "fable-5" in lower or "fable 5" in lower or "fable5" in lower:
-        return "claude_fable_5"
-    if "mythos-5" in lower or "mythos 5" in lower or "mythos5" in lower:
-        return "claude_mythos_5"
-        
-    # Anthropic Claude 4
-    if "opus-4.8" in lower or "opus 4.8" in lower or "opus4.8" in lower:
-        return "claude_opus_4_8"
-    if "opus-4.7" in lower or "opus 4.7" in lower or "opus4.7" in lower:
-        return "claude_opus_4_7"
-    if "sonnet-4.6" in lower or "sonnet 4.6" in lower or "sonnet4.6" in lower:
-        return "claude_sonnet_4_6"
-    if "opus-4.6" in lower or "opus 4.6" in lower or "opus4.6" in lower:
-        return "claude_opus_4_6"
-    if "haiku-4.5" in lower or "haiku 4.5" in lower or "haiku4.5" in lower:
-        return "claude_haiku_4_5"
-    if "claude 4.5 sonnet" in lower or "claude-4.5-sonnet" in lower:
-        return "claude_4_5_sonnet"
-    if "claude 4.5 opus" in lower or "claude-4.5-opus" in lower:
-        return "claude_opus_4_8"
-    if "claude 4.5 haiku" in lower or "claude-4.5-haiku" in lower:
-        return "claude_4_5_haiku"
-    if "claude 4 sonnet" in lower or "claude-4-sonnet" in lower:
-        return "claude_sonnet_4_6"
-    if "claude 4 opus" in lower or "claude-4-opus" in lower:
-        return "claude_opus_4_7"
-        
-    # Anthropic Claude 3
-    if "claude" in lower:
-        if "3.7" in lower:
-            return "claude_3_7_sonnet"
-        if "3.5" in lower:
-            if "haiku" in lower:
-                return "claude_3_5_haiku"
-            return "claude_3_5_sonnet"
-        if "opus" in lower:
-            return "claude_3_opus"
-        if "haiku" in lower:
-            return "claude_3_haiku"
-            
-    # Google Gemini
-    if "gemini" in lower:
-        if "3.5" in lower:
-            if "pro" in lower:
-                return "gemini_3_5_pro"
-            return "gemini_3_5_flash"
-        if "3.1" in lower:
-            if "pro" in lower:
-                return "gemini_3_pro"
-            return "gemini_3_1_flash_lite"
-        if "3" in lower:
-            if "pro" in lower:
-                return "gemini_3_pro"
-            return "gemini_3"
-        if "2.5" in lower:
-            if "pro" in lower:
-                return "gemini_2_5_pro"
-            return "gemini_2_5_flash"
-        if "2" in lower:
-            if "pro" in lower:
-                return "gemini_2_pro"
-            return "gemini_2_0_flash"
-        if "1.5" in lower:
-            if "pro" in lower:
-                return "gemini_1_5_pro"
-            return "gemini_1_5_flash"
+# The governed model manifests this tool must never mutate. It may only read
+# them to report collisions for human review.
+READ_ONLY_REGISTRY_FILES = (
+    "models_frontier.yaml",
+    "models.yaml",
+    "models_hf_seed.yaml",
+)
 
-    # xAI Grok
-    if "grok" in lower:
-        if "4.5" in lower:
-            return "grok_4_5"
-        if "4.3" in lower:
-            return "grok_4_3"
-        if "4.20" in lower or "4.2" in lower:
-            return "grok_4_20"
-        if "3" in lower:
-            return "grok_3"
-        if "2" in lower:
-            if "mini" in lower:
-                return "grok_2_mini"
-            return "grok_2"
-            
-    # DeepSeek
-    if "deepseek" in lower:
-        if "v4" in lower:
-            return "deepseek_v4"
-        if "v3.2" in lower or "3.2" in lower:
-            if "reasoner" in lower:
-                return "deepseek_v3_2_reasoner"
-            return "deepseek_v3_2"
-        if "v3" in lower:
-            return "deepseek_v3"
-        if "r1" in lower:
-            return "deepseek_r1"
-            
-    # Meta Llama
-    if "llama" in lower:
-        if "4" in lower:
-            if "405b" in lower:
-                return "llama_4_405b"
-            if "70b" in lower:
-                return "llama_4_70b"
-            if "scout" in lower:
-                return "llama_4_scout"
-            if "maverick" in lower:
-                return "llama_4_maverick"
-            return "llama_4_8b"
-        if "3.3" in lower:
-            return "llama_3_3_70b"
-        if "3.1" in lower:
-            if "405b" in lower:
-                return "llama_3_1_405b"
-            if "70b" in lower:
-                return "llama_3_1_70b"
-            return "llama_3_1_8b"
+# Fields an HF candidate carries that are purely provenance for the review
+# queue. They are surfaced in the candidate output so a reviewer understands
+# the source of a suggestion, but are not authoritative model registry fields.
+HF_PROVENANCE_FIELDS = ("downloads", "likes", "pipeline_tag", "createdAt")
 
-    # Alibaba Qwen
-    if "qwen" in lower:
-        if "3.7" in lower:
-            return "qwen_3_7_max"
-        if "3.6" in lower:
-            return "qwen_3_6_plus"
-        if "3.5" in lower:
-            return "qwen_3_5"
-        if "3" in lower:
-            if "coder" in lower:
-                return "qwen_3_coder"
-        if "2.5" in lower:
-            if "coder" in lower:
-                return "qwen_2_5_coder_32b"
-            if "72b" in lower:
-                return "qwen_2_5_72b"
-        
-    # GLM
-    if "glm" in lower:
-        if "5" in lower:
-            return "glm_5"
-        if "4" in lower:
-            return "glm_4"
 
-    # Mistral
-    if "mistral" in lower or "mixtral" in lower:
-        if "medium" in lower:
-            return "mistral_medium_3_5"
-        if "large-2" in lower or "large 2" in lower:
-            return "mistral_large_2"
-        if "large" in lower:
-            return "mistral_large"
-        if "8x22b" in lower:
-            return "mixtral_8x22b"
-        if "devstral" in lower:
-            if "small" in lower:
-                return "devstral_small"
-            return "devstral"
+def _read_review_input(path: Path) -> list[dict[str, Any]]:
+    """Read an already-exported candidate snapshot (YAML or JSON).
 
-    # Gemma
-    if "gemma" in lower:
-        if "4" in lower:
-            return "gemma_4"
-        if "27b" in lower:
-            return "gemma_2_27b"
-        if "9b" in lower:
-            return "gemma_2_9b"
-
-    # Kimi
-    if "kimi" in lower:
-        if "2.6" in lower:
-            return "kimi_k2_6"
-        if "2.5" in lower:
-            return "kimi_k2_5"
-        if "thinking" in lower:
-            return "kimi_k2_thinking"
-        return "kimi_k2"
-
-    # Phi
-    if "phi" in lower:
-        if "4" in lower:
-            return "phi_4"
-        if "3.5" in lower:
-            return "phi_3_5"
-
-    # MiniMax
-    if "minimax" in lower:
-        if "2.5" in lower:
-            return "minimax_m2_5"
-        return "minimax_m2"
-
-    # ByteDance Doubao
-    if "doubao" in lower:
-        return "doubao_seed_code"
-
-    # Atlassian
-    if "atlassian" in lower or "rovo" in lower:
-        return "atlassian_rovo_dev"
-
-    return None
-
-def fetch_hf_model(hf_id: str) -> dict | None:
+    The file is a list of model candidate maps, each carrying at least ``id``.
+    A malformed doc fails closed rather than generating a partial queue.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"review input does not exist: {path}")
+    text = path.read_text(encoding="utf-8")
+    if not text.strip():
+        raise ValueError(f"review input is empty: {path}")
     try:
-        url = f"https://huggingface.co/api/models/{hf_id}"
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "Antigravity/1.0 (Google DeepMind Agent)"}
-        )
-        with urllib.request.urlopen(req) as res:
-            return json.loads(res.read().decode('utf-8'))
-    except Exception:
-        return None
+        if path.suffix.lower() in (".yaml", ".yml"):
+            payload = yaml.safe_load(text)
+        else:
+            import json
 
-def main():
-    # 1. Fetch top 1000 models from Hugging Face
-    url = "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=1000&full=false"
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Antigravity/1.0 (Google DeepMind Agent)"}
+            payload = json.loads(text)
+    except Exception as exc:  # noqa: BLE001 - surface a stable causal message
+        raise ValueError(f"unable to parse review input {path}: {exc}") from exc
+    if isinstance(payload, dict):
+        payload = payload.get("models") or payload.get("candidates") or []
+    if not isinstance(payload, list):
+        raise ValueError(f"review input must be a list of candidate maps: {path}")
+    # Fail closed: account for EVERY input row. A non-mapping row, a row with a
+    # missing/blank id, or aliases that are not a list of strings abort the whole
+    # run so no partial queue is ever generated. Index+reason keep the error
+    # deterministic for a human to locate.
+    candidates: list[dict[str, Any]] = []
+    for index, row in enumerate(payload):
+        if not isinstance(row, dict):
+            raise ValueError(
+                f"review input row {index} is not a mapping: {row!r} (path: {path})"
+            )
+        row_id = row.get("id")
+        if not row_id or not str(row_id).strip():
+            raise ValueError(
+                f"review input row {index} is missing a non-blank 'id' (path: {path})"
+            )
+        aliases = row.get("aliases")
+        if aliases is not None and (
+            not isinstance(aliases, list) or not all(isinstance(a, str) for a in aliases)
+        ):
+            raise ValueError(
+                f"review input row {index} has 'aliases' that is not a list of "
+                f"strings: {aliases!r} (path: {path})"
+            )
+        candidates.append(row)
+    return candidates
+
+
+def _collisions(candidates: list[dict[str, Any]], registry_dir: Path) -> dict[str, list[str]]:
+    """Return candidate model IDs already present in any read-only registry file.
+
+    Values are the registry files (relative paths) that already define the ID.
+    The tool never resolves these automatically; it reports them for a human to
+    reconcile, matching the fail-closed but review-first disposition.
+    """
+    collisions: dict[str, list[str]] = {}
+    for candidate in candidates:
+        candidate_id = candidate.get("id")
+        if not candidate_id:
+            continue
+        existing: list[str] = []
+        for name in READ_ONLY_REGISTRY_FILES:
+            registry_file = registry_dir / name
+            if not registry_file.exists():
+                continue
+            document = yaml.safe_load(registry_file.read_text(encoding="utf-8")) or {}
+            for model in document.get("models") or []:
+                if isinstance(model, dict) and str(model.get("id")) == str(candidate_id):
+                    existing.append(str(registry_file))
+                    break
+        if existing:
+            collisions[str(candidate_id)] = existing
+    return collisions
+
+
+def _build_output(candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    """Project candidates into the review-file schema, pruning provenance.
+
+    Only the fields surfaced in the review queue are kept; the transient HF
+    download/like counters are provenance for a curator's decision, not model
+    registry fields. Aliases default to the canonical HF id.
+    """
+    model_rows: list[dict[str, Any]] = []
+    for candidate in candidates:
+        model_id = candidate.get("id")
+        if not model_id:
+            continue
+        canonical_name = candidate.get("canonical_name") or str(model_id).split("/")[-1]
+        display_name = candidate.get("display_name") or canonical_name.replace("-", " ").replace("_", " ")
+        display_name = " ".join(display_name.split())
+        aliases = list(candidate.get("aliases") or [])
+        if str(model_id) not in aliases:
+            aliases.insert(0, str(model_id))
+        row = {
+            "id": str(model_id),
+            "canonical_name": canonical_name,
+            "display_name": display_name,
+            "entity_type": candidate.get("entity_type", "chat_model"),
+            "provider": candidate.get("provider", "unknown"),
+            "access_type": candidate.get("access_type", "open_weights"),
+            "status": "active",
+            "aliases": aliases,
+        }
+        model_rows.append(row)
+    return {"registry_path": "NONE (review only)", "models": model_rows}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--input",
+        type=Path,
+        required=True,
+        help="Existing exported candidate model list (YAML or JSON). Never fetched.",
     )
-    
+    parser.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="New review queue file to write. Refuses to overwrite an existing file.",
+    )
+    parser.add_argument(
+        "--registry-dir",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent / "app" / "registry",
+        help="Registry directory to scan for existing (read-only) model IDs.",
+    )
+    args = parser.parse_args()
+
     try:
-        with urllib.request.urlopen(req) as response:
-            models_data = json.loads(response.read().decode('utf-8'))
-    except Exception as e:
-        print(f"Error fetching from HF API: {e}")
-        models_data = []
+        candidates = _read_review_input(args.input)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"ERROR: {exc}")
+        return 1
 
-    good_models = {}
-    
-    # Process HF models returned from the downloads API
-    for m in models_data:
-        hf_id = m.get("id")
-        if not hf_id:
-            continue
-        
-        downloads = m.get("downloads", 0)
-        likes = m.get("likes", 0)
-        
-        # Filter to "good"
-        if downloads >= 50000 or likes >= 200:
-            canonical_name = hf_id.split("/")[-1]
-            if "/" in hf_id:
-                provider = hf_id.split("/")[0]
-            else:
-                provider = m.get("author") or "unknown"
-                
-            display_name = canonical_name.replace("-", " ").replace("_", " ")
-            display_name = " ".join(display_name.split())
-            
-            aliases = [hf_id]
-            if display_name not in aliases:
-                aliases.append(display_name)
-            if canonical_name not in aliases:
-                aliases.append(canonical_name)
-                
-            model_entry = {
-                "id": hf_id,
-                "canonical_name": canonical_name,
-                "display_name": display_name,
-                "entity_type": "chat_model",
-                "provider": provider,
-                "access_type": "open_weights",
-                "status": "active",
-                "downloads": downloads,
-                "likes": likes,
-                "pipeline_tag": m.get("pipeline_tag", ""),
-                "createdAt": m.get("createdAt", ""),
-                "aliases": aliases
-            }
-            good_models[hf_id] = model_entry
+    collisions = _collisions(candidates, args.registry_dir)
+    if collisions:
+        print("COLLISIONS (review required; nothing written):")
+        for model_id, files in sorted(collisions.items()):
+            print(f"  {model_id!r} already defined by: {', '.join(files)}")
+        print("No output file was written. Resolve the collisions, then rerun.")
+        return 1
 
-    # 2. Add root to path so we can query DB session
-    root = Path(__file__).resolve().parent.parent
-    if str(root) not in sys.path:
-        sys.path.insert(0, str(root))
+    if args.output.exists():
+        print(f"ERROR: refusing to overwrite existing file (no-overwrite): {args.output}")
+        print("Choose a new --output path. Nothing was written.")
+        return 1
 
-    # Query DB for all unique model_raw values in the ResultClaim table
-    print("Connecting to DB to find unique model_raw strings...")
-    raw_claims_models = []
-    try:
-        import app.ingestion.runner # avoid circular import
-        from app.db.engine import get_session
-        from app.db.models import ResultClaim
-        from sqlalchemy import select
-        with get_session() as session:
-            raw_claims_models = list(set(session.scalars(select(ResultClaim.model_raw)).all()))
-    except Exception as e:
-        print(f"Error querying DB for claims: {e}")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    payload = _build_output(candidates)
+    with args.output.open("x", encoding="utf-8") as handled:
+        yaml.safe_dump(payload, handled, sort_keys=False, allow_unicode=True)
 
-    print(f"Found {len(raw_claims_models)} unique model_raw strings in database.")
+    print(f"wrote {len(payload['models'])} review candidates to {args.output}")
+    print("Review them, then reconcile into models_frontier.yaml manually. Not written by this tool.")
+    return 0
 
-    # 3. Load frontier models so we can dynamically add aliases to them
-    frontier_path = Path(__file__).parent.parent / "app" / "registry" / "models_frontier.yaml"
-    frontier_data = {"models": []}
-    if frontier_path.exists():
-        with frontier_path.open("r", encoding="utf-8") as f:
-            frontier_data = yaml.safe_load(f) or {"models": []}
-            
-    # Quick lookup map for frontier models
-    frontier_by_id = {m["id"]: m for m in frontier_data.get("models") or []}
-
-    # Track how many new HF models we discover and fetch
-    new_hf_fetched = 0
-    
-    # 4. Map DB raw models
-    for raw_name in raw_claims_models:
-        if not raw_name:
-            continue
-        
-        # Check if HF repo format
-        if "/" in raw_name and "+" not in raw_name and " " not in raw_name:
-            if raw_name not in good_models and raw_name not in frontier_by_id:
-                # Let's fetch details from HF API
-                m_info = fetch_hf_model(raw_name)
-                if m_info:
-                    canonical_name = raw_name.split("/")[-1]
-                    provider = raw_name.split("/")[0]
-                    display_name = canonical_name.replace("-", " ").replace("_", " ")
-                    display_name = " ".join(display_name.split())
-                    
-                    aliases = [raw_name]
-                    if display_name not in aliases:
-                        aliases.append(display_name)
-                    if canonical_name not in aliases:
-                        aliases.append(canonical_name)
-                        
-                    model_entry = {
-                        "id": raw_name,
-                        "canonical_name": canonical_name,
-                        "display_name": display_name,
-                        "entity_type": "chat_model",
-                        "provider": provider,
-                        "access_type": "open_weights",
-                        "status": "active",
-                        "downloads": m_info.get("downloads", 0),
-                        "likes": m_info.get("likes", 0),
-                        "pipeline_tag": m_info.get("pipeline_tag", ""),
-                        "createdAt": m_info.get("createdAt", ""),
-                        "aliases": aliases
-                    }
-                    good_models[raw_name] = model_entry
-                    new_hf_fetched += 1
-
-        # Check if it maps to a frontier model
-        base_id = extract_base_model(raw_name)
-        if base_id and base_id in frontier_by_id:
-            # Add raw_name as an alias of this frontier model
-            f_model = frontier_by_id[base_id]
-            if "aliases" not in f_model:
-                f_model["aliases"] = []
-            if raw_name not in f_model["aliases"]:
-                f_model["aliases"].append(raw_name)
-
-    # Write frontier models back
-    with frontier_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(frontier_data, f, sort_keys=False, allow_unicode=True)
-
-    # Save to ledger/app/registry/models_hf_seed.yaml
-    output_path = Path(__file__).parent.parent / "app" / "registry" / "models_hf_seed.yaml"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    payload = {"models": list(good_models.values())}
-    with output_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(payload, f, sort_keys=False, allow_unicode=True)
-        
-    print(f"seeded {len(good_models)} HF models")
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

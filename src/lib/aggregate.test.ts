@@ -3,7 +3,10 @@ import { createDatasetAccess, type GetValue } from "../data/dataset";
 import {
   bestModelId,
   categoryLeader,
+  categoryAverages,
   computeRanking,
+  radarAverages,
+  rankForBenchmark,
   sortModels,
 } from "./aggregate";
 
@@ -237,5 +240,69 @@ describe("coverage-aware presentation ranking", () => {
         expect.objectContaining({ rank: null, total: 0, unrankedReason: "no_benchmarks" }),
       ])
     );
+  });
+});
+
+describe("normalized aggregate semantics", () => {
+  it("uses bounded min/max and inverts lower-is-better category averages", () => {
+    const lower = {
+      ...fixtureBenchmark("latency", "reasoning"),
+      higherIsBetter: false,
+      normalization: { kind: "bounded" as const, min: 10, max: 20 },
+    };
+    const alpha = fixtureModel("alpha", "Alpha");
+    const beta = fixtureModel("beta", "Beta");
+    const fixture = createDatasetAccess({
+      models: [alpha, beta],
+      benchmarks: [lower],
+      scores: [
+        { modelId: alpha.id, benchmarkId: lower.id, value: 12, date: "2026-01-01" },
+        { modelId: beta.id, benchmarkId: lower.id, value: 18, date: "2026-01-01" },
+      ],
+    });
+
+    expect(rankForBenchmark(fixture.models, lower, fixture.getValue).map((row) => row.model.id)).toEqual([
+      "alpha",
+      "beta",
+    ]);
+    expect(radarAverages(alpha.id, [lower], fixture.getValue)).toContainEqual({
+      category: "reasoning",
+      value: 0.8,
+    });
+    expect(categoryAverages(fixture.models, [lower], fixture.getValue).reasoning).toEqual([
+      { modelId: "alpha", avg: 0.8, n: 1, total: 1 },
+      { modelId: "beta", avg: 0.19999999999999996, n: 1, total: 1 },
+    ]);
+  });
+
+  it("omits raw-only and out-of-domain points from normalized aggregates", () => {
+    const rawOnly = {
+      ...fixtureBenchmark("rating", "reasoning"),
+      normalization: { kind: "raw_only" as const, reason: "rating_metric" as const },
+    };
+    const bounded = {
+      ...fixtureBenchmark("bounded", "math"),
+      normalization: { kind: "bounded" as const, min: 10, max: 20 },
+    };
+    const alpha = fixtureModel("alpha", "Alpha");
+    const fixture = createDatasetAccess({
+      models: [alpha],
+      benchmarks: [rawOnly, bounded],
+      scores: [
+        { modelId: alpha.id, benchmarkId: rawOnly.id, value: 100, date: "2026-01-01" },
+        { modelId: alpha.id, benchmarkId: bounded.id, value: 25, date: "2026-01-01" },
+      ],
+    });
+
+    expect(fixture.getValue(alpha.id, rawOnly.id)).toBe(100);
+    expect(fixture.getValue(alpha.id, bounded.id)).toBe(25);
+    expect(radarAverages(alpha.id, [rawOnly, bounded], fixture.getValue)).toContainEqual({
+      category: "math",
+      value: null,
+    });
+    expect(categoryAverages(fixture.models, [rawOnly, bounded], fixture.getValue)).toMatchObject({
+      reasoning: [],
+      math: [],
+    });
   });
 });

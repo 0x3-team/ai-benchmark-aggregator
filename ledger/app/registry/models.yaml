@@ -31,6 +31,7 @@ models:
       - deepseek-chat
       - deepseek-ai/DeepSeek-V3
       - DeepSeek V3
+      - deepseek-v3
 
   - id: gpt_4o_2024_08_06
     canonical_name: GPT-4o-2024-08-06
@@ -57,6 +58,8 @@ models:
       - gpt-4o-mini-2024-07-18
       - GPT-4o-mini
       - gpt-4o-mini
+      - GPT-4o Mini
+      - openai/gpt-4o-mini
 
   - id: claude_3_7_sonnet
     canonical_name: Claude-3.7-Sonnet
@@ -71,6 +74,13 @@ models:
       - Claude 3.7 Sonnet
       - Claude 3.7 Sonnet (20250219)
       - SWE-agent 1.0 (Claude 3.7 Sonnet)
+      - claude-3.7-sonnet
+      - Aime-coder v1 + Anthopic Claude 3.7 Sonnet
+      - anthropic/claude-3.7-sonnet
+      - SWE-agent + Claude 3.7 Sonnet w/ Review Heavy
+      - mini-SWE-agent + Claude 3.7 Sonnet (20250219)
+      - Tools + Claude 3.7 Sonnet (2025-02-24)
+      - TRAE + Claude Sonnet 4 + Opus 4 + Sonnet 3.7 + Gemini 2.5 Pro
 
   - id: claude_4_5_opus
     canonical_name: Claude-4.5-Opus

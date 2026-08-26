@@ -13,17 +13,23 @@ to PostgreSQL.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import errno as _errno
 import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
+import stat
+import tempfile
+from typing import Iterator
 from urllib.parse import quote, unquote
 from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from contextlib import contextmanager
 from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, text
 from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.pool import NullPool
@@ -166,7 +172,13 @@ _LEGACY_COLUMNS: dict[str, frozenset[str]] = {
 _LEGACY_TABLES = frozenset(_LEGACY_COLUMNS)
 
 
-def _sqlite_path(database_url: str) -> Path:
+def _sqlite_raw_path(database_url: str) -> Path:
+    """Extract the SQLite file path without resolving symlinks.
+
+    The parent directory of a fresh database is validated and created from the
+    exact URL-supplied path, so a symlink ancestor is never silently followed.
+    """
+
     if database_url == "sqlite:///:memory:" or database_url.endswith(":memory:"):
         raise DatabaseMigrationError("In-memory SQLite is unsupported for durable ledger migrations.")
     if not database_url.startswith("sqlite:///"):
@@ -174,12 +186,115 @@ def _sqlite_path(database_url: str) -> Path:
     raw_path = unquote(database_url[len("sqlite:///") :].split("?", 1)[0])
     if not raw_path:
         raise DatabaseMigrationError("SQLite database URL must include a file path.")
-    return Path(raw_path).expanduser().resolve()
+    return Path(raw_path).expanduser()
+
+
+def _sqlite_path(database_url: str) -> Path:
+    return _sqlite_raw_path(database_url).resolve()
 
 
 def _read_only_connection(path: Path) -> sqlite3.Connection:
     uri = f"file:{quote(str(path))}?mode=ro"
     return sqlite3.connect(uri, uri=True)
+
+
+def _ensure_sqlite_missing_parent(database_url: str) -> None:
+    """Create the one selected missing parent of a fresh SQLite DB, failing closed.
+
+    The immediate parent is validated and (only if it is missing) created by a
+    component-by-component, descriptor-relative walk from the path root down to
+    the parent.  Every ancestor is opened with ``O_NOFOLLOW | O_DIRECTORY``
+    relative to the previous ``dir_fd``, so a symlink *anywhere* on the walk —
+    above either a missing or an already-existing immediate parent — fails closed
+    with ``ELOOP``/``ENOTDIR`` instead of being followed into a directory the
+    operator did not select.  ``os.mkdir(..., dir_fd=...)`` on the final component
+    creates the parent only inside the already-validated descriptor of the level
+    above it.
+
+    The walk anchors at the path root (the filesystem root for an absolute path,
+    or the current working directory for a supported relative path) and descends
+    component-by-component, so it handles absolute and relative SQLite paths
+    without a ``resolve()``-equality shortcut that would reject every relative
+    path.  Nothing is created for PostgreSQL.
+    """
+
+    path = _sqlite_raw_path(database_url)
+    parent = path.parent
+    if parent.is_absolute():
+        anchor = Path(parent.anchor)
+        components: tuple[str, ...] = parent.relative_to(anchor).parts
+    else:
+        anchor = Path(".")
+        components = Path(*parent.parts).parts
+
+    # Exactly one directory descriptor is held open per step of the descent, and
+    # the previously-held descriptor is closed the moment its child is opened
+    # (its directory identity is already pinned by ``dir_fd`` for that call).
+    # Every descriptor is accounted for and closed on *all* exits — success,
+    # single-parent creation, and refusal — so the walk cannot leak.
+    open_fds: list[int] = []
+
+    def _discard() -> None:
+        for fd in open_fds:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        open_fds.clear()
+
+    try:
+        anchor_fd = os.open(anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise DatabaseMigrationError(
+            "SQLite database parent anchor could not be opened safely."
+        ) from exc
+    open_fds.append(anchor_fd)
+    parent_fd = anchor_fd
+    last_index = len(components) - 1
+    for index, component in enumerate(components):
+        try:
+            child_fd = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=parent_fd,
+            )
+        except OSError as exc:
+            if exc.errno in (_errno.ENOENT, _errno.ENOTDIR):
+                if index != last_index:
+                    _discard()
+                    raise DatabaseMigrationError(
+                        "SQLite database parent is missing more than one level; "
+                        "init-db creates only one explicitly selected missing parent."
+                    ) from None
+                # The immediate parent is missing.  Its parent (``parent_fd``) is
+                # a validated real directory above a symlink-free chain, so
+                # creating the one level under it is safe.
+                try:
+                    os.mkdir(component, dir_fd=parent_fd)
+                except OSError as exc2:
+                    _discard()
+                    raise DatabaseMigrationError(
+                        "SQLite database parent directory could not be created safely."
+                    ) from exc2
+                validated = os.open(
+                    component,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=parent_fd,
+                )
+                os.close(validated)
+                _discard()
+                return
+            _discard()
+            raise DatabaseMigrationError(
+                "SQLite database parent path traverses a symlink or is not a "
+                "directory; refusing to create it."
+            ) from exc
+        # Descend: the child becomes the new parent for the next component, and
+        # the just-used parent descriptor is released (its identity is pinned).
+        _discard()
+        open_fds.append(child_fd)
+        parent_fd = child_fd
+    _discard()
 
 
 def _sha256(path: Path) -> str:
@@ -188,6 +303,157 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+@dataclass(frozen=True)
+class SourceIdentity:
+    """The exact bytes and inode the migration admitted as its input.
+
+    ``sha256`` is the digest of the bytes read through one held no-follow
+    descriptor, and ``dev``/``ino`` pin the exact inode that served those bytes.
+    Two identities are equal only when the same inode served byte-identical
+    content, which is precisely the invariant ``input_sha256`` must describe.
+    """
+
+    dev: int
+    ino: int
+    sha256: str
+
+    def matches(self, other: "SourceIdentity") -> bool:
+        return self.dev == other.dev and self.ino == other.ino and self.sha256 == other.sha256
+
+
+def _source_identity(path: Path) -> SourceIdentity:
+    """Snapshot a regular file's identity (inode + content sha) in one step.
+
+    The file is opened once with ``O_NOFOLLOW`` (never following a swapped-in
+    symlink) and its content is hashed through that same descriptor, returning
+    the inode that served the hashed bytes.  A caller that later re-reads the
+    path must recover an identical :class:`SourceIdentity`, otherwise the bytes
+    that would be migrated no longer match what was admitted.  A source that is
+    a symlink, directory, or other special file fails closed (it is not a
+    ``S_ISREG`` regular file) with a :class:`DatabaseMigrationError`.
+    """
+
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise DatabaseMigrationError(
+            "SQLite migration input must be a regular file; a symlink or an "
+            "unopenable path was refused."
+        ) from exc
+    try:
+        stat_result = os.fstat(descriptor)
+        if stat.S_ISLNK(stat_result.st_mode) or not stat.S_ISREG(stat_result.st_mode):
+            raise DatabaseMigrationError(
+                "SQLite migration input must be a regular file; a symlink or a "
+                "special file was refused."
+            )
+        digest = hashlib.sha256()
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    finally:
+        os.close(descriptor)
+    return SourceIdentity(
+        dev=stat_result.st_dev,
+        ino=stat_result.st_ino,
+        sha256=digest.hexdigest(),
+    )
+
+
+def _open_admitted_source_connection(source: Path) -> sqlite3.Connection:
+    """Open the SQLite source whose bytes produce a backup/staged copy.
+
+    Centralized seam so every byte-producing copy reads through one indirection.
+    In production the caller passes an immutable snapshot pinned to the single
+    admitted descriptor, so a later swap of the caller-supplied path cannot
+    change these bytes.  Tests inject the swap-in/read/restore race here.
+    """
+    return _read_only_connection(source)
+
+
+def _admit_and_snapshot(
+    source: Path, *, expected_identity: SourceIdentity | None = None
+) -> tuple[SourceIdentity, Path, Path]:
+    """Open the source once, verify S_ISREG, and return its identity + immutable snapshot.
+
+    This is the single admission entry point.  The ``O_NOFOLLOW`` descriptor is opened
+    exactly once; regular-file identity (``S_ISREG``) is verified on that same
+    descriptor, and both the content hash AND the immutable snapshot copy are produced
+    by reading through that one descriptor.  There is no second path-relative open
+    between admission and snapshotting, so a pathname swap between the two cannot
+    change the bytes the migration will reproduce.
+
+    Returns ``(SourceIdentity, snapshot_path, staging_dir)``.  The caller owns and
+    removes ``staging_dir`` on success and failure.  When ``expected_identity`` is
+    provided and the admitted identity does not match it, this fails closed.
+    """
+
+    source_path = Path(source).expanduser()
+    staging = None
+    descriptor = -1
+    try:
+        # A private 0700 directory inside the source's parent: same filesystem,
+        # hidden from other users, unpredictable name.
+        staging = tempfile.mkdtemp(prefix=".ledger-admit-", dir=str(source_path.parent))
+        os.chmod(staging, 0o700)
+        descriptor = os.open(source_path, os.O_RDONLY | os.O_NOFOLLOW)
+        stat_result = os.fstat(descriptor)
+        if stat.S_ISLNK(stat_result.st_mode) or not stat.S_ISREG(stat_result.st_mode):
+            raise DatabaseMigrationError(
+                "SQLite migration input must be a regular file; not a symlink or special file."
+            )
+        snapshot = Path(staging) / "admitted-source.db"
+        out = os.open(
+            snapshot, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
+        )
+        digest = hashlib.sha256()
+        try:
+            while True:
+                chunk = os.read(descriptor, 1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+                os.write(out, chunk)
+            os.fsync(out)
+        finally:
+            os.close(out)
+        identity = SourceIdentity(
+            dev=stat_result.st_dev,
+            ino=stat_result.st_ino,
+            sha256=digest.hexdigest(),
+        )
+        if expected_identity is not None and not identity.matches(expected_identity):
+            raise DatabaseMigrationError(
+                "SQLite migration input changed while it was being snapshotted; "
+                "refusing to migrate it."
+            )
+        return identity, snapshot, staging
+    except Exception:
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
+        raise
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _immutable_source_snapshot(
+    source: Path, *, expected_identity: SourceIdentity
+) -> tuple[Path, Path]:
+    """Copy a source's bytes into a private immutable file under one pinned fd.
+
+    Thin wrapper over :func:`_admit_and_snapshot` retaining the historical
+    ``(snapshot, staging_dir)`` return shape.
+    """
+
+    _, snapshot, staging = _admit_and_snapshot(
+        source, expected_identity=expected_identity
+    )
+    return snapshot, staging
 
 
 def _catalog_inventory_sha256(rows: list[list[object]]) -> str:
@@ -1338,13 +1604,194 @@ def inspect_database(database_url: str) -> DatabaseStatus:
     return _inspect_sqlite_database(database_url)
 
 
+def _require_regular_directory(path: Path, *, label: str) -> Path:
+    """Return ``path`` only if it exists and is a regular (non-symlink) directory."""
+
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        raise DatabaseMigrationError(f"{label} directory does not exist.") from None
+    except OSError as exc:
+        raise DatabaseMigrationError(f"{label} directory could not be inspected.") from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise DatabaseMigrationError(f"{label} must be a regular non-symlink directory.")
+    return path
+
+
+@contextmanager
+def _open_directory_fd(path: Path, *, label: str) -> Iterator[int]:
+    """Open one directory descriptor, no-follow, and yield it (closed on exit)."""
+
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY"):
+        raise DatabaseMigrationError(
+            f"{label} directory requires no-follow directory-descriptor support."
+        )
+    _require_regular_directory(path, label=label)
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise DatabaseMigrationError(f"{label} directory could not be opened safely.") from exc
+    try:
+        yield descriptor
+    finally:
+        os.close(descriptor)
+
+
 def _backup_sqlite(source: Path, destination: Path) -> None:
-    """Take a checkpoint-aware SQLite backup rather than copying database bytes."""
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        raise DatabaseMigrationError(f"Backup destination already exists: {destination}")
-    with _read_only_connection(source) as source_connection, sqlite3.connect(destination) as destination_connection:
-        source_connection.backup(destination_connection)
+    """Write a checkpoint-aware SQLite backup without any path-reopen TOCTOU.
+
+    The live connection is only ever opened against an unpredictable private
+    0700 staging directory created inside the destination's parent (so the
+    eventual hard link stays on the same filesystem).  ``sqlite3.connect`` is
+    never asked to open ``destination`` itself; instead the staged file is
+    published into the destination directory with a descriptor-relative,
+    no-replace, no-follow hard link.  A final ``destination`` that is a planted
+    symlink, a dangling link, or an existing regular file is refused without
+    ever writing through it, so an attacker-controlled final path can never be
+    used as a write target.  The staging directory is removed on every path,
+    success or failure.
+
+    ``source`` names an immutable snapshot whose bytes were pinned to the single
+    admitted descriptor; the source path is never re-opened after it is admitted.
+    Opening ``source`` by path here cannot be redirected by a later swap because
+    the snapshot file cannot change underneath the copy.
+    """
+
+    if not hasattr(os, "link"):
+        raise DatabaseMigrationError(
+            "SQLite backup requires descriptor-relative hard-link support."
+        )
+    destination = Path(destination).expanduser()
+    _require_regular_directory(destination.parent, label="backup destination")
+    try:
+        stat_result = os.stat(destination, follow_symlinks=False)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise DatabaseMigrationError(
+            "SQLite backup destination could not be inspected."
+        ) from exc
+    else:
+        # A destination that already exists — plain, dangling, or planted
+        # symlink — is refused unchanged rather than replaced or followed.
+        if stat.S_ISLNK(stat_result.st_mode) or stat.S_ISREG(stat_result.st_mode):
+            raise DatabaseMigrationError(
+                f"SQLite backup destination already exists: {destination}"
+            )
+        raise DatabaseMigrationError(
+            "SQLite backup destination is not a regular file path."
+        )
+
+    staging = None
+    try:
+        staging = tempfile.mkdtemp(
+            prefix=".ledger-backup-", dir=str(destination.parent)
+        )
+        os.chmod(staging, 0o700)
+        staged_file = Path(staging) / "backup.sqlite3"
+        created = os.open(
+            staged_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
+        )
+        try:
+            with _open_admitted_source_connection(source) as source_connection:
+                destination_connection = sqlite3.connect(staged_file)
+                try:
+                    source_connection.backup(destination_connection)
+                finally:
+                    destination_connection.close()
+        finally:
+            os.close(created)
+        _publish_no_replace(staged_file, destination)
+    finally:
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
+
+
+def _publish_no_replace(staged_file: Path, destination: Path) -> None:
+    """Descriptor-relative, no-replace, no-follow link from staging into the final dir.
+
+    ``os.link`` with ``src_dir_fd``/``dst_dir_fd`` resolves both the staged file
+    and the destination entry purely from open directory descriptors, so a
+    parent directory swap cannot redirect the destination.  ``follow_symlinks=False``
+    refuses to link through a symlink at either operand, and raising the state then
+    cannot replace ``destination``: ``os.link`` never overwrites an existing name.
+    The published entry is re-verified as a regular file that shares the staged
+    inode before the function returns.
+    """
+
+    dest_parent = destination.parent
+    stage_parent = staged_file.parent
+    try:
+        with _open_directory_fd(dest_parent, label="backup destination") as dst_fd:
+            with _open_directory_fd(stage_parent, label="backup staging") as src_fd:
+                os.link(
+                    staged_file.name,
+                    destination.name,
+                    src_dir_fd=src_fd,
+                    dst_dir_fd=dst_fd,
+                    follow_symlinks=False,
+                )
+    except FileExistsError as exc:
+        raise DatabaseMigrationError(
+            f"SQLite backup destination already exists: {destination}"
+        ) from exc
+    except OSError as exc:
+        raise DatabaseMigrationError(
+            "SQLite backup could not be published into the destination directory."
+        ) from exc
+
+    final = os.stat(destination, follow_symlinks=False)
+    staged = os.stat(staged_file, follow_symlinks=False)
+    if stat.S_ISLNK(final.st_mode) or not stat.S_ISREG(final.st_mode):
+        raise DatabaseMigrationError("SQLite backup destination is not a regular file.")
+    if final.st_ino != staged.st_ino or final.st_dev != staged.st_dev:
+        raise DatabaseMigrationError(
+            "SQLite backup destination inode differs from the staged backup."
+        )
+
+
+_REPLACE_SUPPORTS_DIR_FD = hasattr(os, "replace") and (
+    (os.replace.__doc__ or "").find("dir_fd") >= 0
+)
+
+
+def _bounded_replace(source: Path, destination: Path) -> None:
+    """Atomically replace ``destination`` with ``source`` inside one held directory.
+
+    This migration always swaps a staged sibling over the database path, so both
+    operands must live in the *same* directory.  We therefore require a single
+    lexical parent and open it exactly once with ``O_NOFOLLOW``, using that one
+    descriptor as both ``src_dir_fd`` and ``dst_dir_fd``.  A real directory swap
+    after the descriptor is opened cannot redirect the rename: both operand names
+    resolve inside the pinned directory, so an attacker replacing the named
+    directory (or plant a symlink at it) cannot divert the migration result into
+    a directory the operator did not select.
+    """
+
+    if not _REPLACE_SUPPORTS_DIR_FD:
+        raise DatabaseMigrationError(
+            "Atomic SQLite replacement requires descriptor-relative rename support."
+        )
+    s_parent = Path(source).expanduser().parent
+    d_parent = Path(destination).expanduser().parent
+    if s_parent != d_parent:
+        raise DatabaseMigrationError(
+            "Atomic SQLite replacement requires the staged and destination files "
+            "to share the same parent directory."
+        )
+    # A single held no-follow descriptor anchors both operand names.
+    with _open_directory_fd(s_parent, label="migration directory") as fd:
+        try:
+            os.replace(
+                Path(source).name,
+                Path(destination).name,
+                src_dir_fd=fd,
+                dst_dir_fd=fd,
+            )
+        except OSError as exc:
+            raise DatabaseMigrationError(
+                "Atomic SQLite replacement could not be completed safely."
+            ) from exc
 
 
 def _table_counts(path: Path, tables: tuple[str, ...]) -> dict[str, int]:
@@ -1355,24 +1802,51 @@ def _table_counts(path: Path, tables: tuple[str, ...]) -> dict[str, int]:
         }
 
 
-def _verified_backup(source: Path, backup_dir: Path) -> Path:
+def _verified_backup(
+    source: Path,
+    snapshot_path: Path,
+    backup_dir: Path,
+    *,
+    expected_identity: SourceIdentity,
+) -> Path:
+    """Produce and verify the pre-migration backup from the immutable snapshot.
+
+    ``snapshot_path`` is the immutable file whose bytes were pinned to the
+    admitted source identity.  The backup is produced by copying that snapshot
+    (never by reopening the live ``source`` path), so a swap of the live path
+    after admission cannot change the backed-up bytes.  The backup is verified
+    to be logically equivalent to the snapshot (identical tables, row counts,
+    and integrity), and the snapshot's own hash must still equal the admitted
+    identity's hash.  ``source`` is used only to derive a stable, human-friendly
+    backup name.
+    """
+
     backup_dir = backup_dir.expanduser().resolve()
     backup_dir.mkdir(parents=True, exist_ok=True)
-    backup = backup_dir / f"{source.stem}.pre-migration.{_sha256(source)[:16]}.db"
-    _backup_sqlite(source, backup)
-    if _sha256(source) != _sha256(backup):
-        # SQLite backups can legitimately arrange pages differently.  The
-        # logical checks below are the authoritative comparison, while this
-        # condition catches a truncated/corrupt output before staging begins.
-        backup_status = inspect_database(f"sqlite:///{backup}")
-        source_status = inspect_database(f"sqlite:///{source}")
-        if (
-            not backup_status.integrity_ok
-            or backup_status.foreign_key_violations
-            or backup_status.tables != source_status.tables
-            or _table_counts(backup, backup_status.tables) != _table_counts(source, source_status.tables)
-        ):
-            raise DatabaseMigrationError("SQLite backup verification failed; source database was not migrated.")
+    if _sha256(snapshot_path) != expected_identity.sha256:
+        # The immutable snapshot's bytes no longer match what was admitted —
+        # a sign that the input changed while being snapshotted.  Nothing is
+        # backed up and nothing is migrated.
+        raise DatabaseMigrationError(
+            "SQLite source changed since it was admitted; refusing to back it up."
+        )
+    backup = backup_dir / f"{source.stem}.pre-migration.{expected_identity.sha256[:16]}.db"
+    _backup_sqlite(snapshot_path, backup)
+    # Authoritative logical comparison: the backup's tables, row counts, and
+    # integrity must match the snapshot's, and the snapshot is the admitted
+    # bytes.  This catches a truncated/corrupt backup before staging begins.
+    backup_status = inspect_database(f"sqlite:///{backup}")
+    source_status = inspect_database(f"sqlite:///{snapshot_path}")
+    if (
+        not backup_status.integrity_ok
+        or backup_status.foreign_key_violations
+        or backup_status.tables != source_status.tables
+        or _table_counts(backup, backup_status.tables)
+        != _table_counts(snapshot_path, source_status.tables)
+    ):
+        raise DatabaseMigrationError(
+            "SQLite backup verification failed; source database was not migrated."
+        )
     return backup
 
 
@@ -1508,6 +1982,7 @@ def initialize_database(database_url: str) -> DatabaseStatus:
             "`benchmark-ledger db preflight` and be migrated as a verified copy; "
             f"observed {status.kind}: {status.detail or 'no additional detail'}"
         )
+    _ensure_sqlite_missing_parent(database_url)
     _upgrade_empty_database(database_url)
     upgraded = inspect_database(database_url)
     if upgraded.kind != "current":
@@ -1549,11 +2024,31 @@ def migrate_legacy_copy(database_url: str, *, backup_dir: Path) -> MigrationRece
                 "Close all writers and create a fresh copy before rehearsal."
             )
 
-    input_hash = _sha256(database_path)
-    backup_path = _verified_backup(database_path, backup_dir)
+    # Admit the source in ONE step.  ``_admit_and_snapshot`` opens the source with a
+    # single ``O_NOFOLLOW`` descriptor, verifies ``S_ISREG``, and both hashes and
+    # copies it into a private immutable snapshot through that one descriptor.
+    # ``input_sha256`` is bound to those exact admitted bytes.  Every later
+    # byte-producing read — the pre-migration backup and the staged copy — reads
+    # the immutable snapshot, never the live ``database_path`` again.  A swap of
+    # the live path after admission therefore cannot change the migrated bytes,
+    # and a post-admission identity gap on the live path still fails closed.
+    # ``output_sha256`` is computed from the post-migration database bytes
+    # actually installed at ``database_path`` after the atomic replacement.
+    admitted_identity, admitted_snapshot, admit_staging = _admit_and_snapshot(
+        database_path
+    )
+    input_hash = admitted_identity.sha256
     staged_path = _stage_path(database_path)
     try:
-        _backup_sqlite(database_path, staged_path)
+        backup_path = _verified_backup(
+            database_path,
+            admitted_snapshot,
+            backup_dir,
+            expected_identity=admitted_identity,
+        )
+        # The staged copy is produced from the same immutable snapshot that the
+        # backup came from, so it cannot diverge from the admitted bytes.
+        _backup_sqlite(admitted_snapshot, staged_path)
         staged_url = f"sqlite:///{staged_path}"
         staged_status = inspect_database(staged_url)
         if (
@@ -1570,27 +2065,50 @@ def migrate_legacy_copy(database_url: str, *, backup_dir: Path) -> MigrationRece
         upgraded = inspect_database(staged_url)
         if upgraded.kind != "current" or not upgraded.integrity_ok or upgraded.foreign_key_violations:
             raise DatabaseMigrationError(
-                "Staged migration failed postflight validation; source copy was not replaced."
+                "Staged migration failed post-validation; source copy was not replaced."
             )
-        os.replace(staged_path, database_path)
+        # Immediately before the atomic replacement, the live source must still be
+        # the exact identity we admitted.  The staged copy is bound to the admitted
+        # snapshot regardless, but replacing a drifted original would make the
+        # migrated database disagree with the operator's source.
+        if not _source_identity(database_path).matches(admitted_identity):
+            raise DatabaseMigrationError(
+                "SQLite source drifted before replacement; source was not replaced."
+            )
+        _bounded_replace(staged_path, database_path)
         output_status = inspect_database(database_url)
         if output_status.kind != "current" or not output_status.integrity_ok or output_status.foreign_key_violations:
             raise DatabaseMigrationError(
                 "Atomic replacement completed but postflight validation failed; restore the verified backup."
             )
+        # output_sha256 hashes the post-migration database bytes actually
+        # installed at database_path — never the admitted input snapshot.  It is
+        # an attestation that the receipt describes the file that now sits at the
+        # database path, so a caller replaying this receipt can verify the
+        # installed database against it.  Digest inequality to the input is not a
+        # migration invariant (a table-level no-op upgrade could legitimately
+        # yield equal bytes), so it is deliberately not asserted at runtime: an
+        # assertion would disappear under ``python -O`` and is not the receipt
+        # contract.  A genuine fail-closed invariant here would surface as a
+        # DatabaseMigrationError, not an assert.  Reaching the exact ledger head
+        # already fails closed above (``upgraded.kind != "current"``) and the
+        # postflight integrity check does likewise, so no runtime digest
+        # rejection is added.
+        output_sha256 = _sha256(database_path)
         return MigrationReceipt(
             database_path=str(database_path),
             backup_path=str(backup_path),
             input_sha256=input_hash,
-            output_sha256=_sha256(database_path),
+            output_sha256=output_sha256,
             from_revision=from_revision,
             to_revision=head_revision(),
             integrity_ok=output_status.integrity_ok,
             foreign_key_violations=output_status.foreign_key_violations,
         )
-    except Exception:
-        # The original path is unchanged until os.replace.  Preserve the
-        # verified backup and remove only the disposable staged file.
+    finally:
+        # Remove the disposable staging directory (and its immutable snapshot).
+        # The verified backup under ``backup_dir`` is preserved; only disposable
+        # staging is cleaned.  The live source is never modified.
+        shutil.rmtree(admit_staging, ignore_errors=True)
         if staged_path.exists():
             staged_path.unlink()
-        raise
