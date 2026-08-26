@@ -4,7 +4,7 @@
 
 This repository is the **AI Benchmark Platform**:
 
-1. **Frontend** (`src/*`) — React SPA for model benchmark comparison (demo synthetic data + planned official mode).
+1. **Frontend** (`src/*`) — React SPA that shows a governed Official release or an honest awaiting-publication state.
 2. **Ledger** (`ledger/*`) — Python CLI that captures official benchmark results as immutable source-backed claims.
 
 The ledger does **not** run benchmarks and does **not** recalculate scores.
