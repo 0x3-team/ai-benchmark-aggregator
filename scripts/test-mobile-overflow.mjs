@@ -9,6 +9,8 @@ import WebSocket from "ws";
 
 const vitePort = 4174;
 const chromePort = 9223;
+const viteReadyTimeoutMs = 10_000;
+const chromeReadyTimeoutMs = 60_000;
 const chromeUserDataDir = await mkdtemp(join(tmpdir(), "p10-mobile-overflow-"));
 const vite = spawn(
   process.execPath,
@@ -58,9 +60,10 @@ function resolveChromeExecutable() {
   throw new Error("No headless Chrome executable was found. Set CHROME_BIN to an executable path.");
 }
 
-async function waitFor(url) {
+async function waitFor(url, { description = url, timeoutMs } = {}) {
+  const deadline = Date.now() + timeoutMs;
   let lastError;
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  while (Date.now() < deadline) {
     try {
       const response = await fetch(url);
       if (response.ok) return response;
@@ -69,7 +72,23 @@ async function waitFor(url) {
     }
     await sleep(100);
   }
-  throw lastError ?? new Error(`Timed out waiting for ${url}`);
+  const detail = lastError instanceof Error ? ` Last error: ${lastError.message}` : "";
+  throw new Error(`Timed out waiting for ${description} after ${timeoutMs}ms.${detail}`, {
+    cause: lastError,
+  });
+}
+
+async function stopChild(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const exit = once(child, "exit");
+  child.kill();
+  const exitedGracefully = await Promise.race([
+    exit.then(() => true),
+    sleep(2_000).then(() => false),
+  ]);
+  if (exitedGracefully) return;
+  child.kill("SIGKILL");
+  await exit;
 }
 
 async function evaluate(socket, expression) {
@@ -97,7 +116,10 @@ async function evaluate(socket, expression) {
 evaluate.nextId = 1;
 
 try {
-  await waitFor(`http://127.0.0.1:${vitePort}/browser-test/p10-mobile-overflow.html`);
+  await waitFor(`http://127.0.0.1:${vitePort}/browser-test/p10-mobile-overflow.html`, {
+    description: "the Vite browser fixture",
+    timeoutMs: viteReadyTimeoutMs,
+  });
   const chromeExecutable = resolveChromeExecutable();
   chrome = spawn(
     chromeExecutable,
@@ -116,7 +138,10 @@ try {
     Promise.reject(new Error(`Headless Chrome exited before DevTools was ready: code=${code} signal=${signal}`))
   );
   const targetsResponse = await Promise.race([
-    waitFor(`http://127.0.0.1:${chromePort}/json`),
+    waitFor(`http://127.0.0.1:${chromePort}/json`, {
+      description: "headless Chrome DevTools",
+      timeoutMs: chromeReadyTimeoutMs,
+    }),
     chromeError,
     chromeExit,
   ]);
@@ -205,11 +230,7 @@ try {
   socket.close();
   console.log(`390px overflow assertion passed: ${JSON.stringify(measurements)}`);
 } finally {
-  if (chrome) {
-    const exit = once(chrome, "exit");
-    chrome.kill();
-    await Promise.race([exit, sleep(2_000)]);
-  }
-  vite.kill();
+  await stopChild(chrome);
+  await stopChild(vite);
   await rm(chromeUserDataDir, { force: true, maxRetries: 10, recursive: true, retryDelay: 100 });
 }
