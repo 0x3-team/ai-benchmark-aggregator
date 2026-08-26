@@ -763,12 +763,16 @@ def test_rowset_digest_is_order_independent_and_preserves_json_scalar_types(
                 canonical_name="stable-a",
                 display_name="Stable A",
                 known_metrics=[typed_value, True, None, "1"],
+                created_at=ANCHOR,
+                updated_at=ANCHOR,
             ),
             models.Benchmark(
                 id="stable-b",
                 canonical_name="stable-b",
                 display_name="Stable B",
                 known_metrics=[2, False, None, "2"],
+                created_at=ANCHOR,
+                updated_at=ANCHOR,
             ),
         ]
         engine = _engine(database_path)
