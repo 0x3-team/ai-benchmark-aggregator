@@ -8,9 +8,11 @@
 
 ## Executive state
 
-All task agents were stopped before this checkpoint. Every intentional working
-tree was committed and pushed to its existing GitHub pull-request branch. No
-task-machine-only implementation work remains authoritative. Pull requests with
+All task agents were stopped before this checkpoint. Every unique intentional
+diff from the active integration lanes was committed and pushed to its existing
+GitHub pull-request branch. Earlier isolated adapter-lane trees are duplicated
+by the accepted integrated PR #17 and contain no additional authoritative work.
+No task-machine-only implementation remains authoritative. Pull requests with
 unfinished review remediation were converted to drafts and use `wip:` commits
 so local continuation does not mistake preservation for acceptance.
 
