@@ -1,8 +1,9 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { BenchmarkCategory } from "./types";
 import {
   DatasetProvider,
   useDataset,
+  type DatasetBenchmark,
   type DatasetModel,
 } from "./data/dataset";
 import { loadOfficialData, type OfficialLoadResult } from "./data/official";
@@ -39,8 +40,16 @@ import {
   ToastClose,
 } from "./components/ui/toast";
 import { useToast } from "./components/ui/use-toast";
+import {
+  createDefaultPermalinkState,
+  decodePermalink,
+  encodePermalink,
+  PERMALINK_MAX_COMPARE,
+  PERMALINK_MAX_VALUE_LENGTH,
+  type PermalinkState,
+} from "./lib/permalinkState";
 
-const MAX_COMPARE = 6;
+const PERMALINK_SYNC_DELAY_MS = 300;
 
 /**
  * Chart-heavy secondary surfaces are code-split with React.lazy so the
@@ -110,6 +119,12 @@ export function AppWithDataSources({
     () => selectOfficialDataset(officialLoadResult),
     [officialLoadResult]
   );
+  const previousSelectionKey = useRef(selection.key);
+  const sourceChanged = previousSelectionKey.current !== selection.key;
+
+  useEffect(() => {
+    previousSelectionKey.current = selection.key;
+  }, [selection.key]);
 
   return (
     <AppErrorBoundary
@@ -120,6 +135,7 @@ export function AppWithDataSources({
         <AppContent
           dataStatus={selection.status}
           officialLoadResult={selection.official}
+          restorePermalinkFromLocation={!sourceChanged}
         />
       </DatasetProvider>
     </AppErrorBoundary>
@@ -129,24 +145,66 @@ export function AppWithDataSources({
 interface AppContentProps {
   dataStatus: "awaiting-publication" | "official";
   officialLoadResult: OfficialLoadResult;
+  restorePermalinkFromLocation: boolean;
+}
+
+function readPermalinkState(): PermalinkState {
+  if (typeof window === "undefined") return createDefaultPermalinkState();
+  return decodePermalink(window.location.search);
+}
+
+function validatePermalinkState(
+  state: PermalinkState,
+  models: readonly DatasetModel[],
+  benchmarks: readonly DatasetBenchmark[]
+): PermalinkState {
+  if (models.length === 0 && benchmarks.length === 0) {
+    return createDefaultPermalinkState();
+  }
+
+  const modelIds = new Set(models.map((model) => model.id));
+  const vendorNames = new Set(models.map((model) => model.vendor));
+  const benchmarkById = new Map(
+    benchmarks.map((benchmark) => [benchmark.id, benchmark] as const)
+  );
+  const availableCategories = new Set(
+    benchmarks.map((benchmark) => benchmark.category)
+  );
+  const category =
+    state.category && availableCategories.has(state.category)
+      ? state.category
+      : null;
+  const sortBenchmark = state.sort
+    ? benchmarkById.get(state.sort.benchmarkId)
+    : undefined;
+  const sort =
+    state.sort &&
+    sortBenchmark &&
+    (category === null || sortBenchmark.category === category)
+      ? state.sort
+      : null;
+
+  return {
+    ...state,
+    vendor: state.vendor.filter((vendor) => vendorNames.has(vendor)),
+    category,
+    sort,
+    compare: state.compare.filter((modelId) => modelIds.has(modelId)),
+    model: state.model && modelIds.has(state.model) ? state.model : null,
+    benchmark:
+      state.benchmark && benchmarkById.has(state.benchmark)
+        ? state.benchmark
+        : null,
+    all: state.all && category === null && benchmarks.length > 12,
+  };
 }
 
 function AppContent({
   dataStatus,
   officialLoadResult,
+  restorePermalinkFromLocation,
 }: AppContentProps) {
-  const [view, setView] = useState<"table" | "compare">("table");
-  const [search, setSearch] = useState("");
-  const [vendorFilter, setVendorFilter] = useState<Set<string>>(new Set());
-  const [categoryFilter, setCategoryFilter] = useState<BenchmarkCategory | null>(null);
-  const [openWeightsOnly, setOpenWeightsOnly] = useState(false);
-  const [sort, setSort] = useState<{ benchmarkId: string | null; dir: "asc" | "desc" } | null>(null);
-  const [selectedBenchmarkId, setSelectedBenchmarkId] = useState<string | null>(null);
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const [showAllBenchmarks, setShowAllBenchmarks] = useState(false);
-  const [showModelsWithNoPublishedScores, setShowModelsWithNoPublishedScores] = useState(false);
   const { toast } = useToast();
 
   const officialUnavailableReason =
@@ -165,6 +223,62 @@ function AppContent({
     benchmarks: activeBenchmarks,
     getValue,
   } = useDataset();
+
+  const [permalinkState, setPermalinkState] = useState<PermalinkState>(() =>
+    restorePermalinkFromLocation
+      ? validatePermalinkState(readPermalinkState(), activeModels, activeBenchmarks)
+      : createDefaultPermalinkState()
+  );
+  const {
+    view,
+    q: search,
+    category: categoryFilter,
+    open: openWeightsOnly,
+    sort,
+    benchmark: selectedBenchmarkId,
+    model: selectedModelId,
+    compare: selectedModels,
+    all: showAllBenchmarks,
+    zero: showModelsWithNoPublishedScores,
+  } = permalinkState;
+  const vendorFilter = useMemo(
+    () => new Set(permalinkState.vendor),
+    [permalinkState.vendor]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const restoreFromLocation = () => {
+      setPermalinkState(
+        validatePermalinkState(
+          decodePermalink(window.location.search),
+          activeModels,
+          activeBenchmarks
+        )
+      );
+    };
+    window.addEventListener("popstate", restoreFromLocation);
+    return () => window.removeEventListener("popstate", restoreFromLocation);
+  }, [activeBenchmarks, activeModels]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const searchString = encodePermalink(permalinkState);
+    if (window.location.search === searchString) return;
+    const timeoutId = window.setTimeout(() => {
+      if (window.location.search === searchString) return;
+      try {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${searchString}${window.location.hash}`
+        );
+      } catch {
+        // Keep the current UI state if a browser rejects a History API write.
+      }
+    }, PERMALINK_SYNC_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [permalinkState]);
 
   const vendors = useMemo(
     () => [...new Set(activeModels.map((m) => m.vendor))].sort(),
@@ -268,62 +382,94 @@ function AppContent({
   );
 
   function handleSort(benchmarkId: string) {
-    setSort((prev) => {
-      if (prev?.benchmarkId === benchmarkId) {
-        return { benchmarkId, dir: prev.dir === "asc" ? "desc" : "asc" };
-      }
-      const benchmark = activeBenchmarks.find((b) => b.id === benchmarkId);
-      return {
-        benchmarkId,
-        // Default to the direction that puts the best score first.
-        dir: benchmark?.higherIsBetter === false ? "asc" : "desc",
-      };
+    setPermalinkState((previous) => {
+      const nextSort =
+        previous.sort?.benchmarkId === benchmarkId
+          ? {
+              benchmarkId,
+              dir: previous.sort.dir === "asc" ? ("desc" as const) : ("asc" as const),
+            }
+          : {
+              benchmarkId,
+              // Default to the direction that puts the best score first.
+              dir:
+                activeBenchmarks.find((benchmark) => benchmark.id === benchmarkId)
+                  ?.higherIsBetter === false
+                  ? ("asc" as const)
+                  : ("desc" as const),
+            };
+      return { ...previous, sort: nextSort };
     });
   }
 
   function toggleVendor(v: string) {
-    setVendorFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(v)) next.delete(v);
-      else next.add(v);
-      return next;
+    setPermalinkState((previous) => {
+      const vendor = previous.vendor.includes(v)
+        ? previous.vendor.filter((candidate) => candidate !== v)
+        : [...previous.vendor, v];
+      return { ...previous, vendor };
     });
   }
 
   function handleCategoryFilter(next: BenchmarkCategory | null) {
-    setCategoryFilter(next);
     // A column sort must never stay active after its column leaves the visible
     // category. Clearing is less surprising than retaining a hidden order.
-    setSort(null);
+    setPermalinkState((previous) => ({
+      ...previous,
+      category: next,
+      sort: null,
+      all: next === null ? previous.all : false,
+    }));
   }
 
   function toggleModelSelect(id: string) {
     if (selectedModels.includes(id)) {
-      setSelectedModels(selectedModels.filter((x) => x !== id));
+      setPermalinkState((previous) => ({
+        ...previous,
+        compare: previous.compare.filter((candidate) => candidate !== id),
+      }));
       toast({ description: "Removed from comparison" });
       return;
     }
-    if (selectedModels.length >= MAX_COMPARE) {
+    if (selectedModels.length >= PERMALINK_MAX_COMPARE) {
       toast({ description: "Comparison is full (max 6)" });
       return;
     }
-    setSelectedModels([...selectedModels, id]);
+    setPermalinkState((previous) => ({
+      ...previous,
+      compare: [...previous.compare, id],
+    }));
     toast({
-      description: `Added to comparison (${selectedModels.length + 1}/${MAX_COMPARE})`,
+      description: `Added to comparison (${selectedModels.length + 1}/${PERMALINK_MAX_COMPARE})`,
     });
   }
 
   function clearFilters() {
-    setSearch("");
-    setVendorFilter(new Set());
-    setCategoryFilter(null);
-    setOpenWeightsOnly(false);
-    setShowModelsWithNoPublishedScores(false);
-    setSort(null);
+    setPermalinkState((previous) => ({
+      ...previous,
+      q: "",
+      vendor: [],
+      category: null,
+      open: false,
+      zero: false,
+      sort: null,
+    }));
   }
 
   function openModel(id: string) {
-    setSelectedModelId(id);
+    setPermalinkState((previous) => ({
+      ...previous,
+      model: id,
+      benchmark: null,
+    }));
+  }
+
+  function openBenchmark(id: string) {
+    setPermalinkState((previous) => ({
+      ...previous,
+      benchmark: id,
+      model: null,
+    }));
   }
 
   return (
@@ -339,7 +485,9 @@ function AppContent({
             totalModels={activeModels.length}
             totalBenchmarks={activeBenchmarks.length}
             view={view}
-            onViewChange={setView}
+            onViewChange={(next) =>
+              setPermalinkState((previous) => ({ ...previous, view: next }))
+            }
             selectedCount={selectedModels.length}
             onOpenGlossary={() => setGlossaryOpen(true)}
             dataStatus={dataStatus}
@@ -363,19 +511,28 @@ function AppContent({
               <>
               <Filters
                 search={search}
-                onSearch={setSearch}
+                onSearch={(q) =>
+                  setPermalinkState((previous) => ({
+                    ...previous,
+                    q: q.slice(0, PERMALINK_MAX_VALUE_LENGTH),
+                  }))
+                }
                 vendors={vendors}
                 vendorFilter={vendorFilter}
                 onToggleVendor={toggleVendor}
                 categoryFilter={categoryFilter}
                 onCategory={handleCategoryFilter}
                 openWeightsOnly={openWeightsOnly}
-                onToggleOpenWeights={setOpenWeightsOnly}
+                onToggleOpenWeights={(open) =>
+                  setPermalinkState((previous) => ({ ...previous, open }))
+                }
                 onClear={clearFilters}
                 resultCount={sortedModels.length}
                 hasModelsWithNoPublishedScores={hasModelsWithNoPublishedScores}
                 showModelsWithNoPublishedScores={showModelsWithNoPublishedScores}
-                onToggleModelsWithNoPublishedScores={setShowModelsWithNoPublishedScores}
+                onToggleModelsWithNoPublishedScores={(zero) =>
+                  setPermalinkState((previous) => ({ ...previous, zero }))
+                }
               />
               <CategoryLeaders
                 models={activeModels}
@@ -426,9 +583,11 @@ function AppContent({
                   benchmarks={visibleBenchmarks}
                   sort={sort}
                   onSort={handleSort}
-                  onBenchmarkClick={setSelectedBenchmarkId}
+                  onBenchmarkClick={openBenchmark}
                   onOpenModel={openModel}
-                  onClearSort={() => setSort(null)}
+                  onClearSort={() =>
+                    setPermalinkState((previous) => ({ ...previous, sort: null }))
+                  }
                   onToggleModelSelect={toggleModelSelect}
                   selectedModels={selectedModels}
                   rankMap={rankMap}
@@ -438,7 +597,9 @@ function AppContent({
                   <div className="flex justify-center py-3">
                     <button
                       type="button"
-                      onClick={() => setShowAllBenchmarks(true)}
+                      onClick={() =>
+                        setPermalinkState((previous) => ({ ...previous, all: true }))
+                      }
                       className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
                     >
                       Show all {categoryBenchmarks.length} benchmarks ({hiddenBenchmarkCount} hidden)
@@ -449,7 +610,9 @@ function AppContent({
                   <div className="flex justify-center py-3">
                     <button
                       type="button"
-                      onClick={() => setShowAllBenchmarks(false)}
+                      onClick={() =>
+                        setPermalinkState((previous) => ({ ...previous, all: false }))
+                      }
                       className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
                     >
                       Show fewer benchmarks
@@ -483,7 +646,9 @@ function AppContent({
           <Sheet
             open={!!selectedBenchmark}
             onOpenChange={(o) => {
-              if (!o) setSelectedBenchmarkId(null);
+              if (!o) {
+                setPermalinkState((previous) => ({ ...previous, benchmark: null }));
+              }
             }}
           >
             <SheetContent
@@ -516,7 +681,9 @@ function AppContent({
           <Sheet
             open={!!selectedModel}
             onOpenChange={(o) => {
-              if (!o) setSelectedModelId(null);
+              if (!o) {
+                setPermalinkState((previous) => ({ ...previous, model: null }));
+              }
             }}
           >
             <SheetContent

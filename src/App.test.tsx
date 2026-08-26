@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppWithDataSources } from "./App";
 import { DatasetProvider, type DatasetInput } from "./data/dataset";
 import type { OfficialLoadResult } from "./data/official";
@@ -10,6 +10,10 @@ import { fixtureModel, fixtureBenchmark, fixtureScore } from "./data/testFixture
 import { BenchmarkCard } from "./components/BenchmarkCard";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+});
 
 function datasetFixture(): DatasetInput {
   return {
@@ -176,6 +180,12 @@ function setSearch(input: HTMLInputElement, value: string) {
   });
 }
 
+async function flushPermalinkSync() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  });
+}
+
 function buttonStartingWith(container: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
     candidate.textContent?.trim().startsWith(text)
@@ -271,6 +281,156 @@ describe("App Official data boundary", () => {
       expect(container.textContent).not.toContain("0 models · 0 benchmarks · Awaiting publication");
       expect(container.querySelector('[aria-label="Data source"]')).toBeNull();
     } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("restores and canonicalizes a valid v1 permalink", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/?unknown=drop&compare=sparse-eligible&vendor=TestVendor&q=eligible&v=1" +
+        "&category=knowledge&sort=sparse-benchmark-1&dir=desc" +
+        "&model=sparse-eligible&zero=1"
+    );
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      });
+
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      const vendor = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent?.trim() === "TestVendor"
+      );
+      const category = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent?.trim() === "Knowledge"
+      );
+      expect(search.value).toBe("eligible");
+      expect(vendor?.getAttribute("aria-pressed")).toBe("true");
+      expect(category?.getAttribute("aria-pressed")).toBe("true");
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+        "Eligible Sparse Model"
+      );
+      expect(container.textContent).toContain("Sorted by");
+      expect(window.location.search).toBe(
+        "?v=1&q=eligible&vendor=TestVendor&category=knowledge" +
+          "&sort=sparse-benchmark-1&dir=desc&compare=sparse-eligible" +
+          "&model=sparse-eligible&zero=1"
+      );
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("fails closed when a permalink tries to open both detail sheets", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/?v=1&model=sparse-eligible&benchmark=sparse-benchmark-1"
+    );
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      await flushPermalinkSync();
+      expect(window.location.search).toBe("?v=1");
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("restores permalink state on popstate without a user interaction", () => {
+    window.history.replaceState(null, "", "/?v=1&q=complete");
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      expect(search.value).toBe("complete");
+
+      act(() => {
+        window.history.pushState(null, "", "/?v=1&q=eligible");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      });
+
+      expect(search.value).toBe("eligible");
+      expect(window.location.search).toBe("?v=1&q=eligible");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("debounces URL writes and caps generated search state to the codec limit", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const replaceState = vi.spyOn(window.history, "replaceState");
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      replaceState.mockClear();
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      setSearch(search, "a");
+      setSearch(search, "ab");
+      setSearch(search, "x".repeat(300));
+
+      expect(replaceState).not.toHaveBeenCalled();
+      expect(search.value).toHaveLength(256);
+      await flushPermalinkSync();
+      expect(replaceState).toHaveBeenCalledTimes(1);
+      expect(new URLSearchParams(window.location.search).get("q")).toHaveLength(256);
+    } finally {
+      replaceState.mockRestore();
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("keeps UI state when the browser rejects a History API write", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const replaceState = vi
+      .spyOn(window.history, "replaceState")
+      .mockImplementation(() => {
+        throw new DOMException("History rate limit", "SecurityError");
+      });
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      setSearch(search, "eligible");
+      await flushPermalinkSync();
+
+      expect(search.value).toBe("eligible");
+      expect(container.querySelector("#dataset-error-title")).toBeNull();
+      expect(replaceState).toHaveBeenCalledTimes(1);
+    } finally {
+      replaceState.mockRestore();
       act(() => root.unmount());
       container.remove();
     }
