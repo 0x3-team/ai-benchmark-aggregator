@@ -2,7 +2,7 @@
 
 **Organization:** 0x3-team  
 **Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Status:** Private (MIT-licensed, open-source-quality standards) — Official publication intentionally unavailable pending source certification; the frontend truthfully renders an empty awaiting-publication state
+**Status:** Public (MIT-licensed, open-source-quality standards) — Official publication intentionally unavailable pending source certification; the frontend truthfully renders an empty awaiting-publication state
 
 A single-page **AI model benchmark comparison dashboard** with a real-only publication boundary:
 
