@@ -165,6 +165,8 @@ jobs:
         run: npm run verify:build-provenance
       - name: Verify static Pages artifact
         run: npm run verify:pages-static
+      - name: Verify Pages workflow controls
+        run: npm run verify:pages-workflows
       - name: Verify bundle budget
         run: npm run verify:bundle-budget
 
@@ -202,4 +204,5 @@ jobs:
           npm run build
           npm run verify:build-provenance
           npm run verify:pages-static
+          npm run verify:pages-workflows
           npm run verify:bundle-budget

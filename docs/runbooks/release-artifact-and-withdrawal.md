@@ -6,13 +6,12 @@
 
 | State | May appear in public frontend? | Meaning |
 | --- | --- | --- |
-| Demo (synthetic) | Yes | Synthetic UI dataset only; not Official or source-backed. |
-| Official unavailable | Yes | The shipped containment state; visible values remain Demo. |
+| Awaiting publication | Yes | The shipped immutable empty state; no models, benchmarks, or scores are public. |
 | Candidate projection (LDR-08) | No | Offline read model only; not a release artifact. |
 | Legacy inventory (LDR-09) | No | Read-only reconciliation report; not a decision or data source. |
 | Approved immutable artifact | Not until REL-05 | A builder/release-control output awaiting governed frontend authorization. |
 | Published Official release | Only after REL-05 | One exact artifact ID/digest, policy, decision, timestamp, and frontend release. |
-| Withdrawn | Yes, when implemented | Explicit public state; it must not fall back to Demo under an Official label. |
+| Withdrawn | Yes, when implemented | Explicit empty/unavailable public state; it must not continue serving the withdrawn artifact or fall back to any fixture. |
 
 ## Preconditions for a future build
 
@@ -39,8 +38,8 @@ such record or v2 artifact is tracked.
 
 - Do not package an ignored `export.from-ledger.json`, candidate projection,
   legacy report, fixture, sample, or operator-local export into `src/data`.
-- Do not make the dormant v2 parser or `selectDataset(... official ...)` path
-  live because a file happens to validate or a digest happens to match.
+- Do not make the dormant v2 parser or Official selection path live because a
+  file happens to validate or a digest happens to match.
 - Do not put raw snapshots, protected source content, credentials, database
   identifiers, or runner telemetry in the public artifact.
 - Do not correct/revoke a release by rewriting claims, deleting snapshots, or
@@ -68,5 +67,7 @@ such record or v2 artifact is tracked.
 4. Record detection time, action time, cache evidence, affected frontend build,
    owner, correction path, and follow-up source/review decision.
 
-Until those controls exist, the only valid public behavior is Demo (synthetic)
-with Official unavailable.
+Until those controls exist, the only valid public behavior is the immutable
+empty awaiting-publication state. After a withdrawal, that empty/unavailable
+state also remains the fail-closed public behavior until a different governed
+artifact receives a new release authorization.

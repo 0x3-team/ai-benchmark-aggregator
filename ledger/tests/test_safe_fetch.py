@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from app.ingestion import safe_fetch
 from app.ingestion.adapters.generic_json import GenericJSONAdapter
 from app.ingestion.adapters import ADAPTERS
 from app.ingestion.adapters.base import SourceAdapter
@@ -14,6 +15,7 @@ from app.ingestion.safe_fetch import (
     FetchTransportResponse,
     SafeFetchClient,
     SafeFetchError,
+    SafeFetchSettings,
     build_fetch_plan,
 )
 from app.ingestion.admission import AdmissionVerdict, SourceAdmission
@@ -29,9 +31,53 @@ class ScriptedTransport:
         self.responses = responses
         self.calls: list[tuple[str, dict[str, str]]] = []
 
-    def request(self, *, url: str, headers, timeout_seconds: float) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+    def request(
+        self,
+        *,
+        url: str,
+        headers,
+        timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
+    ) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+        _ = timeout_seconds, resolved_addresses, max_bytes
         self.calls.append((url, dict(headers)))
         return self.responses[url]
+
+
+class RecordingBudgetTransport(ScriptedTransport):
+    def __init__(self, responses: dict[str, FetchTransportResponse]) -> None:
+        super().__init__(responses)
+        self.timeout_budgets: list[float] = []
+
+    def request(
+        self,
+        *,
+        url: str,
+        headers,
+        timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
+    ) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+        self.timeout_budgets.append(timeout_seconds)
+        return super().request(
+            url=url,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            resolved_addresses=resolved_addresses,
+            max_bytes=max_bytes,
+        )
+
+
+class FakeMonotonic:
+    def __init__(self) -> None:
+        self.current = 0.0
+
+    def __call__(self) -> float:
+        return self.current
+
+    def advance(self, seconds: float) -> None:
+        self.current += seconds
 
 
 def public_resolver(_host: str, _port: int) -> list[str]:
@@ -86,6 +132,105 @@ def test_safe_fetch_rejects_an_empty_resolution_before_transport() -> None:
 
     assert raised.value.code == "FETCH_DNS_EMPTY"
     assert transport.calls == []
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "224.0.0.1",
+        "ff0e::1",
+        "64:ff9b::7f00:1",
+        "::ffff:8.8.8.8",
+    ],
+    ids=["ipv4-multicast", "ipv6-multicast", "ipv6-translation", "ipv4-mapped"],
+)
+def test_safe_fetch_rejects_non_unicast_global_classifications(address: str) -> None:
+    transport = ScriptedTransport({})
+    client = SafeFetchClient(transport=transport, resolver=lambda _host, _port: [address])
+
+    with pytest.raises(SafeFetchError) as raised:
+        client.fetch(plan())
+
+    assert raised.value.code == "FETCH_PRIVATE_NETWORK_FORBIDDEN"
+    assert transport.calls == []
+
+
+def test_slow_resolver_cannot_outlive_the_total_request_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+    transport = ScriptedTransport({})
+
+    def slow_resolver(_host: str, _port: int) -> list[str]:
+        clock.advance(8.0)
+        return ["8.8.8.8"]
+
+    monkeypatch.setattr(safe_fetch.time, "monotonic", clock)
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=slow_resolver,
+        settings=SafeFetchSettings(timeout_seconds=7.0),
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        client.fetch(plan(timeout_seconds=7.0))
+
+    assert raised.value.code == "FETCH_TIMEOUT"
+    assert transport.calls == []
+
+
+def test_dns_time_is_subtracted_before_transport_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+    transport = RecordingBudgetTransport({URL: response(URL)})
+
+    def resolver(_host: str, _port: int) -> list[str]:
+        clock.advance(2.0)
+        return ["8.8.8.8"]
+
+    monkeypatch.setattr(safe_fetch.time, "monotonic", clock)
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=resolver,
+        settings=SafeFetchSettings(timeout_seconds=7.0),
+    )
+
+    result = client.fetch(plan(timeout_seconds=7.0))
+
+    assert result.raw_bytes == b'{"results":[]}'
+    assert transport.timeout_budgets == [5.0]
+
+
+def test_redirect_hops_share_one_total_timeout_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+
+    class RedirectBudgetTransport(RecordingBudgetTransport):
+        def request(self, **kwargs):  # type: ignore[no-untyped-def]
+            result = super().request(**kwargs)
+            clock.advance(4.0)
+            return result
+
+    transport = RedirectBudgetTransport(
+        {
+            URL: response(URL, status=302, headers={"location": REDIRECT_URL}),
+            REDIRECT_URL: response(REDIRECT_URL),
+        }
+    )
+    monkeypatch.setattr(safe_fetch.time, "monotonic", clock)
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=public_resolver,
+        settings=SafeFetchSettings(timeout_seconds=7.0),
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        client.fetch(plan(timeout_seconds=7.0))
+
+    assert raised.value.code == "FETCH_TIMEOUT"
+    assert transport.timeout_budgets == [7.0, 3.0]
 
 
 def test_safe_fetch_validates_each_redirect_against_the_certified_allowlist() -> None:

@@ -86,7 +86,11 @@ def _policy(
         "evidence_contracts": {
             "json_path_v1": {
                 "record_path_template": "$.records[{row_index}]",
-                "fields": {"model_raw": "model", "score_raw": "score"},
+                "fields": {
+                    "model_raw": "model",
+                    "benchmark_raw": "benchmark",
+                    "score_raw": "score",
+                },
             }
         },
         "dimensions": {
@@ -247,7 +251,11 @@ def _candidate_claim(
         or {
             "type": "json_path_v1",
             "record_path": "$.records[0]",
-            "fields": {"model_raw": "model", "score_raw": "score"},
+            "fields": {
+                "model_raw": "model",
+                "benchmark_raw": "benchmark",
+                "score_raw": "score",
+            },
         },
         capture_method=capture_method,
         capture_confidence=1.0,
@@ -352,7 +360,11 @@ def test_candidate_projection_is_deterministic_complete_and_read_only(seeded_db)
                 "evidenceLocation": {
                     "type": "json_path_v1",
                     "record_path": "$.records[0]",
-                    "fields": {"model_raw": "model", "score_raw": "score"},
+                    "fields": {
+                        "model_raw": "model",
+                        "benchmark_raw": "benchmark",
+                        "score_raw": "score",
+                    },
                 },
                 "provenance": first["scores"][0]["provenance"],
             }
@@ -479,7 +491,11 @@ def test_projection_fails_with_a_sorted_conflict_report_not_a_partial_feed(seede
                 "evidence_location": {
                     "type": "json_path_v1",
                     "record_path": "$.other[0]",
-                    "fields": {"model_raw": "model", "score_raw": "score"},
+                    "fields": {
+                        "model_raw": "model",
+                        "benchmark_raw": "benchmark",
+                        "score_raw": "score",
+                    },
                 }
             },
             "EVIDENCE_LOCATION_CONTRACT_MISMATCH",
@@ -640,11 +656,20 @@ def test_feed_validator_rejects_duplicate_cells_and_digest_tampering(seeded_db):
 
 
 def _release_inputs(
-    candidate: dict[str, object], claims_by_id: dict[str, models.ResultClaim]
+    session,
+    candidate: dict[str, object],
+    claims_by_id: dict[str, models.ResultClaim],
 ) -> dict[str, object]:
     model = candidate["models"][0]  # type: ignore[index]
     benchmark = candidate["benchmarks"][0]  # type: ignore[index]
-    score = candidate["scores"][0]  # type: ignore[index]
+    review_ids = {
+        score["provenance"]["claimReviewDecisionId"]  # type: ignore[index]
+        for score in candidate["scores"]  # type: ignore[union-attr]
+    }
+    publication_ids = {
+        score["provenance"]["claimPublicationDecisionId"]  # type: ignore[index]
+        for score in candidate["scores"]  # type: ignore[union-attr]
+    }
     return {
         "artifact_id": "official-release-fixture-001",
         "release_approval": {
@@ -681,19 +706,13 @@ def _release_inputs(
             }
         ],
         "claims_by_id": claims_by_id,
-        "score_metadata_by_claim_id": {
-            score["claimId"]: {  # type: ignore[index]
-                "sourceEvidenceLocationSha256": hashlib.sha256(
-                    canonical_official_feed_json(score["evidenceLocation"]).encode("utf-8")  # type: ignore[index]
-                ).hexdigest(),
-                "evidence": {
-                    "type": "json_pointer",
-                    "locator": "/records/0",
-                    "modelLocator": "/records/0/model",
-                    "benchmarkLocator": "/records/0/benchmark",
-                    "scoreLocator": "/records/0/score",
-                },
-            }
+        "review_decisions_by_id": {
+            decision_id: session.get(models.ClaimReviewDecision, decision_id)
+            for decision_id in review_ids
+        },
+        "publication_decisions_by_id": {
+            decision_id: session.get(models.ClaimPublicationDecision, decision_id)
+            for decision_id in publication_ids
         },
     }
 
@@ -710,7 +729,7 @@ def test_release_builder_accepts_valid_rfc3339_and_is_deterministic_read_only(se
         )
         before = _counts(session)
         candidate = project_official_feed(session)
-        inputs = _release_inputs(candidate, {claim.id: claim})
+        inputs = _release_inputs(session, candidate, {claim.id: claim})
 
         first = build_official_release_artifact(candidate, **inputs)
         second = build_official_release_artifact(candidate, **inputs)
@@ -725,6 +744,13 @@ def test_release_builder_accepts_valid_rfc3339_and_is_deterministic_read_only(se
         assert first["scores"][0]["claimId"] == claim.id
         assert first["scores"][0]["scoreRaw"] == claim.score_raw
         assert first["scores"][0]["reportedAt"] == claim.date_raw
+        assert first["scores"][0]["evidence"] == {
+            "type": "json_pointer",
+            "locator": "/records/0",
+            "modelLocator": "/records/0/model",
+            "benchmarkLocator": "/records/0/benchmark",
+            "scoreLocator": "/records/0/score",
+        }
         assert first["sourceManifest"][0]["snapshotCapturedAt"].endswith("Z")
         assert first["scores"][0]["provenance"]["snapshotCapturedAt"] == first[
             "sourceManifest"
@@ -756,26 +782,20 @@ def test_release_builder_rejects_unowned_overrides_and_two_variants_for_one_ui_c
             certified=certified,
         )
         candidate = project_official_feed(session)
-        inputs = _release_inputs(candidate, {first_claim.id: first_claim})
+        inputs = _release_inputs(session, candidate, {first_claim.id: first_claim})
 
         mismatched = {**inputs, "models": deepcopy(inputs["models"])}
         mismatched["models"][0]["name"] = "Substituted model"  # type: ignore[index]
         with pytest.raises(OfficialReleaseBuildError, match="must match the eligible feed"):
             build_official_release_artifact(candidate, **mismatched)
 
-        missing_score_metadata = {**inputs, "score_metadata_by_claim_id": {}}
-        with pytest.raises(OfficialReleaseBuildError, match="exactly every eligible claim"):
-            build_official_release_artifact(candidate, **missing_score_metadata)
+        missing_review = {**inputs, "review_decisions_by_id": {}}
+        with pytest.raises(OfficialReleaseBuildError, match="exactly every eligible provenance"):
+            build_official_release_artifact(candidate, **missing_review)
 
-        mismatched_evidence = {
-            **inputs,
-            "score_metadata_by_claim_id": deepcopy(inputs["score_metadata_by_claim_id"]),
-        }
-        mismatched_evidence["score_metadata_by_claim_id"][first_claim.id][  # type: ignore[index]
-            "sourceEvidenceLocationSha256"
-        ] = "f" * 64
-        with pytest.raises(OfficialReleaseBuildError, match="bind the eligible evidence"):
-            build_official_release_artifact(candidate, **mismatched_evidence)
+        missing_publication = {**inputs, "publication_decisions_by_id": {}}
+        with pytest.raises(OfficialReleaseBuildError, match="exactly every eligible provenance"):
+            build_official_release_artifact(candidate, **missing_publication)
 
         source_two, revision_two, certified_two = _certified_source(
             session, source_id="release-builder-variants-f1", metric="f1"
@@ -790,12 +810,9 @@ def test_release_builder_rejects_unowned_overrides_and_two_variants_for_one_ui_c
         )
         variants = project_official_feed(session)
         variant_inputs = _release_inputs(
+            session,
             variants,
             {first_claim.id: first_claim, second_claim.id: second_claim},
-        )
-        first_metadata = next(iter(variant_inputs["score_metadata_by_claim_id"].values()))  # type: ignore[union-attr]
-        variant_inputs["score_metadata_by_claim_id"][second_claim.id] = deepcopy(  # type: ignore[index]
-            first_metadata
         )
         with pytest.raises(OfficialReleaseBuildError, match="only one score"):
             build_official_release_artifact(variants, **variant_inputs)
@@ -821,7 +838,7 @@ def test_release_builder_rejects_date_only_raw_reported_at_without_coercion(seed
             match=r"\$\.scores\[0\]\.reportedAt \(format\)",
         ):
             build_official_release_artifact(
-                candidate, **_release_inputs(candidate, {claim.id: claim})
+                candidate, **_release_inputs(session, candidate, {claim.id: claim})
             )
         assert claim.date_raw == "2026-08-26"
 
@@ -856,7 +873,7 @@ def test_release_builder_rejects_v2_model_and_benchmark_schema_drift(
             certified=certified,
         )
         candidate = project_official_feed(session)
-        inputs = _release_inputs(candidate, {claim.id: claim})
+        inputs = _release_inputs(session, candidate, {claim.id: claim})
         inputs = {**inputs, section: deepcopy(inputs[section])}
         inputs[section][0][field] = value  # type: ignore[index]
 
@@ -885,7 +902,7 @@ def test_release_builder_rejects_unsafe_public_benchmark_urls(seeded_db, unsafe_
             certified=certified,
         )
         candidate = project_official_feed(session)
-        inputs = _release_inputs(candidate, {claim.id: claim})
+        inputs = _release_inputs(session, candidate, {claim.id: claim})
         inputs = {**inputs, "benchmarks": deepcopy(inputs["benchmarks"])}
         inputs["benchmarks"][0]["sourceUrl"] = unsafe_url  # type: ignore[index]
 
@@ -911,7 +928,7 @@ def test_release_builder_rejects_unsafe_source_manifest_url(seeded_db):
 
         with pytest.raises(OfficialReleaseBuildError, match="canonical HTTPS URL"):
             build_official_release_artifact(
-                candidate, **_release_inputs(candidate, {claim.id: claim})
+                candidate, **_release_inputs(session, candidate, {claim.id: claim})
             )
 
 

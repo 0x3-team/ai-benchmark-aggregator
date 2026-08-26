@@ -1,0 +1,247 @@
+name: Private Ledger Recheck (owner-activated)
+
+# This is deliberately not a PR or push workflow. It is inert until an owner
+# manually dispatches it with activate_private_runner=true after completing H4.
+on:
+  workflow_dispatch:
+    inputs:
+      activate_private_runner:
+        description: "Set true only after H4 and activation review are approved"
+        required: true
+        default: false
+        type: boolean
+
+  # Disabled until the owner has approved the private runner, data-plane
+  # credentials, source certification, H4 execution bridge, and an operating
+  # cadence. Do not uncomment this without those approvals.
+  # schedule:
+  #   - cron: "0 4,16 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-ledger-data-plane
+  cancel-in-progress: false
+
+jobs:
+  private-ledger-run:
+    name: private-ledger-run
+    if: (github.event_name == 'workflow_dispatch' && inputs.activate_private_runner == true && github.ref == 'refs/heads/main') || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    # Owners must configure this environment with required reviewers before
+    # H4 activation. Its approval gate protects the private data-plane token.
+    environment: private-ledger-production
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - name: Require explicit private-runner configuration
+        env:
+          LEDGER_DATA_REPOSITORY_TOKEN: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}
+          LEDGER_DATA_REPOSITORY: ${{ vars.LEDGER_DATA_REPOSITORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            LEDGER_DATA_REPOSITORY_TOKEN \
+            LEDGER_DATA_REPOSITORY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Private runner is not configured; refusing before checkout or data-plane access."
+              exit 2
+            fi
+          done
+
+      - name: Checkout control-plane source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.11.18'
+          enable-cache: false
+
+      - name: Install ledger dependencies
+        working-directory: ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/verify_ci_lock.py
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --disable-pip-version-check --no-input --require-hashes -r requirements-ci.lock
+          python -m pip install --disable-pip-version-check --no-input --no-deps --no-build-isolation -e .
+
+      - name: Checkout private ledger artifacts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          repository: ${{ vars.LEDGER_DATA_REPOSITORY }}
+          token: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}
+          path: .private/ledger-data
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Run capability-gated private-runner candidate
+        env:
+          LEDGER_DATA_DIR: ${{ github.workspace }}/.private/ledger-data
+        shell: bash
+        run: |
+          set -euo pipefail
+          flock --nonblock "$RUNNER_TEMP/private-ledger-data-plane.lock" \
+            ledger/.venv/bin/python ledger/scripts/private_runner_p3.py run
+
+      - name: Prepare immutable checkpoint and snapshot artifacts only
+        if: success()
+        env:
+          LEDGER_DATA_DIR: ${{ github.workspace }}/.private/ledger-data
+        shell: bash
+        run: |
+          set -euo pipefail
+          ledger/.venv/bin/python ledger/scripts/private_runner_p3.py assert-data-repo pre-add "$LEDGER_DATA_DIR"
+          git -C "$LEDGER_DATA_DIR" add -- snapshots recovery/checkpoints
+          ledger/.venv/bin/python ledger/scripts/private_runner_p3.py assert-data-repo staged-adds "$LEDGER_DATA_DIR"
+          git -C "$LEDGER_DATA_DIR" diff --cached --quiet && exit 0
+          git -C "$LEDGER_DATA_DIR" config user.name "private-ledger-runner"
+          git -C "$LEDGER_DATA_DIR" config user.email "private-ledger-runner@users.noreply.github.com"
+          git -C "$LEDGER_DATA_DIR" commit -m "data: persist immutable private-runner artifacts"
+
+      - name: Prepare sanitized push repository
+        id: prepare_push
+        if: success()
+        env:
+          LEDGER_DATA_DIR: ${{ github.workspace }}/.private/ledger-data
+          LEDGER_DATA_REPOSITORY: ${{ vars.LEDGER_DATA_REPOSITORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$LEDGER_DATA_REPOSITORY" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || [[ "$LEDGER_DATA_REPOSITORY" == *..* ]]; then
+            echo "::error::Private data repository identifier is invalid."
+            exit 2
+          fi
+          destination="https://github.com/${LEDGER_DATA_REPOSITORY}.git"
+          push_root="$(mktemp -d "$RUNNER_TEMP/private-ledger-push.XXXXXX")"
+          push_repository="$push_root/repository.git"
+          template_directory="$push_root/template"
+          mkdir "$template_directory"
+          GIT_CONFIG_NOSYSTEM=1 \
+            GIT_CONFIG_GLOBAL=/dev/null \
+            GIT_TEMPLATE_DIR="$template_directory" \
+            git clone --bare --no-local "$LEDGER_DATA_DIR" "$push_repository"
+          source_head="$(git -C "$LEDGER_DATA_DIR" rev-parse --verify HEAD)"
+          push_head="$(git --git-dir="$push_repository" rev-parse --verify HEAD)"
+          if [ "$source_head" != "$push_head" ]; then
+            echo "::error::Sanitized push repository does not contain the prepared commit."
+            exit 2
+          fi
+          git --git-dir="$push_repository" config --local --remove-section remote.origin
+          if git --git-dir="$push_repository" config --local --name-only --get-regexp \
+            '^(url\.|credential\.|http\.|remote\.|include\.|includeif\.|core\.hookspath$|core\.sshcommand$)'; then
+            echo "::error::Sanitized push repository contains unsafe Git configuration."
+            exit 2
+          fi
+          git --git-dir="$push_repository" fsck --no-dangling
+          printf 'repository=%s\n' "$push_repository" >> "$GITHUB_OUTPUT"
+          printf 'destination=%s\n' "$destination" >> "$GITHUB_OUTPUT"
+
+      - name: Push prepared immutable artifacts
+        if: success()
+        env:
+          LEDGER_PUSH_REPOSITORY: ${{ steps.prepare_push.outputs.repository }}
+          LEDGER_PUSH_DESTINATION: ${{ steps.prepare_push.outputs.destination }}
+          LEDGER_DATA_REPOSITORY_TOKEN: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$LEDGER_PUSH_REPOSITORY" in
+            "$RUNNER_TEMP"/private-ledger-push.*/repository.git) ;;
+            *)
+              echo "::error::Sanitized push repository path is invalid."
+              exit 2
+              ;;
+          esac
+          if [ -L "$LEDGER_PUSH_REPOSITORY" ] || [ ! -d "$LEDGER_PUSH_REPOSITORY" ]; then
+            echo "::error::Sanitized push repository is unavailable."
+            exit 2
+          fi
+          askpass="$(mktemp)"
+          trap 'rm -f "$askpass"' EXIT
+          cat > "$askpass" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s' x-access-token ;;
+            *) printf '%s' "$LEDGER_DATA_REPOSITORY_TOKEN" ;;
+          esac
+          EOF
+          chmod 700 "$askpass"
+          GIT_CONFIG_NOSYSTEM=1 \
+            GIT_CONFIG_GLOBAL=/dev/null \
+            GIT_CONFIG_COUNT=3 \
+            GIT_CONFIG_KEY_0=core.hooksPath \
+            GIT_CONFIG_VALUE_0=/dev/null \
+            GIT_CONFIG_KEY_1=credential.helper \
+            GIT_CONFIG_VALUE_1= \
+            GIT_CONFIG_KEY_2=http.https://github.com/.extraheader \
+            GIT_CONFIG_VALUE_2= \
+            GIT_ASKPASS="$askpass" \
+            GIT_TERMINAL_PROMPT=0 \
+            git -c core.hooksPath=/dev/null --git-dir="$LEDGER_PUSH_REPOSITORY" \
+              push "$LEDGER_PUSH_DESTINATION" HEAD:refs/heads/main
+
+  repeated-failure-issue:
+    needs: [private-ledger-run]
+    if: always() && ((github.event_name == 'workflow_dispatch' && inputs.activate_private_runner == true && github.ref == 'refs/heads/main') || github.event_name == 'schedule') && needs.private-ledger-run.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Open or maintain the repeated-failure issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_RUN_ID" in
+            ''|*[!0-9]*)
+              echo "::error::GitHub run ID is invalid; refusing to evaluate failure threshold."
+              exit 2
+              ;;
+          esac
+          prior_failures=0
+          while IFS= read -r run_id; do
+            [ -n "$run_id" ] || continue
+            job_conclusion="$(gh run view "$run_id" --json jobs --jq '[.jobs[] | select(.name == "private-ledger-run") | .conclusion] | if length == 1 then .[0] else "absent" end')"
+            case "$job_conclusion" in
+              failure)
+                prior_failures=$((prior_failures + 1))
+                [ "$prior_failures" -eq 2 ] && break
+                ;;
+              skipped|absent)
+                continue
+                ;;
+              *)
+                break
+                ;;
+            esac
+          done < <(gh run list --workflow private-ledger-recheck.yml --limit 20 --json databaseId --jq ".[] | select(.databaseId != $GITHUB_RUN_ID) | .databaseId")
+          if [ "$prior_failures" -lt 2 ]; then
+            echo "Fewer than three consecutive private-runner failures; issue threshold has not been reached."
+            exit 0
+          fi
+          title="[private-ledger] repeated private-runner failure"
+          existing="$(gh issue list --state open --search "$title in:title" --json url --jq '.[0].url')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "A repeated private-ledger runner failure was observed. Review private-runner logs and the H4/activation gates; no source content, credentials, database locators, or data-plane paths are included here."
+          else
+            gh issue create --title "$title" --body "Repeated private-ledger runner failure. Review private-runner logs and the H4/activation gates. This issue contains no source content, credentials, database locators, or data-plane paths." --label bug
+          fi

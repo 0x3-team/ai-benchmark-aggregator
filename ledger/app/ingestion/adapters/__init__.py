@@ -18,6 +18,10 @@ from app.ingestion.adapters.livebench_adapter import LiveBenchAdapter
 from app.ingestion.adapters.taubench_s3 import TauBenchS3Adapter
 from app.ingestion.adapters.frontiermath_epoch import FrontierMathEpochAdapter
 from app.ingestion.adapters.bigcodebench_parquet import BigCodeBenchParquetAdapter
+from app.ingestion.adapters.lmarena_leaderboard_parquet import LMArenaLeaderboardParquetAdapter
+from app.ingestion.adapters.agc_bench import AGCBenchAdapter
+from app.ingestion.adapters.elbench_results import ElBenchResultsAdapter
+from app.ingestion.adapters.evalplus_results import EvalPlusResultsAdapter
 
 ADAPTERS: dict[str, type[SourceAdapter]] = {
     FakeSourceAdapter.source_type: FakeSourceAdapter,
@@ -39,6 +43,10 @@ ADAPTERS: dict[str, type[SourceAdapter]] = {
     "frontiermath_epoch": FrontierMathEpochAdapter,
     "helm_json": HelmJSONAdapter,
     "bigcodebench_parquet": BigCodeBenchParquetAdapter,
+    "lmarena_leaderboard_parquet": LMArenaLeaderboardParquetAdapter,
+    "agc_bench": AGCBenchAdapter,
+    "elbench_results": ElBenchResultsAdapter,
+    "evalplus_results": EvalPlusResultsAdapter,
 }
 
 

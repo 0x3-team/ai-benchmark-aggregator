@@ -2,7 +2,7 @@
 
 **Organization:** 0x3-team  
 **Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Status:** Private (MIT-licensed, open-source-quality standards) — Official publication intentionally unavailable pending source certification; the frontend truthfully renders an empty awaiting-publication state
+**Status:** Public (MIT-licensed, open-source-quality standards) — Official publication intentionally unavailable pending source certification; the frontend truthfully renders an empty awaiting-publication state
 
 A single-page **AI model benchmark comparison dashboard** with a real-only publication boundary:
 
@@ -131,6 +131,7 @@ retention, role/ACL recovery, RPO/RTO, cutover, or Official publication. See
 ai-benchmark-aggregator/
 ├── .github/                    # GitHub org config
 │   ├── workflows/verify.yml    # CI: ledger/frontend checks + clean archive build
+│   ├── workflows/deploy-cloudflare-pages.yml # Environment-gated Pages candidate
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── dependabot.yml          # Weekly dependency updates (npm, pip, actions)
 │   └── CODEOWNERS              # Auto-review assignment
@@ -181,6 +182,15 @@ Python constraints are reviewed in [`ledger/requirements-ci.lock`](ledger/requir
 they are not a release-artifact authorization or a replacement for future
 SBOM/provenance review.
 
+The [Cloudflare Pages deployment candidate](docs/runbooks/cloudflare-pages-deployment.md)
+is workflow-dispatch-only and requires an explicit `DEPLOY` confirmation plus
+a successful `Verify` push run for the exact full SHA. ND4 keeps every public
+deployment blocked until the future REL-05 governed artifact, authorization,
+and composition verifier paths land together. This is not a claim that any
+provider, domain, DNS, environment, or secret is currently configured. The
+companion smoke check is manual-only until an owner approves monitoring
+permissions and a schedule.
+
 **Branch protection:** recommended settings are requiring the `verify` workflow
 and code review from `CODEOWNERS`; this README does not claim those settings are
 enabled.
@@ -213,6 +223,10 @@ not committed, imported by the runtime, or accepted by CI as release evidence.
 | `fake` | Retired LDR-06 synthetic fixture adapter — temporary test-database fixture only; never an Official ingestion source |
 | `artificial_analysis_api` | Retired LDR-06 third-party aggregate route — fixture parser only; never an Official ingestion source |
 | `lmsys_arena_api` | Retired LDR-06 primary-plus-fallback route — fixture parser only; never an Official ingestion source |
+| `lmarena_leaderboard_parquet` | Inactive, not-certified fixture candidate pinned to first-party `lmarena-ai/leaderboard-dataset` `text_style_control/latest`; no live fetch or claim authorization |
+| `agc_bench` | Inactive generated-fixture CSV parser candidate; no source registration, live fetch, or claim authorization |
+| `elbench_results` | Inactive reduced-fixture aggregate parser candidate; no source registration, live fetch, or claim authorization |
+| `evalplus_results` | Inactive generated-fixture single-file summary parser candidate; no source registration, live fetch, or claim authorization |
 | `livebench_adapter` | Retired LDR-06 assembled/derived aggregate route — fixture parser only; never an Official ingestion source |
 | `livecodebench_adapter` | Retired LDR-06 date-window derived aggregate route — fixture parser only; never an Official ingestion source |
 | `github_yaml` | Aider Polyglot (YAML in repo) |

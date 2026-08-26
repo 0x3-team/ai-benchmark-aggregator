@@ -489,7 +489,6 @@ describe("future governed v2 Official artifact parser", () => {
       "https://official.example.test/benchmarks?token=secret",
       "https://official.example.test/benchmarks?api_key=secret",
       "https://official.example.test/benchmarks?X-Amz-Signature=secret",
-      "https://official.example.test/benchmarks?view=full",
       "https://user:password@official.example.test/benchmarks",
       "https://official.example.test/benchmarks#results",
     ];
@@ -520,7 +519,7 @@ describe("future governed v2 Official artifact parser", () => {
       }
     }
 
-    const validUrl = "https://official.example.test/benchmarks/public";
+    const validUrl = "https://official.example.test/benchmarks/public?view=full";
     const valid = await parsedPublishedFixture((artifact) => {
       artifact.benchmarks[0].sourceUrl = validUrl;
       artifact.sourceManifest[0].sourceUrl = validUrl;

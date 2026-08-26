@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "model": "claude-opus-4-8",
+      "gen": 91.86,
+      "saf": 75.75,
+      "bas": 92.7,
+      "high": 69.5,
+      "ovr_old": 77.38,
+      "ovr_new": 82.45
+    }
+  ],
+  "old_rank": {
+    "claude-opus-4-8": 1
+  },
+  "new_rank": {
+    "claude-opus-4-8": 1
+  }
+}

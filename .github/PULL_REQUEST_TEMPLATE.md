@@ -1,9 +1,10 @@
 ## Trust-boundary reminder
 
-Demo values are synthetic. Candidate projections, legacy reports, test fixtures,
-samples, ignored local exports, and source-fetch output are never public Official
-data. Official mode remains unavailable unless a separately governed REL-05
-authorization pins one release artifact and digest.
+The public frontend is either the immutable empty awaiting-publication state or
+one governed Official release. Candidate projections, legacy reports, test
+fixtures, samples, ignored local exports, and source-fetch output are never
+public data. Official publication remains unavailable unless a separately
+governed REL-05 authorization pins one release artifact and digest.
 
 ## Summary and user impact
 
@@ -12,7 +13,7 @@ authorization pins one release artifact and digest.
 ## Trust surface
 
 - [ ] UI only — no dataset or Official-mode behavior
-- [ ] Demo/unavailable status or frontend containment
+- [ ] Awaiting-publication status or frontend containment
 - [ ] Ledger schema, source, fetch, claim, review, or publication boundary
 - [ ] CI, release process, security, or documentation
 - [ ] Governed Official release work (requires linked approval)

@@ -100,6 +100,22 @@ const RELEASE_AUTHORIZATION_KEYS = new Set([
   "policyVersion",
 ]);
 const HEX_SHA256 = /^[0-9a-f]{64}$/;
+const RFC3339_TIMESTAMP =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+const CREDENTIAL_QUERY_KEYS = new Set([
+  "access_token",
+  "api_key",
+  "apikey",
+  "credential",
+  "password",
+  "secret",
+  "signature",
+  "token",
+  "x-amz-credential",
+  "x-amz-signature",
+  "x-goog-credential",
+  "x-goog-signature",
+]);
 
 export class OfficialArtifactValidationError extends Error {
   constructor(message) {
@@ -202,7 +218,7 @@ function validateSchemaFormat(value, format, label) {
   }
   if (format === "date-time") {
     if (
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) ||
+      !RFC3339_TIMESTAMP.test(value) ||
       Number.isNaN(new Date(value).valueOf())
     ) {
       throw new OfficialArtifactValidationError(`${label} is not an RFC 3339 date-time.`);
@@ -539,14 +555,31 @@ function requirePublicHttpsUrl(value, label) {
       !parsed.hostname ||
       parsed.username ||
       parsed.password ||
-      parsed.search ||
       parsed.hash ||
-      /[?#]/.test(value)
+      [...value].some((character) => {
+        const codePoint = character.codePointAt(0);
+        return codePoint < 0x20 || codePoint === 0x7f;
+      }) ||
+      [...parsed.searchParams.keys()].some((key) =>
+        CREDENTIAL_QUERY_KEYS.has(key.toLowerCase())
+      )
     ) {
       throw new Error("unsafe URL");
     }
   } catch {
     throw new OfficialArtifactValidationError(`${label} must be a credential-free canonical HTTPS URL.`);
+  }
+}
+
+function requireTimestamp(value, label) {
+  if (
+    typeof value !== "string" ||
+    !RFC3339_TIMESTAMP.test(value) ||
+    Number.isNaN(new Date(value).valueOf())
+  ) {
+    throw new OfficialArtifactValidationError(
+      `${label} must be an RFC 3339 timestamp with at most six fractional digits.`
+    );
   }
 }
 
@@ -579,6 +612,10 @@ function validatePublishedArtifactRelationships(artifact) {
   }
   for (const source of artifact.sourceManifest) {
     requirePublicHttpsUrl(source.sourceUrl, "Published Official release source manifest URL");
+    requireTimestamp(
+      source.snapshotCapturedAt,
+      "Published Official release source manifest snapshotCapturedAt"
+    );
   }
 
   const claimIds = new Set();
@@ -601,6 +638,7 @@ function validatePublishedArtifactRelationships(artifact) {
     "snapshotCapturedAt",
   ];
   for (const score of artifact.scores) {
+    requireTimestamp(score.reportedAt, "Published Official release score reportedAt");
     if (claimIds.has(score.claimId)) {
       throw new OfficialArtifactValidationError(
         "Published Official release artifact repeats a claim ID."
@@ -690,6 +728,7 @@ export function validatePublishedOfficialReleaseArtifact(input, authorizationInp
   );
   requireNonemptyString(approval.decisionId, "Published Official release approval decisionId");
   requireNonemptyString(approval.approvedAt, "Published Official release approval approvedAt");
+  requireTimestamp(approval.approvedAt, "Published Official release approval approvedAt");
   if (approval.policyVersion !== artifact.policyVersion) {
     throw new OfficialArtifactValidationError(
       "Published Official release approval policy does not match the artifact."
