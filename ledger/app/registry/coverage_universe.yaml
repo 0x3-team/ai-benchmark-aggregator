@@ -14,7 +14,7 @@ authority:
   frontendLoadable: false
 manifest:
   algorithm: sha256-canonical-json-v1
-  contentSha256: 1ffa3438cb26853ea898894b8d4566d6c694760b8cff47a886923fbae9fc8593
+  contentSha256: 6a91f3fd311b43a67b3db545219056498f5bb5cd5b25b928e419350aff134320
   benchmarkCount: 42
   configuredSourceRouteCount: 53
   sourceClassCount: 5
@@ -37,7 +37,7 @@ scope:
       recordType: configured_source_route
       selectionRule: all_unique_stable_ids
       expectedUniqueCount: 53
-      semanticSha256: e1dc4f03628a1e72c20ab0f30ebdb3e8366fe36eda948282c6821abb289a0f3b
+      semanticSha256: 1c3fc5768d488668ecdf868b111dc4c59514a70527a634fc46c26671bcadd274
 cohorts:
   - cohortId: baseline-configured-benchmarks
     name: Baseline configured benchmarks
@@ -262,9 +262,9 @@ configuredSourceRoutes:
     reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
   - sourceRouteId: aider_polyglot_yaml
     benchmarkId: aider_polyglot
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: aime2024_aa
     benchmarkId: aime2024
     registryStatus: inactive
@@ -327,9 +327,9 @@ configuredSourceRoutes:
     reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: gaia_results_public
     benchmarkId: gaia
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: gpqa_diamond_aa
     benchmarkId: gpqa_diamond
     registryStatus: inactive
@@ -427,9 +427,9 @@ configuredSourceRoutes:
     reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
   - sourceRouteId: mmlu_openllm_v2
     benchmarkId: mmlu
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: mmmu_hf
     benchmarkId: mmmu
     registryStatus: inactive
@@ -452,29 +452,29 @@ configuredSourceRoutes:
     reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
   - sourceRouteId: open_llm_leaderboard_v2
     benchmarkId: hf_official_benchmarks
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: open_llm_leaderboard_v2_bbh
     benchmarkId: bbh
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: open_llm_leaderboard_v2_gpqa
     benchmarkId: gpqa_diamond
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: open_llm_leaderboard_v2_math
     benchmarkId: math
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: open_llm_leaderboard_v2_mmlu_pro
     benchmarkId: mmlu_pro
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: opencompass_leaderboard
     benchmarkId: opencompass
     registryStatus: inactive
@@ -497,9 +497,9 @@ configuredSourceRoutes:
     reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: terminal_bench_tbench_leaderboard
     benchmarkId: terminal_bench
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: toolbench_openbmb
     benchmarkId: toolbench
     registryStatus: active
@@ -507,9 +507,9 @@ configuredSourceRoutes:
     reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
   - sourceRouteId: truthfulqa_openllm_v2
     benchmarkId: truthfulqa
-    registryStatus: active
+    registryStatus: inactive
     coverageStatus: configured
-    reasonCode: BASELINE_CONFIGURED_ACTIVE_ROUTE
+    reasonCode: BASELINE_CONFIGURED_INACTIVE_ROUTE
   - sourceRouteId: usamo_matharena
     benchmarkId: usamo
     registryStatus: inactive
