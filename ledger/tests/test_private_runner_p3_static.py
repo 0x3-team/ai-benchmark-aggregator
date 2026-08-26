@@ -52,7 +52,10 @@ def test_private_runner_workflow_has_explicit_auth_and_data_plane_fences() -> No
     assert text.count("${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}") == 3
     assert "GIT_ASKPASS" in text
     assert 'destination="https://github.com/${LEDGER_DATA_REPOSITORY}.git"' in text
-    assert "push \"$destination\" HEAD:refs/heads/main" in text
+    assert 'git clone --bare --no-local "$LEDGER_DATA_DIR" "$push_repository"' in text
+    assert 'config --local --remove-section remote.origin' in text
+    assert 'git --git-dir="$push_repository" fsck --no-dangling' in text
+    assert 'push "$LEDGER_PUSH_DESTINATION" HEAD:refs/heads/main' in text
     assert "push origin" not in text
     assert "GIT_CONFIG_NOSYSTEM=1" in text
     assert "GIT_CONFIG_KEY_1=credential.helper" in text
@@ -62,13 +65,19 @@ def test_private_runner_workflow_has_explicit_auth_and_data_plane_fences() -> No
     prepare = text.split("      - name: Prepare immutable checkpoint and snapshot artifacts only", 1)[1].split(
         "      - name: Push prepared immutable artifacts", 1
     )[0]
+    prepare_push = text.split("      - name: Prepare sanitized push repository", 1)[1].split(
+        "      - name: Push prepared immutable artifacts", 1
+    )[0]
     push = text.split("      - name: Push prepared immutable artifacts", 1)[1].split(
         "  repeated-failure-issue:", 1
     )[0]
     assert "LEDGER_DATA_REPOSITORY_TOKEN" not in prepare
     assert "private_runner_p3.py" in prepare
     assert "git -C \"$LEDGER_DATA_DIR\" commit" in prepare
+    assert "LEDGER_DATA_REPOSITORY_TOKEN" not in prepare_push
     assert "LEDGER_DATA_REPOSITORY_TOKEN" in push
+    assert "GIT_CONFIG_NOSYSTEM=1" in prepare_push
+    assert "GIT_CONFIG_GLOBAL=/dev/null" in prepare_push
     assert "private_runner_p3.py" not in push
     assert "git -C \"$LEDGER_DATA_DIR\" commit" not in push
 

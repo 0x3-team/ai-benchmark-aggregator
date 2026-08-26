@@ -114,12 +114,12 @@ jobs:
           git -C "$LEDGER_DATA_DIR" config user.email "private-ledger-runner@users.noreply.github.com"
           git -C "$LEDGER_DATA_DIR" commit -m "data: persist immutable private-runner artifacts"
 
-      - name: Push prepared immutable artifacts
+      - name: Prepare sanitized push repository
+        id: prepare_push
         if: success()
         env:
           LEDGER_DATA_DIR: ${{ github.workspace }}/.private/ledger-data
           LEDGER_DATA_REPOSITORY: ${{ vars.LEDGER_DATA_REPOSITORY }}
-          LEDGER_DATA_REPOSITORY_TOKEN: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -128,6 +128,50 @@ jobs:
             exit 2
           fi
           destination="https://github.com/${LEDGER_DATA_REPOSITORY}.git"
+          push_root="$(mktemp -d "$RUNNER_TEMP/private-ledger-push.XXXXXX")"
+          push_repository="$push_root/repository.git"
+          template_directory="$push_root/template"
+          mkdir "$template_directory"
+          GIT_CONFIG_NOSYSTEM=1 \
+            GIT_CONFIG_GLOBAL=/dev/null \
+            GIT_TEMPLATE_DIR="$template_directory" \
+            git clone --bare --no-local "$LEDGER_DATA_DIR" "$push_repository"
+          source_head="$(git -C "$LEDGER_DATA_DIR" rev-parse --verify HEAD)"
+          push_head="$(git --git-dir="$push_repository" rev-parse --verify HEAD)"
+          if [ "$source_head" != "$push_head" ]; then
+            echo "::error::Sanitized push repository does not contain the prepared commit."
+            exit 2
+          fi
+          git --git-dir="$push_repository" config --local --remove-section remote.origin
+          if git --git-dir="$push_repository" config --local --name-only --get-regexp \
+            '^(url\.|credential\.|http\.|remote\.|include\.|includeif\.|core\.hookspath$|core\.sshcommand$)'; then
+            echo "::error::Sanitized push repository contains unsafe Git configuration."
+            exit 2
+          fi
+          git --git-dir="$push_repository" fsck --no-dangling
+          printf 'repository=%s\n' "$push_repository" >> "$GITHUB_OUTPUT"
+          printf 'destination=%s\n' "$destination" >> "$GITHUB_OUTPUT"
+
+      - name: Push prepared immutable artifacts
+        if: success()
+        env:
+          LEDGER_PUSH_REPOSITORY: ${{ steps.prepare_push.outputs.repository }}
+          LEDGER_PUSH_DESTINATION: ${{ steps.prepare_push.outputs.destination }}
+          LEDGER_DATA_REPOSITORY_TOKEN: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$LEDGER_PUSH_REPOSITORY" in
+            "$RUNNER_TEMP"/private-ledger-push.*/repository.git) ;;
+            *)
+              echo "::error::Sanitized push repository path is invalid."
+              exit 2
+              ;;
+          esac
+          if [ -L "$LEDGER_PUSH_REPOSITORY" ] || [ ! -d "$LEDGER_PUSH_REPOSITORY" ]; then
+            echo "::error::Sanitized push repository is unavailable."
+            exit 2
+          fi
           askpass="$(mktemp)"
           trap 'rm -f "$askpass"' EXIT
           cat > "$askpass" <<'EOF'
@@ -149,7 +193,8 @@ jobs:
             GIT_CONFIG_VALUE_2= \
             GIT_ASKPASS="$askpass" \
             GIT_TERMINAL_PROMPT=0 \
-            git -c core.hooksPath=/dev/null -C "$LEDGER_DATA_DIR" push "$destination" HEAD:refs/heads/main
+            git -c core.hooksPath=/dev/null --git-dir="$LEDGER_PUSH_REPOSITORY" \
+              push "$LEDGER_PUSH_DESTINATION" HEAD:refs/heads/main
 
   repeated-failure-issue:
     needs: [private-ledger-run]
