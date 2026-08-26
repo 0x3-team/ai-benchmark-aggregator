@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 
-import { StrictMode, useLayoutEffect } from "react";
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { selectDataset } from "./dataSelection";
-import { DatasetProvider, useDataset, type DatasetInput } from "./dataset";
 import {
   canonicalPublishedArtifactJson,
   loadOfficialData,
@@ -17,9 +12,6 @@ import {
   type OfficialLoadResult,
   type OfficialReleaseAuthorization,
 } from "./official";
-import { fixtureDataset } from "./testFixtures";
-
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 interface PublishedArtifactFixture {
   schemaVersion: string;
@@ -53,10 +45,6 @@ type MalformedPublishedArtifactFixture = Omit<
 > & {
   releaseApproval?: PublishedArtifactFixture["releaseApproval"];
 };
-
-function demoFixture(): DatasetInput {
-  return fixtureDataset();
-}
 
 function publishedArtifactFixture(): PublishedArtifactFixture {
   const sourceManifest = {
@@ -569,126 +557,5 @@ describe("future governed v2 Official artifact parser", () => {
     expect(source).not.toContain("export.from-ledger.json");
     expect(source).not.toContain("import.meta.glob");
     expect(source).not.toContain("as OfficialExport");
-  });
-});
-
-interface SelectionCommit {
-  mode: string;
-  modelId: string;
-  benchmarkId: string;
-  value: number | null;
-  provenanceSource: string | null;
-}
-
-function SelectionProbe({
-  mode,
-  commits,
-}: {
-  mode: string;
-  commits: SelectionCommit[];
-}) {
-  const { models, benchmarks, getValue, getScoreEntry } = useDataset();
-  const model = models[0];
-  const benchmark = benchmarks[0];
-  const entry = getScoreEntry(model.id, benchmark.id);
-  useLayoutEffect(() => {
-    commits.push({
-      mode,
-      modelId: model.id,
-      benchmarkId: benchmark.id,
-      value: getValue(model.id, benchmark.id),
-      provenanceSource: entry?.officialProvenance?.source.officialSourceId ?? null,
-    });
-  });
-  return null;
-}
-
-function SelectionHarness({
-  requestedMode,
-  demo,
-  official,
-  commits,
-}: {
-  requestedMode: "demo" | "official";
-  demo: DatasetInput;
-  official: OfficialLoadResult;
-  commits: SelectionCommit[];
-}) {
-  const selection = selectDataset(requestedMode, demo, official);
-  return (
-    <DatasetProvider data={selection.data}>
-      <SelectionProbe mode={selection.mode} commits={commits} />
-    </DatasetProvider>
-  );
-}
-
-describe("atomic Official dataset selection", () => {
-  it("retains Demo data and mode when the tracked artifact is unavailable", () => {
-    const demo = demoFixture();
-    const selection = selectDataset("official", demo, loadOfficialData());
-    expect(selection.mode).toBe("demo");
-    expect(selection.data).toBe(demo);
-    expect(selection.official.availability).toBe("unavailable");
-  });
-
-  it("commits matching mode, values, and provenance across Demo → parsed Official → Demo", async () => {
-    const official = await parsedPublishedFixture();
-    expect(official.availability).toBe("published");
-    const demo = demoFixture();
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    const commits: SelectionCommit[] = [];
-
-    function render(requestedMode: "demo" | "official") {
-      act(() => {
-        root.render(
-          <StrictMode>
-            <SelectionHarness
-              requestedMode={requestedMode}
-              demo={demo}
-              official={official}
-              commits={commits}
-            />
-          </StrictMode>
-        );
-      });
-    }
-
-    render("demo");
-    const demoInitial = [...commits];
-    render("official");
-    const officialCommits = commits.slice(demoInitial.length);
-    render("demo");
-    const demoReturned = commits.slice(demoInitial.length + officialCommits.length);
-    act(() => root.unmount());
-
-    const demoScore = demo.scores[0];
-    for (const entry of demoInitial) {
-      expect(entry).toMatchObject({
-        mode: "demo",
-        modelId: demo.models[0].id,
-        benchmarkId: demo.benchmarks[0].id,
-        value: demoScore.value,
-        provenanceSource: null,
-      });
-    }
-    for (const entry of officialCommits) {
-      expect(entry).toMatchObject({
-        mode: "official",
-        modelId: "official-model-001",
-        benchmarkId: "official-benchmark-001",
-        value: 0,
-        provenanceSource: "official-source-001",
-      });
-    }
-    for (const entry of demoReturned) {
-      expect(entry).toMatchObject({
-        mode: "demo",
-        modelId: demo.models[0].id,
-        benchmarkId: demo.benchmarks[0].id,
-        value: demoScore.value,
-        provenanceSource: null,
-      });
-    }
   });
 });

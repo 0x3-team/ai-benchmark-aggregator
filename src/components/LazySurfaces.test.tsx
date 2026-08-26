@@ -105,13 +105,31 @@ vi.mock("./charts/CatalogSharePie", () => ({
   CatalogSharePie: () => createElement("div", { className: "catalog-pie-mock" }, "CATALOG-PIE"),
 }));
 
-function demoFixture(): DatasetInput {
+function datasetFixture(): DatasetInput {
   return { models: [fixtureModel], benchmarks: [fixtureBenchmark], scores: [fixtureScore] };
 }
 
-const unavailable: OfficialLoadResult = {
-  availability: "unavailable",
-  reason: "No governed release authorization is configured for this build.",
+const published: OfficialLoadResult = {
+  availability: "published",
+  artifact: {
+    artifactId: "lazy-surfaces-fixture",
+    policyVersion: "official-release-artifact-v2",
+    releaseApproval: {
+      decisionId: "lazy-surfaces-approval",
+      policyVersion: "official-release-artifact-v2",
+      approvedAt: "2026-08-25T00:00:00.000Z",
+    },
+    manifest: {
+      algorithm: "sha256-canonical-json-v1",
+      contentSha256: "a".repeat(64),
+      modelCount: 1,
+      benchmarkCount: 1,
+      sourceSnapshotCount: 0,
+      scoreCount: 1,
+    },
+    sourceManifest: [],
+  },
+  data: datasetFixture(),
 };
 
 const mounted: Array<{ root: Root; container: HTMLElement }> = [];
@@ -127,7 +145,7 @@ async function renderApp() {
   // after the synchronous act returns and React reports "suspended resource
   // finished loading outside act" on the never-opening primary test.
   await act(async () => {
-    root.render(<AppWithDataSources demoData={demoFixture()} officialLoadResult={unavailable} />);
+    root.render(<AppWithDataSources officialLoadResult={published} />);
   });
   const handle = { root, container };
   mounted.push(handle);
