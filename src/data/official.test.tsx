@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { selectDataset } from "./dataSelection";
 import { DatasetProvider, useDataset, type DatasetInput } from "./dataset";
 import {
+  canonicalPublishedArtifactJson,
   loadOfficialData,
   parseOfficialArtifact,
   parsePublishedOfficialArtifact,
@@ -179,13 +180,16 @@ async function parsedPublishedFixture(
 ): Promise<OfficialLoadResult> {
   const artifact = publishedArtifactFixture();
   mutate?.(artifact);
+  let artifactBytes: string;
   try {
     await seal(artifact);
+    artifactBytes = canonicalPublishedArtifactJson(artifact);
   } catch {
     // A non-finite value cannot be canonicalized; the parser still needs to
     // demonstrate its fail-closed result for that malformed in-memory input.
+    artifactBytes = JSON.stringify(artifact);
   }
-  return parsePublishedOfficialArtifact(artifact, {
+  return parsePublishedOfficialArtifact(artifactBytes, {
     artifactId: artifact.artifactId,
     releaseApprovalDecisionId: artifact.releaseApproval?.decisionId ?? "missing-approval",
     policyVersion: artifact.policyVersion,
@@ -262,15 +266,60 @@ describe("future governed v2 Official artifact parser", () => {
   it("requires an independently pinned release authorization and an unmodified canonical digest", async () => {
     const artifact = await seal(publishedArtifactFixture());
     const authorization = authorizationFor(artifact);
+    const artifactBytes = canonicalPublishedArtifactJson(artifact);
     expectUnavailable(
-      await parsePublishedOfficialArtifact(artifact, {
+      await parsePublishedOfficialArtifact(artifactBytes, {
         ...authorization,
         contentSha256: "f".repeat(64),
       })
     );
 
     artifact.scores[0].scoreRaw = "tampered after approval";
-    expectUnavailable(await parsePublishedOfficialArtifact(artifact, authorization));
+    expectUnavailable(
+      await parsePublishedOfficialArtifact(canonicalPublishedArtifactJson(artifact), authorization)
+    );
+    expectUnavailable(await parsePublishedOfficialArtifact(`${artifactBytes} `, authorization));
+  });
+
+  it("requires an exact closed authorization record for every activation pin", async () => {
+    const artifact = await seal(publishedArtifactFixture());
+    const artifactBytes = canonicalPublishedArtifactJson(artifact);
+    const authorization = authorizationFor(artifact);
+    const mutations: unknown[] = [
+      { ...authorization, artifactId: "other-artifact" },
+      { ...authorization, releaseApprovalDecisionId: "other-approval" },
+      { ...authorization, policyVersion: "other-policy" },
+      { ...authorization, contentSha256: "f".repeat(64) },
+      { ...authorization, localOverride: true },
+      undefined,
+    ];
+
+    for (const mutation of mutations) {
+      expectUnavailable(await parsePublishedOfficialArtifact(artifactBytes, mutation));
+    }
+
+    const artifactMutations: Array<(value: PublishedArtifactFixture) => void> = [
+      (value) => {
+        value.artifactId = "other-artifact";
+      },
+      (value) => {
+        value.releaseApproval.decisionId = "other-approval";
+      },
+      (value) => {
+        value.policyVersion = "other-policy";
+      },
+    ];
+    for (const mutate of artifactMutations) {
+      const changed = structuredClone(artifact);
+      mutate(changed);
+      await seal(changed);
+      expectUnavailable(
+        await parsePublishedOfficialArtifact(
+          canonicalPublishedArtifactJson(changed),
+          authorization
+        )
+      );
+    }
   });
 
   it("rejects every current containment, candidate, report, sample-like, and extra-key shape", async () => {
@@ -324,7 +373,9 @@ describe("future governed v2 Official artifact parser", () => {
     };
 
     for (const input of [unavailableV1, candidate, legacyReport, sampleLike]) {
-      expectUnavailable(await parsePublishedOfficialArtifact(input, authorization));
+      expectUnavailable(
+        await parsePublishedOfficialArtifact(JSON.stringify(input), authorization)
+      );
     }
     expectUnavailable(
       await parsedPublishedFixture((artifact) => {
@@ -490,11 +541,25 @@ describe("future governed v2 Official artifact parser", () => {
     expect(valid.availability).toBe("published");
   });
 
-  it("keeps the containment loader separate from the dormant published parser", () => {
+  it("keeps the no-input loader unavailable and activates v2 only for an exact external pin", async () => {
     expect(loadOfficialData()).toMatchObject({ availability: "unavailable" });
     expect(parseOfficialArtifact(publishedArtifactFixture())).toMatchObject({
       availability: "unavailable",
     });
+
+    const artifact = await seal(publishedArtifactFixture());
+    const artifactBytes = canonicalPublishedArtifactJson(artifact);
+    const authorized = await loadOfficialData({
+      artifactBytes,
+      authorization: authorizationFor(artifact),
+    });
+    expect(authorized.availability).toBe("published");
+
+    const absentAuthorization = await loadOfficialData({
+      artifactBytes,
+      authorization: undefined,
+    });
+    expectUnavailable(absentAuthorization);
   });
 
   it("contains no runtime import or glob fallback for sample, ignored local, candidate, or report data", async () => {
