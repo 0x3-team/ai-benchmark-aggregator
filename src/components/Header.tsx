@@ -1,9 +1,6 @@
-import { useEffect, useRef } from "react";
 import { BookOpen, BarChart3, GitCompareArrows } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
-import { DATA_MODE_LABEL, type DataMode } from "../data/dataMode";
 import type { PublishedArtifactMetadata } from "../data/official";
 import { SourceManifestEvidence } from "./ClaimEvidence";
 
@@ -14,13 +11,9 @@ interface HeaderProps {
   onViewChange: (v: "table" | "compare") => void;
   selectedCount: number;
   onOpenGlossary: () => void;
-  dataModeLabel?: string;
-  dataMode: DataMode;
-  onDataModeChange: (m: DataMode) => void;
+  dataStatus: "awaiting-publication" | "official";
   officialUnavailableReason?: string;
   officialArtifact?: PublishedArtifactMetadata;
-  officialUnavailableAnnouncement?: string | null;
-  officialUnavailableAnnouncementId?: number;
 }
 
 export function Header({
@@ -30,34 +23,12 @@ export function Header({
   onViewChange,
   selectedCount,
   onOpenGlossary,
-  dataModeLabel = DATA_MODE_LABEL.demo,
-  dataMode,
-  onDataModeChange,
+  dataStatus,
   officialUnavailableReason,
   officialArtifact,
-  officialUnavailableAnnouncement,
-  officialUnavailableAnnouncementId,
 }: HeaderProps) {
-  const officialUnavailable = Boolean(officialUnavailableReason);
-  // Demo is always synthetic. Resolve this locally so a stale caller label
-  // cannot make a populated Demo snapshot look like an empty state.
-  const visibleDataModeLabel =
-    dataMode === "demo" ? DATA_MODE_LABEL.demo : dataModeLabel;
-  const modeButtons = useRef<Record<DataMode, HTMLButtonElement | null>>({
-    demo: null,
-    official: null,
-  });
-  const previousMode = useRef<DataMode>(dataMode);
-
-  // A mode switch clears data-dependent UI state in App. Return keyboard focus
-  // to the newly active source control after that atomic commit so users do
-  // not remain on a stale filter, comparison, or now-closed sheet trigger.
-  useEffect(() => {
-    if (previousMode.current !== dataMode) {
-      modeButtons.current[dataMode]?.focus();
-    }
-    previousMode.current = dataMode;
-  }, [dataMode]);
+  const visibleDataStatus =
+    dataStatus === "official" ? "Official claims" : "Awaiting publication";
 
   return (
     <div className="flex flex-col gap-3 mb-4">
@@ -75,49 +46,12 @@ export function Header({
               AI Benchmark Aggregator
             </h1>
             <p className="font-mono text-[11px] text-slate-300">
-              {totalModels} models · {totalBenchmarks} benchmarks · {visibleDataModeLabel}
+              {totalModels} models · {totalBenchmarks} benchmarks · {visibleDataStatus}
             </p>
           </div>
         </div>
 
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
-          <div
-            className="flex max-w-full items-center gap-0.5 rounded-lg border border-white/10 bg-white/5 p-0.5"
-            role="group"
-            aria-label="Data source"
-          >
-            {(["demo", "official"] as const).map((m) => {
-              const unavailable = m === "official" && officialUnavailable;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  ref={(element) => {
-                    modeButtons.current[m] = element;
-                  }}
-                  onClick={() => onDataModeChange(m)}
-                  aria-pressed={dataMode === m}
-                  aria-label={
-                    unavailable
-                      ? "Official claims unavailable; announce why"
-                      : undefined
-                  }
-                  aria-describedby={m === "official" ? "official-data-status" : undefined}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
-                    dataMode === m
-                      ? "bg-primary text-primary-foreground shadow"
-                      : unavailable
-                        ? "cursor-help text-amber-200"
-                        : "text-slate-300 hover:text-foreground"
-                  )}
-                >
-                  {m === "demo" ? "Data" : unavailable ? "Official unavailable" : "Official"}
-                </button>
-              );
-            })}
-          </div>
-
           <Tabs value={view} onValueChange={(v) => onViewChange(v as "table" | "compare")}>
             <TabsList className="max-w-full">
               <TabsTrigger value="table">
@@ -151,15 +85,10 @@ export function Header({
           aria-atomic="true"
           className="glass rounded-xl px-5 py-3 text-xs text-slate-300"
         >
-          <strong className="text-foreground">Official claims unavailable.</strong>{" "}
-          {officialUnavailableReason} No benchmark data is currently published. Synthetic Demo data remains visible.
-          {officialUnavailableAnnouncement ? (
-            <span key={officialUnavailableAnnouncementId} className="sr-only">
-              {officialUnavailableAnnouncement}
-            </span>
-          ) : null}
+          <strong className="text-foreground">Awaiting Official publication.</strong>{" "}
+          {officialUnavailableReason} No benchmark data is currently published in this build.
         </section>
-      ) : dataMode === "official" && officialArtifact ? (
+      ) : dataStatus === "official" && officialArtifact ? (
         <section
           id="official-data-status"
           role="status"
@@ -200,7 +129,7 @@ export function Header({
             />
           </div>
         </section>
-      ) : dataMode === "official" ? (
+      ) : dataStatus === "official" ? (
         <section
           id="official-data-status"
           role="status"
@@ -211,11 +140,6 @@ export function Header({
           <strong className="text-foreground">Official claims selected.</strong>{" "}
           Release metadata is unavailable, so this state cannot make a stronger trust assertion.
         </section>
-      ) : null}
-      {!officialUnavailableReason && dataMode !== "official" ? (
-        <span id="official-data-status" className="sr-only">
-          Official claims are available. Select Official to view the governed release details.
-        </span>
       ) : null}
     </div>
   );

@@ -53,7 +53,7 @@ export interface Benchmark {
   description: string;
   methodology: string;
   sourceUrl: string;
-  /** Present on the tracked Demo catalog; omitted by legacy/test fixtures. */
+  /** Optional bounded-domain metadata used by presentation-only aggregates. */
   normalization?: BenchmarkNormalization;
 }
 
@@ -118,8 +118,8 @@ export interface OfficialReleaseContext {
 
 /**
  * Provenance preserved from a governed published artifact.  This is separate
- * from the legacy loose `ScoreEvidence` fields so older demo data remains
- * compatible while Official data retains all release-critical raw fields.
+ * from the legacy loose `ScoreEvidence` fields so test fixtures remain simple
+ * while Official data retains all release-critical raw fields.
  */
 export interface OfficialScoreProvenance {
   displayIdentity: OfficialDisplayIdentity;
@@ -141,8 +141,8 @@ export interface Score {
   value: number;
   date: string;
   note?: string;
-  // Provenance — present only for official ledger claims (ADR-003).
-  // Demo synthetic scores never carry these fields, so they are all optional.
+  // Provenance — present only for official ledger claims (ADR-003). Legacy
+  // test fixtures omit these fields, so they remain optional at this boundary.
   scoreRaw?: string | null;
   captureStatus?: string | null;
   officialSourceId?: string | null;

@@ -2,16 +2,16 @@
 
 **Organization:** 0x3-team  
 **Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Status:** Private (MIT-licensed, open-source-quality standards) — Demo available; Official publication intentionally unavailable pending source certification
+**Status:** Public (MIT-licensed, open-source-quality standards) — Official publication intentionally unavailable pending source certification; the frontend truthfully renders an empty awaiting-publication state
 
-A single-page **AI model benchmark comparison dashboard** with a **dual-mode data architecture**:
+A single-page **AI model benchmark comparison dashboard** with a real-only publication boundary:
 
-| Mode | Source | Purpose |
+| Runtime state | Source | Behavior |
 |------|--------|---------|
-| **Demo (Synthetic)** | `src/data/scores.ts` — curated demo fixtures | Instant UI development, zero dependencies |
-| **Official (Ledger)** | Tracked unavailable artifact; future governed ledger release artifact | Explicitly unavailable until source, evidence, review, and release gates pass |
+| **Awaiting publication** | `src/data/official/export.unavailable.json` | Shows no models, benchmarks, or scores while release gates remain incomplete |
+| **Official (Ledger)** | Future governed ledger release artifact | Shows only an explicitly approved, immutable release |
 
-> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export or a sample fixture is not an Official release artifact. The future v2 artifact parser is deliberately dormant until REL-05 provides a separately governed authorization that pins an immutable artifact and its digest. Until then, an Official request explicitly keeps the visible dataset in Demo (synthetic); a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
+> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export, test fixture, or sample artifact is not an Official release artifact. The future v2 artifact parser is deliberately dormant until REL-05 provides a separately governed authorization that pins an immutable artifact and its digest. Until then, the production provider receives an immutable empty snapshot; a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
 
 ### Future governed score evidence
 
@@ -22,9 +22,9 @@ claim and snapshot IDs, evidence location, retrieval timestamp, and governing
 policy. The disclosure resolves only when the score provenance exactly matches
 the release source manifest; malformed or mismatched provenance exposes no
 evidence control, and malformed URLs never produce empty links. The future
-Official status area also provides a separate source-manifest disclosure. Demo
-scores and presentation-only rankings/averages are intentionally not labelled
-as Official claims.
+Official status area also provides a separate source-manifest disclosure.
+Archived test fixtures and presentation-only rankings/averages are never
+labelled as Official claims.
 
 ---
 
@@ -129,9 +129,9 @@ ai-benchmark-aggregator/
 │   │   ├── evilcharts/        # Vendored EvilCharts (Recharts 3 + Motion), read-only
 │   │   └── charts/             # App chart adapters mapping app data to EvilCharts
 │   ├── data/                   # Data access layer
-│   │   ├── official/           # Tracked unavailable artifact; ignored local export is not runtime input
+│   │   ├── official/           # Tracked unavailable artifact; sample/local exports are not runtime input
 │   │   ├── dataset.tsx         # Immutable React snapshot + sole getValue() accessor
-│   │   └── scores.ts           # Deterministic synthetic Demo score generator
+│   │   └── testFixtures.ts     # Minimal explicit test-only data; unreachable from src/main.tsx
 │   ├── lib/                    # Utilities (colors, aggregation, categories, chartData builders)
 │   └── types.ts                # Shared TypeScript types
 ├── ledger/                     # Python CLI (Typer + SQLAlchemy + Pydantic)
@@ -182,7 +182,7 @@ enabled.
 ```
 Tracked `src/data/official/export.unavailable.json`
          ↓
-Demo remains the only selectable runtime dataset
+Immutable empty DatasetProvider snapshot (awaiting publication)
          ↓
 Future governed path (currently disabled): certified source revision
 → immutable snapshot → raw claim + review decision

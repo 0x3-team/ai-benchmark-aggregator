@@ -6,11 +6,10 @@ import { CATEGORIES, type Modality } from "../types";
  * Test-only large-dataset builder for the UI-07 scale budget.
  *
  * This module exists so regression tests can exercise the virtualized
- * ScoreTable, sort, and filter paths over a dataset far larger than the
- * shipped Demo catalog. It is NEVER a runtime input:
+ * ScoreTable, sort, and filter paths over a large fixture. It is NEVER a
+ * runtime input:
  *
- * - it must not be imported by `src/data/scores.ts`, the Demo catalog
- *   modules, or any module reachable from `src/main.tsx`;
+ * - it must not be imported by any module reachable from `src/main.tsx`;
  * - that boundary is enforced statically by
  *   `src/lib/scaleFixturesRuntimeGuard.test.ts`;
  * - generated rows are synthetic and carry no provenance, so they could
