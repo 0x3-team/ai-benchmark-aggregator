@@ -12,7 +12,7 @@ Keep the repository owner accountable for integration and acceptance. Select a r
 - Three budgets exist, and they are not interchangeable:
   - **Codex subscription** (`codex/*`): the volume engine. A large seat carries conductor work, implementation, and bulk reads at no marginal credit.
   - **SuperGrok subscription** (`supergrok/*`): a small seat. Its quota is scarce, so it buys vendor independence, not volume: cross-vendor review and fast second opinions only, never authorship.
-  - **Capy API credit**: the only way to buy Anthropic quality and third-vendor diversity. Expiring credit is use-it-or-lose-it — spend it deliberately on independent premium review and oracle consults, not on work a seat does for $0.
+  - **Capy API credit**: the only way to buy Anthropic quality and third-vendor diversity. Expiring credit is use-it-or-lose-it — spend it deliberately on oracle consults, alternate reviewers, and cheap diversity checks, not on work a seat does for $0.
 - When the same model has both a subscription and an API route (`codex/gpt-5.6-sol` vs `openai/gpt-5.6-sol`, `supergrok/grok-4.6` vs `xai/grok-4.6`), the subscription route is the only correct choice.
 - Re-check the live model catalog before dispatch: its ids, billing kinds, and cost words are the operative ranking. The price appendix below is a dated market anchor, not a bill.
 
@@ -33,8 +33,7 @@ Dispatch by lane, one primary per lane with a pinned reasoning effort. Consisten
 | Bounded workers: scoped, single-surface edits | `codex/gpt-5.6-terra`, reasoning `high` | `codex/gpt-5.6-luna` for simple bounded edits. |
 | Mechanical edits: renames, rote refactors, scaffolds, lint fixes | `codex/gpt-5.3-codex-spark` | `supergrok/composer-2.5-fast` as alternative when Codex quota is under pressure. |
 | Bulk reads: repo summaries, fixture drafts, log triage, doc drafts | `codex/gpt-5.6-luna` | `deepseek/deepseek-v4-flash-0731` overflow at pennies to protect seat quota. Owner reviews all output. |
-| Cross-vendor PR review of seat-authored work | `supergrok/grok-4.6`, reasoning `xhigh` | The small seat's whole job. Review and tiebreaks only, never authorship. |
-| Integrity-critical review: ledger claims, migrations, evidence resolution, release gates | `anthropic/claude-opus-5`, reasoning `high` (credit) | Reviewer vendor must differ from author vendor. |
+| Independent review: all meaningful seat-authored diffs, including ledger claims, migrations, and evidence resolution | `supergrok/grok-4.6`, reasoning `xhigh` (its ceiling; the model has no `max`) | The small seat's whole job — review and tiebreaks only, never authorship. Mechanical diffs skip second-vendor review to protect quota. If xAI authored the diff, review with `deepseek/deepseek-v4-pro` `max` or `anthropic/claude-opus-5` `high` (credit). Release-scale gates escalate to the oracle. |
 | Oracle consults: architecture forks, release gates, deadlocks | `anthropic/claude-fable-5`, reasoning `max` (credit) | One-shot distilled dossiers only; owner-approved per consult. |
 | Cheap second-opinion reasoner: tiebreaks, sanity checks | `deepseek/deepseek-v4-pro`, reasoning `max` | Third-vendor diversity fallbacks: `zai/glm-5.2`, `qwen/qwen3.8-max`. |
 | Vision QA: screenshots, rendered UI states | `google/gemini-3-flash-preview` | `zai/glm-5v-turbo` as alternative. |
