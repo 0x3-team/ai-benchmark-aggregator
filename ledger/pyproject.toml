@@ -36,6 +36,9 @@ benchmark-ledger = "app.cli:app"
 where = ["."]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+"app.export" = ["*.schema.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

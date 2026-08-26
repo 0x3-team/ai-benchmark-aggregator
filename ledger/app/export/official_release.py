@@ -10,21 +10,22 @@ from __future__ import annotations
 
 from copy import deepcopy
 import hashlib
+from importlib.resources import files
 import json
 import math
-from pathlib import Path
 import re
 from typing import Any, Mapping, Sequence
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 from jsonschema import Draft202012Validator, FormatChecker
+from sqlalchemy import inspect as sqlalchemy_inspect
 
 from app.db import models as db_models
 from app.export.official_json import (
     CANONICAL_JSON_ALGORITHM,
-    canonical_official_feed_json,
     validate_official_feed,
 )
+from app.ingestion.json_lexemes import parse_json_path
 
 
 OFFICIAL_RELEASE_SCHEMA_VERSION = "2.0.0"
@@ -60,21 +61,28 @@ _BENCHMARK_KEYS = frozenset(
         "sourceUrl",
     }
 )
-_SCORE_METADATA_KEYS = frozenset({"sourceEvidenceLocationSha256", "evidence"})
-_EVIDENCE_KEYS = frozenset(
-    {"type", "locator", "modelLocator", "benchmarkLocator", "scoreLocator"}
-)
 _RELEASE_APPROVAL_KEYS = frozenset({"decisionId", "policyVersion", "approvedAt"})
 _MAX_SAFE_JSON_INTEGER = 9_007_199_254_740_991
 _CANDIDATE_UTC_TIMESTAMP = re.compile(
     r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\Z"
 )
-_V2_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "docs"
-    / "contracts"
-    / "official-release-artifact-v2.schema.json"
+_CREDENTIAL_QUERY_KEYS = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "apikey",
+        "credential",
+        "password",
+        "secret",
+        "signature",
+        "token",
+        "x-amz-credential",
+        "x-amz-signature",
+        "x-goog-credential",
+        "x-goog-signature",
+    }
 )
+_V2_SCHEMA_RESOURCE = "official-release-artifact-v2.schema.json"
 
 
 class OfficialReleaseBuildError(ValueError):
@@ -99,6 +107,15 @@ def _require_nonempty_string(value: object, label: str) -> str:
     return value
 
 
+def js_utf16_sort_key(value: str) -> tuple[int, ...]:
+    """Return JavaScript's lexicographic UTF-16 code-unit ordering key."""
+    encoded = value.encode("utf-16-be", errors="surrogatepass")
+    return tuple(
+        int.from_bytes(encoded[index : index + 2], "big")
+        for index in range(0, len(encoded), 2)
+    )
+
+
 def _rows_by_id(
     rows: Sequence[Mapping[str, Any]], keys: frozenset[str], label: str
 ) -> dict[str, dict[str, Any]]:
@@ -111,7 +128,7 @@ def _rows_by_id(
             raise OfficialReleaseBuildError(f"{label} contains a duplicate id.")
         parsed[row_id] = row
         ordered_ids.append(row_id)
-    if ordered_ids != sorted(ordered_ids):
+    if ordered_ids != sorted(ordered_ids, key=js_utf16_sort_key):
         raise OfficialReleaseBuildError(f"{label} must be sorted by id.")
     return parsed
 
@@ -125,30 +142,36 @@ def _validate_release_approval(value: Mapping[str, Any]) -> dict[str, Any]:
     return approval
 
 
-def _validate_score_metadata(
-    value: Mapping[str, Any], *, claim_id: str, source_evidence_location: Mapping[str, Any]
-) -> dict[str, Any]:
-    metadata = _require_mapping(value, _SCORE_METADATA_KEYS, f"Score metadata for {claim_id}")
-    expected_source_digest = hashlib.sha256(
-        canonical_official_feed_json(source_evidence_location).encode("utf-8")
-    ).hexdigest()
-    if metadata.get("sourceEvidenceLocationSha256") != expected_source_digest:
-        raise OfficialReleaseBuildError(
-            f"Score metadata {claim_id} does not bind the eligible evidence location."
-        )
-    evidence = _require_mapping(
-        metadata.get("evidence"), _EVIDENCE_KEYS, f"Score metadata {claim_id} evidence"
+def _json_pointer(tokens: Sequence[str | int]) -> str:
+    return "".join(
+        f"/{str(token).replace('~', '~0').replace('/', '~1')}" for token in tokens
     )
-    if evidence.get("type") not in {"json_pointer", "html_selector", "text_span"}:
+
+
+def _derive_public_evidence(locator: object, *, claim_id: str) -> dict[str, str]:
+    if not isinstance(locator, Mapping) or locator.get("type") != "json_path_v1":
         raise OfficialReleaseBuildError(
-            f"Score metadata {claim_id} evidence has an unsupported type."
+            f"Release claim {claim_id} uses an unsupported evidence locator type."
         )
-    for key in ("locator", "modelLocator", "benchmarkLocator", "scoreLocator"):
-        _require_nonempty_string(
-            evidence.get(key), f"Score metadata {claim_id} evidence {key}"
+    record_tokens = parse_json_path(locator.get("record_path"))
+    fields = locator.get("fields")
+    if record_tokens is None or not isinstance(fields, Mapping):
+        raise OfficialReleaseBuildError(
+            f"Release claim {claim_id} has an invalid json_path_v1 evidence locator."
         )
-    metadata["evidence"] = evidence
-    return metadata
+    required_fields = ("model_raw", "benchmark_raw", "score_raw")
+    if any(not isinstance(fields.get(field), str) or not fields[field] for field in required_fields):
+        raise OfficialReleaseBuildError(
+            f"Release claim {claim_id} evidence cannot resolve every required raw field."
+        )
+    record_pointer = _json_pointer(record_tokens)
+    return {
+        "type": "json_pointer",
+        "locator": record_pointer or "/",
+        "modelLocator": _json_pointer([*record_tokens, fields["model_raw"]]),
+        "benchmarkLocator": _json_pointer([*record_tokens, fields["benchmark_raw"]]),
+        "scoreLocator": _json_pointer([*record_tokens, fields["score_raw"]]),
+    }
 
 
 def _require_public_https_url(value: object, label: str) -> None:
@@ -161,10 +184,13 @@ def _require_public_https_url(value: object, label: str) -> None:
             and bool(parsed.hostname)
             and parsed.username is None
             and parsed.password is None
-            and not parsed.query
             and not parsed.fragment
-            and "?" not in value
             and "#" not in value
+            and not any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
+            and not any(
+                key.casefold() in _CREDENTIAL_QUERY_KEYS
+                for key, _query_value in parse_qsl(parsed.query, keep_blank_values=True)
+            )
         )
     except ValueError:
         valid = False
@@ -241,7 +267,9 @@ def _schema_location(path: Sequence[object]) -> str:
 
 def _validate_v2_schema(artifact: Mapping[str, Any]) -> None:
     try:
-        schema = json.loads(_V2_SCHEMA_PATH.read_text(encoding="utf-8"))
+        schema = json.loads(
+            files("app.export").joinpath(_V2_SCHEMA_RESOURCE).read_text(encoding="utf-8")
+        )
         validator = Draft202012Validator(schema, format_checker=FormatChecker())
         errors = sorted(
             validator.iter_errors(artifact),
@@ -276,12 +304,12 @@ def canonical_official_release_artifact_json(payload: Mapping[str, Any]) -> str:
 def _published_score_sort_key(score: Mapping[str, Any]) -> tuple[object, ...]:
     cell = score["cell"]
 
-    def nullable(value: str | None) -> tuple[int, str]:
-        return (0, "") if value is None else (1, value)
+    def nullable(value: str | None) -> tuple[int, tuple[int, ...]]:
+        return (0, ()) if value is None else (1, js_utf16_sort_key(value))
 
     return (
-        cell["modelId"],
-        cell["benchmarkId"],
+        js_utf16_sort_key(cell["modelId"]),
+        js_utf16_sort_key(cell["benchmarkId"]),
         nullable(cell["metric"]),
         nullable(cell["split"]),
         nullable(cell["setting"]),
@@ -297,7 +325,8 @@ def build_official_release_artifact(
     models: Sequence[Mapping[str, Any]],
     benchmarks: Sequence[Mapping[str, Any]],
     claims_by_id: Mapping[str, db_models.ResultClaim],
-    score_metadata_by_claim_id: Mapping[str, Mapping[str, Any]],
+    review_decisions_by_id: Mapping[str, db_models.ClaimReviewDecision],
+    publication_decisions_by_id: Mapping[str, db_models.ClaimPublicationDecision],
 ) -> dict[str, Any]:
     """Build one deterministic v2 document from an eligible candidate feed.
 
@@ -305,10 +334,10 @@ def build_official_release_artifact(
     rows. Their identities and owned names must match the candidate projection.
     Exact ResultClaim rows supply raw model/benchmark names and the source's
     report time because candidate v1 does not contain those v2-only fields.
-    Score metadata supplies only a digest binding to the eligible locator and
-    the closed public evidence envelope needed to translate that ledger
-    contract. No raw value, selected numeric value, identity, or provenance
-    field can be overridden.
+    Exact persisted review and publication decisions must match every
+    provenance reference. The public evidence envelope is derived only from a
+    representable captured locator. No raw value, selected numeric value,
+    identity, provenance field, or public evidence path can be overridden.
     """
 
     candidate = validate_official_feed(candidate_feed)
@@ -350,7 +379,7 @@ def build_official_release_artifact(
 
     source_manifest = sorted(
         deepcopy(candidate["sourceManifest"]),
-        key=lambda source: source["sourceManifestKey"],
+        key=lambda source: js_utf16_sort_key(source["sourceManifestKey"]),
     )
     for source in source_manifest:
         _require_public_https_url(source["sourceUrl"], "Release source manifest sourceUrl")
@@ -366,9 +395,20 @@ def build_official_release_artifact(
         raise OfficialReleaseBuildError(
             "Release claim rows must account for exactly every eligible claim."
         )
-    if set(score_metadata_by_claim_id) != set(claim_ids):
+    review_ids = {
+        row["provenance"]["claimReviewDecisionId"] for row in candidate["scores"]
+    }
+    publication_ids = {
+        row["provenance"]["claimPublicationDecisionId"]
+        for row in candidate["scores"]
+    }
+    if set(review_decisions_by_id) != review_ids:
         raise OfficialReleaseBuildError(
-            "Release score metadata must account for exactly every eligible claim."
+            "Release review decisions must account for exactly every eligible provenance reference."
+        )
+    if set(publication_decisions_by_id) != publication_ids:
+        raise OfficialReleaseBuildError(
+            "Release publication decisions must account for exactly every eligible provenance reference."
         )
 
     scores: list[dict[str, Any]] = []
@@ -387,6 +427,7 @@ def build_official_release_artifact(
             != candidate_score["provenance"]["sourceSnapshotId"]
             or claim.source_revision_decision_id
             != candidate_score["provenance"]["sourceRevisionDecisionId"]
+            or claim.evidence_location != candidate_score["evidenceLocation"]
         ):
             raise OfficialReleaseBuildError(
                 "Release claim rows do not exactly match the eligible feed."
@@ -400,10 +441,34 @@ def build_official_release_artifact(
         reported_at = _require_nonempty_string(
             claim.date_raw, f"Release claim {claim_id} reportedAt"
         )
-        metadata = _validate_score_metadata(
-            score_metadata_by_claim_id[claim_id],
+        review_id = candidate_score["provenance"]["claimReviewDecisionId"]
+        publication_id = candidate_score["provenance"]["claimPublicationDecisionId"]
+        review = review_decisions_by_id[review_id]
+        publication = publication_decisions_by_id[publication_id]
+        if (
+            not isinstance(review, db_models.ClaimReviewDecision)
+            or not sqlalchemy_inspect(review).persistent
+            or review.id != review_id
+            or review.result_claim_id != claim_id
+            or review.outcome != "validation_reviewed"
+        ):
+            raise OfficialReleaseBuildError(
+                f"Release claim {claim_id} does not bind its effective validation review decision."
+            )
+        if (
+            not isinstance(publication, db_models.ClaimPublicationDecision)
+            or not sqlalchemy_inspect(publication).persistent
+            or publication.id != publication_id
+            or publication.result_claim_id != claim_id
+            or publication.claim_review_decision_id != review.id
+            or publication.outcome != "approved"
+        ):
+            raise OfficialReleaseBuildError(
+                f"Release claim {claim_id} does not bind its effective approved publication decision."
+            )
+        evidence = _derive_public_evidence(
+            claim.evidence_location,
             claim_id=claim_id,
-            source_evidence_location=candidate_score["evidenceLocation"],
         )
         cell = deepcopy(candidate_score["cell"])
         pair = (cell["modelId"], cell["benchmarkId"])
@@ -427,7 +492,7 @@ def build_official_release_artifact(
                 "scoreUnit": candidate_score["scoreUnit"],
                 "reportedAt": reported_at,
                 "evidenceText": candidate_score["evidenceText"],
-                "evidence": metadata["evidence"],
+                "evidence": evidence,
                 "provenance": provenance,
             }
         )
@@ -449,8 +514,14 @@ def build_official_release_artifact(
             "sourceSnapshotCount": len(source_manifest),
             "scoreCount": len(scores),
         },
-        "models": [public_models[key] for key in sorted(public_models)],
-        "benchmarks": [public_benchmarks[key] for key in sorted(public_benchmarks)],
+        "models": [
+            public_models[key]
+            for key in sorted(public_models, key=js_utf16_sort_key)
+        ],
+        "benchmarks": [
+            public_benchmarks[key]
+            for key in sorted(public_benchmarks, key=js_utf16_sort_key)
+        ],
         "sourceManifest": source_manifest,
         "scores": scores,
     }

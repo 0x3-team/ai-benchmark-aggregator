@@ -80,6 +80,20 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+const CREDENTIAL_QUERY_KEYS = new Set([
+  "access_token",
+  "api_key",
+  "apikey",
+  "credential",
+  "password",
+  "secret",
+  "signature",
+  "token",
+  "x-amz-credential",
+  "x-amz-signature",
+  "x-goog-credential",
+  "x-goog-signature",
+]);
 
 const UNAVAILABLE_ARTIFACT_KEYS = new Set([
   "schemaVersion",
@@ -299,9 +313,14 @@ function isSafeHttpsUrl(value: unknown): value is string {
       url.hostname.length > 0 &&
       !url.username &&
       !url.password &&
-      !url.search &&
       !url.hash &&
-      !/[?#]/.test(value)
+      ![...value].some((character) => {
+        const codePoint = character.codePointAt(0)!;
+        return codePoint < 0x20 || codePoint === 0x7f;
+      }) &&
+      [...url.searchParams.keys()].every(
+        (key) => !CREDENTIAL_QUERY_KEYS.has(key.toLocaleLowerCase("en-US"))
+      )
     );
   } catch {
     return false;
