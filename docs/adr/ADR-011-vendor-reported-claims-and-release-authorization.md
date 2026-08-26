@@ -1,7 +1,7 @@
 # ADR-011: Vendor-reported claims and exact release authorization
 
-**Status:** Proposed bounded candidate; no release is authorized  
-**Date:** 2026-08-26  
+**Status:** Proposed bounded candidate; no release is authorized
+**Date:** 2026-08-26
 **Decision ID:** DEC-011-CANDIDATE
 
 ## Context
