@@ -17,8 +17,12 @@ PUBLIC_CHECKPOINT_DOCUMENTS = (
     "docs/plans/2026-08-26-real-data-only-production-launch-execution-plan.md",
     "docs/plans/2026-08-26-real-data-only-production-launch-execution-plan-implementation-ledger.jsonl",
     "docs/receipts/2026-08-26-p11-permalinks-local-acceptance.md",
+    ".agents/skills/quality-orchestration/SKILL.md",
+    ".agents/skills/release-verification/SKILL.md",
 )
 FORBIDDEN_OPERATIONAL_FRAGMENTS = (
+    "anthropic/",
+    "capy api",
     '"cost_tier":',
     '"effective_effort":',
     '"fast_status":',
@@ -30,14 +34,21 @@ FORBIDDEN_OPERATIONAL_FRAGMENTS = (
     '"route":',
     ".commandcode/",
     "codex in-app browser",
+    "codex/gpt-",
     "codex native worker",
     "computer use used gpt-",
+    "deepseek/",
     "devin cli",
     "gpt-5.6-",
     "luna high",
+    "moonshotai/",
     "orca native browser",
+    "price appendix",
     "provider log attestation",
     "sol max",
+    "supergrok/",
+    "xai/",
+    "zai/",
 )
 LOCAL_RUNTIME_ID = re.compile(r"\b(?:ctx|run|task|term)_[0-9a-f]{6,}\b", re.IGNORECASE)
 
@@ -73,3 +84,24 @@ def test_redacted_implementation_ledger_remains_valid_json_lines() -> None:
 
     assert len(records) == 7
     assert all(record["source_artifact"].endswith("execution-plan.md") for record in records)
+
+
+def test_public_skills_keep_route_neutral_acceptance_contracts() -> None:
+    quality = (REPOSITORY_ROOT / PUBLIC_CHECKPOINT_DOCUMENTS[5]).read_text(
+        encoding="utf-8"
+    )
+    release = (REPOSITORY_ROOT / PUBLIC_CHECKPOINT_DOCUMENTS[6]).read_text(
+        encoding="utf-8"
+    )
+
+    assert "owner inspects every delegated result" in quality
+    assert re.search(
+        r"reviewer from a different\s+provider than\s+the author",
+        quality,
+    )
+    assert "must remain public" in release
+    assert "Pin the exact candidate commit SHA" in release
+    assert re.search(
+        r"Never change visibility as a\s+CI workaround",
+        release,
+    )
