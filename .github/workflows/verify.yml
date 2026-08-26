@@ -159,6 +159,8 @@ jobs:
         run: npm test
       - name: Verify mobile table overflow containment
         run: npm run test:mobile-overflow
+      - name: Verify canonical permalink behavior
+        run: npm run test:permalinks
       - name: Build
         run: npm run build
       - name: Verify build provenance
@@ -201,6 +203,7 @@ jobs:
           npm run typecheck:test
           npm test
           npm run test:mobile-overflow
+          npm run test:permalinks
           npm run build
           npm run verify:build-provenance
           npm run verify:pages-static

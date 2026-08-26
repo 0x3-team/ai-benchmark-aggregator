@@ -11,6 +11,7 @@
     "typecheck:test": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.test.json",
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "test:mobile-overflow": "node ./scripts/test-mobile-overflow.mjs",
+    "test:permalinks": "node ./scripts/test-permalinks.mjs",
     "test:watch": "node ./node_modules/vitest/vitest.mjs",
     "verify:official-artifact": "node ./scripts/verify-official-artifact.mjs && node --test ./scripts/verify-official-artifact-node-tests.mjs",
     "verify:build-provenance": "node ./scripts/build-provenance.mjs verify && node --test ./scripts/build-provenance-node-tests.mjs",
