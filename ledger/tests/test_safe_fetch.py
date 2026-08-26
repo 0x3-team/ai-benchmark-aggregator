@@ -104,6 +104,34 @@ class LegacyRateLimiter:
         _ = source_id, url, observed_at
 
 
+class ExtraRequiredRateLimiter:
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: object,
+        timeout_seconds: float,
+        retry_after: float,
+        **kwargs: object,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds, retry_after, kwargs
+
+
+class OptionalExtraRateLimiter:
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: object,
+        timeout_seconds: float,
+        retry_after: float | None = None,
+        **kwargs: object,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds, retry_after, kwargs
+
+
 def public_resolver(_host: str, _port: int) -> list[str]:
     return ["8.8.8.8"]
 
@@ -335,6 +363,23 @@ def test_safe_fetch_rejects_a_limiter_class_instead_of_an_instance() -> None:
             resolver=public_resolver,
             rate_limiter=RecordingBudgetRateLimiter,  # type: ignore[arg-type]
         )
+
+
+def test_safe_fetch_rejects_a_limiter_with_an_extra_required_parameter() -> None:
+    with pytest.raises(TypeError, match="deadline-aware contract"):
+        SafeFetchClient(
+            transport=ScriptedTransport({}),
+            resolver=public_resolver,
+            rate_limiter=ExtraRequiredRateLimiter(),  # type: ignore[arg-type]
+        )
+
+
+def test_safe_fetch_accepts_optional_or_variadic_limiter_parameters() -> None:
+    SafeFetchClient(
+        transport=ScriptedTransport({}),
+        resolver=public_resolver,
+        rate_limiter=OptionalExtraRateLimiter(),  # type: ignore[arg-type]
+    )
 
 
 @pytest.mark.parametrize(

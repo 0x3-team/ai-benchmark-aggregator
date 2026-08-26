@@ -29,12 +29,15 @@ FORBIDDEN_OPERATIONAL_FRAGMENTS = (
     '"requested_effort":',
     '"route":',
     ".commandcode/",
+    "codex in-app browser",
     "codex native worker",
     "computer use used gpt-",
     "devin cli",
     "gpt-5.6-",
+    "luna high",
     "orca native browser",
     "provider log attestation",
+    "sol max",
 )
 LOCAL_RUNTIME_ID = re.compile(r"\b(?:ctx|run|task|term)_[0-9a-f]{6,}\b", re.IGNORECASE)
 

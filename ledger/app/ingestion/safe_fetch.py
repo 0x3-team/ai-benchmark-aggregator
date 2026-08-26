@@ -154,23 +154,13 @@ def _rate_limiter_accepts_deadline(rate_limiter: object) -> bool:
     if not callable(acquire):
         return False
     try:
-        parameters = inspect.signature(acquire).parameters
+        inspect.signature(acquire).bind(
+            **{keyword: object() for keyword in _RATE_LIMITER_KEYWORDS}
+        )
     except (TypeError, ValueError):
         return False
-    if any(
-        parameter.kind is inspect.Parameter.VAR_KEYWORD
-        for parameter in parameters.values()
-    ):
+    else:
         return True
-    return all(
-        name in parameters
-        and parameters[name].kind
-        in {
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
-        }
-        for name in _RATE_LIMITER_KEYWORDS
-    )
 
 
 class DisabledNetworkTransport:
