@@ -62,6 +62,18 @@ benchmark-ledger seed-registry
 pytest -q
 ```
 
+The identity review queue also has a bounded, read-only CSV projection for
+decision support:
+
+```bash
+benchmark-ledger review export-csv --limit 50 [--cursor TOKEN]
+```
+
+The command reads one strict queue page (1--10,000 rows), emits deterministic
+UTF-8 CSV, preserves `model_raw` as base64 plus a SHA-256 digest, and does not
+write claims, review decisions, publication decisions, or source evidence.
+The CSV is not an Official release artifact.
+
 With the default `DATABASE_URL=sqlite:///./data/benchmark_ledger.db`,
 `init-db` creates at most the one missing direct `data/` parent under the
 existing `ledger/` directory, then applies the versioned migrations to a fresh
