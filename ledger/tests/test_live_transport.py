@@ -108,8 +108,17 @@ class ScriptedConnection:
         timeout: float,
         context: ssl.SSLContext,
         deadline: _RequestDeadline,
+        max_raw_bytes: int,
     ) -> ScriptedConnection:
-        self.initialized_with = (host, port, pinned_address, timeout, context, deadline)
+        self.initialized_with = (
+            host,
+            port,
+            pinned_address,
+            timeout,
+            context,
+            deadline,
+            max_raw_bytes,
+        )
         self.deadline = deadline
         return self
 
@@ -182,8 +191,9 @@ class AddressAttemptFactory:
         timeout: float,
         context: ssl.SSLContext,
         deadline: _RequestDeadline,
+        max_raw_bytes: int,
     ) -> AddressAttemptConnection:
-        _ = context
+        _ = context, max_raw_bytes
         self.timeouts.append(timeout)
         self.deadlines.append(deadline)
         connection = AddressAttemptConnection(
@@ -202,7 +212,9 @@ class AddressAttemptFactory:
 
 
 class ExplodingRateLimiter:
-    def acquire(self, *, source_id, url, observed_at) -> None:  # type: ignore[no-untyped-def]
+    def acquire(  # type: ignore[no-untyped-def]
+        self, *, source_id, url, observed_at, timeout_seconds
+    ) -> None:
         raise AssertionError("capability denial reached the rate limiter")
 
 
@@ -231,18 +243,32 @@ class FramedResponseSocket:
         return io.BytesIO(self.raw_response)
 
 
-def _read_framed_response(raw_response: bytes) -> bytes:
+def _read_framed_response(
+    raw_response: bytes,
+    *,
+    max_bytes: int = 1024,
+    max_raw_bytes: int | None = None,
+) -> bytes:
     network_socket = FramedResponseSocket(raw_response)
     deadline = _RequestDeadline.start(7.0)
     response = http.client.HTTPResponse(
-        _DeadlineResponseSocket(network_socket, deadline),  # type: ignore[arg-type]
+        _DeadlineResponseSocket(
+            network_socket,  # type: ignore[arg-type]
+            deadline,
+            (
+                max_bytes + live_transport._RESPONSE_FRAMING_ALLOWANCE_BYTES
+                if max_raw_bytes is None
+                else max_raw_bytes
+            ),
+        ),
         method="GET",
     )
     response.begin()
+    live_transport._validated_response_content_length(response)
     connection_socket = None if response.will_close else network_socket
     return _read_bounded_body(
         response,
-        1024,
+        max_bytes,
         connection=SimpleNamespace(sock=connection_socket),  # type: ignore[arg-type]
         deadline=deadline,
     )
@@ -362,6 +388,7 @@ def test_pinned_connection_uses_address_without_dns_and_tls_uses_original_hostna
         timeout=7.0,
         context=RecordingContext(),  # type: ignore[arg-type]
         deadline=_RequestDeadline.start(7.0),
+        max_raw_bytes=1024 + live_transport._RESPONSE_FRAMING_ALLOWANCE_BYTES,
     )
 
     connection.connect()
@@ -471,6 +498,113 @@ def test_oversized_body_is_stopped_during_bounded_stream_read(
 )
 def test_body_reader_accepts_complete_http_framing(raw_response: bytes) -> None:
     assert _read_framed_response(raw_response) == b"{}"
+
+
+def test_body_at_certified_limit_with_normal_framing_succeeds() -> None:
+    raw_response = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"
+
+    assert _read_framed_response(raw_response, max_bytes=2) == b"{}"
+
+
+def test_small_chunk_extensions_and_trailers_succeed() -> None:
+    raw_response = (
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+        b"2;fixture=yes\r\n{}\r\n0\r\nx-check: accepted\r\n\r\n"
+    )
+
+    assert _read_framed_response(raw_response, max_bytes=2) == b"{}"
+
+
+def test_aggregate_chunk_extensions_cannot_exceed_framing_allowance() -> None:
+    extension = b";x=" + (b"a" * 60_000)
+    chunks = b"".join(b"1" + extension + b"\r\nx\r\n" for _ in range(5))
+    raw_response = (
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+        + chunks
+        + b"0\r\n\r\n"
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        _read_framed_response(raw_response, max_bytes=5)
+
+    assert raised.value.code == "FETCH_RESPONSE_FRAMING_TOO_LARGE"
+
+
+def test_aggregate_trailers_cannot_exceed_framing_allowance() -> None:
+    trailer = b"x-padding: " + (b"a" * 60_000) + b"\r\n"
+    raw_response = (
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+        b"2\r\n{}\r\n0\r\n"
+        + (trailer * 5)
+        + b"\r\n"
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        _read_framed_response(raw_response, max_bytes=2)
+
+    assert raised.value.code == "FETCH_RESPONSE_FRAMING_TOO_LARGE"
+
+
+def test_aggregate_response_headers_cannot_exceed_framing_allowance() -> None:
+    header = b"x-padding: " + (b"a" * 60_000) + b"\r\n"
+    raw_response = b"HTTP/1.1 200 OK\r\n" + (header * 5) + b"\r\n{}"
+
+    with pytest.raises(SafeFetchError) as raised:
+        _read_framed_response(raw_response, max_bytes=2)
+
+    assert raised.value.code == "FETCH_RESPONSE_FRAMING_TOO_LARGE"
+
+
+@pytest.mark.parametrize(
+    "content_length_headers",
+    [
+        b"Content-Length: 2\r\nContent-Length: 3\r\n",
+        b"Content-Length: 2, 3\r\n",
+        b"Content-Length: two\r\n",
+        b"Content-Length:\r\n",
+    ],
+    ids=["duplicate-conflict", "comma-conflict", "nonnumeric", "empty"],
+)
+def test_invalid_or_conflicting_content_lengths_fail_before_body_acceptance(
+    content_length_headers: bytes,
+) -> None:
+    raw_response = b"HTTP/1.1 200 OK\r\n" + content_length_headers + b"\r\n{}secret"
+
+    with pytest.raises(SafeFetchError) as raised:
+        _read_framed_response(raw_response)
+
+    assert raised.value.code == "FETCH_PROTOCOL_FAILURE"
+
+
+def test_equivalent_duplicate_content_lengths_use_one_effective_length() -> None:
+    raw_response = (
+        b"HTTP/1.1 200 OK\r\n"
+        b"Content-Length: 2\r\n"
+        b"Content-Length: 02\r\n"
+        b"\r\n{}secret"
+    )
+
+    assert _read_framed_response(raw_response) == b"{}"
+
+
+@pytest.mark.parametrize(
+    "framing_headers",
+    [
+        b"Transfer-Encoding: chunked\r\nContent-Length: 2\r\n",
+        b"Transfer-Encoding: gzip\r\n",
+        b"Transfer-Encoding: chunked, gzip\r\n",
+    ],
+    ids=["chunked-with-content-length", "unsupported", "multiple"],
+)
+def test_ambiguous_or_unsupported_transfer_encoding_fails_closed(
+    framing_headers: bytes,
+) -> None:
+    raw_response = b"HTTP/1.1 200 OK\r\n" + framing_headers + b"\r\n2\r\n{}\r\n0\r\n\r\n"
+
+    with pytest.raises(SafeFetchError) as raised:
+        _read_framed_response(raw_response)
+
+    assert raised.value.code == "FETCH_PROTOCOL_FAILURE"
 
 
 @pytest.mark.parametrize(

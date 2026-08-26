@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import ipaddress
+import inspect
 import math
 from queue import Empty, Queue
 import socket
@@ -139,6 +140,27 @@ class FetchTransport(Protocol):
 
 
 Resolver = Callable[[str, int], list[str]]
+_RATE_LIMITER_KEYWORDS = frozenset(
+    {"source_id", "url", "observed_at", "timeout_seconds"}
+)
+
+
+def _rate_limiter_accepts_deadline(rate_limiter: object) -> bool:
+    """Return whether one limiter accepts the complete keyword-only contract."""
+
+    if isinstance(rate_limiter, type):
+        return False
+    acquire = getattr(rate_limiter, "acquire", None)
+    if not callable(acquire):
+        return False
+    try:
+        inspect.signature(acquire).bind(
+            **{keyword: object() for keyword in _RATE_LIMITER_KEYWORDS}
+        )
+    except (TypeError, ValueError):
+        return False
+    else:
+        return True
 
 
 class DisabledNetworkTransport:
@@ -220,7 +242,9 @@ def _validate_https_url(url: str) -> tuple[str, int]:
         port = parsed.port
     except ValueError as exc:
         raise SafeFetchError("FETCH_URL_FORBIDDEN", "URL port is invalid") from exc
-    return parsed.hostname, port or 443
+    if port is not None and not 1 <= port <= 65535:
+        raise SafeFetchError("FETCH_URL_FORBIDDEN", "URL port is invalid")
+    return parsed.hostname, 443 if port is None else port
 
 
 def _is_global_unicast_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
@@ -412,6 +436,10 @@ class SafeFetchClient:
             raise TypeError("Safe-fetch settings must be a canonical SafeFetchSettings value.")
         self._clock = UTCClock() if clock is None else clock
         self._rate_limiter = NoOpRateLimiter() if rate_limiter is None else rate_limiter
+        if not _rate_limiter_accepts_deadline(self._rate_limiter):
+            raise TypeError(
+                "Safe-fetch rate limiter must accept the complete deadline-aware contract."
+            )
 
     def fetch(self, plan: FetchPlan) -> SourceFetchResult:
         if type(plan) is not FetchPlan:
@@ -461,6 +489,7 @@ class SafeFetchClient:
                 source_id=plan.source_id,
                 url=current_url,
                 observed_at=observed_at,
+                timeout_seconds=deadline.remaining(),
             )
             deadline.remaining()
             resolved_addresses = _resolve_global_addresses(current_url, self._resolver, deadline)

@@ -134,6 +134,7 @@ def test_importable_live_helpers_require_a_real_caller_supplied_limiter(tmp_path
             source_id="source",
             url="https://example.invalid",
             observed_at=object(),
+            timeout_seconds=1.0,
         )
 
 

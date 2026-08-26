@@ -80,6 +80,58 @@ class FakeMonotonic:
         self.current += seconds
 
 
+class RecordingBudgetRateLimiter:
+    def __init__(self, clock: FakeMonotonic, *, advance_seconds: float = 0.0) -> None:
+        self.clock = clock
+        self.advance_seconds = advance_seconds
+        self.timeout_budgets: list[float] = []
+
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: object,
+        timeout_seconds: float,
+    ) -> None:
+        _ = source_id, url, observed_at
+        self.timeout_budgets.append(timeout_seconds)
+        self.clock.advance(self.advance_seconds)
+
+
+class LegacyRateLimiter:
+    def acquire(self, *, source_id: str, url: str, observed_at: object) -> None:
+        _ = source_id, url, observed_at
+
+
+class ExtraRequiredRateLimiter:
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: object,
+        timeout_seconds: float,
+        retry_after: float,
+        **kwargs: object,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds, retry_after, kwargs
+
+
+class OptionalExtraRateLimiter:
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: object,
+        timeout_seconds: float,
+        retry_after: float | None = None,
+        **kwargs: object,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds, retry_after, kwargs
+
+
 def public_resolver(_host: str, _port: int) -> list[str]:
     return ["8.8.8.8"]
 
@@ -231,6 +283,142 @@ def test_redirect_hops_share_one_total_timeout_budget(
 
     assert raised.value.code == "FETCH_TIMEOUT"
     assert transport.timeout_budgets == [7.0, 3.0]
+
+
+def test_rate_limiter_receives_each_redirect_hops_remaining_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+    limiter = RecordingBudgetRateLimiter(clock)
+
+    class RedirectBudgetTransport(RecordingBudgetTransport):
+        def request(self, **kwargs):  # type: ignore[no-untyped-def]
+            result = super().request(**kwargs)
+            clock.advance(2.0)
+            return result
+
+    transport = RedirectBudgetTransport(
+        {
+            URL: response(URL, status=302, headers={"location": REDIRECT_URL}),
+            REDIRECT_URL: response(REDIRECT_URL),
+        }
+    )
+    monkeypatch.setattr(safe_fetch.time, "monotonic", clock)
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=public_resolver,
+        settings=SafeFetchSettings(timeout_seconds=7.0),
+        rate_limiter=limiter,
+    )
+
+    result = client.fetch(plan(timeout_seconds=7.0))
+
+    assert result.raw_bytes == b'{"results":[]}'
+    assert limiter.timeout_budgets == [7.0, 5.0]
+    assert transport.timeout_budgets == [7.0, 5.0]
+
+
+def test_rate_limiter_time_is_subtracted_before_dns_and_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+    limiter = RecordingBudgetRateLimiter(clock, advance_seconds=7.0)
+    transport = ScriptedTransport({})
+    resolver_calls: list[str] = []
+
+    def resolver(host: str, _port: int) -> list[str]:
+        resolver_calls.append(host)
+        return ["8.8.8.8"]
+
+    monkeypatch.setattr(safe_fetch.time, "monotonic", clock)
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=resolver,
+        settings=SafeFetchSettings(timeout_seconds=7.0),
+        rate_limiter=limiter,
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        client.fetch(plan(timeout_seconds=7.0))
+
+    assert raised.value.code == "FETCH_TIMEOUT"
+    assert limiter.timeout_budgets == [7.0]
+    assert resolver_calls == []
+    assert transport.calls == []
+
+
+def test_safe_fetch_rejects_a_limiter_without_the_deadline_contract() -> None:
+    with pytest.raises(TypeError, match="deadline-aware contract"):
+        SafeFetchClient(
+            transport=ScriptedTransport({}),
+            resolver=public_resolver,
+            rate_limiter=LegacyRateLimiter(),  # type: ignore[arg-type]
+        )
+
+
+def test_safe_fetch_rejects_a_limiter_class_instead_of_an_instance() -> None:
+    with pytest.raises(TypeError, match="deadline-aware contract"):
+        SafeFetchClient(
+            transport=ScriptedTransport({}),
+            resolver=public_resolver,
+            rate_limiter=RecordingBudgetRateLimiter,  # type: ignore[arg-type]
+        )
+
+
+def test_safe_fetch_rejects_a_limiter_with_an_extra_required_parameter() -> None:
+    with pytest.raises(TypeError, match="deadline-aware contract"):
+        SafeFetchClient(
+            transport=ScriptedTransport({}),
+            resolver=public_resolver,
+            rate_limiter=ExtraRequiredRateLimiter(),  # type: ignore[arg-type]
+        )
+
+
+def test_safe_fetch_accepts_optional_or_variadic_limiter_parameters() -> None:
+    SafeFetchClient(
+        transport=ScriptedTransport({}),
+        resolver=public_resolver,
+        rate_limiter=OptionalExtraRateLimiter(),  # type: ignore[arg-type]
+    )
+
+
+@pytest.mark.parametrize(
+    ("url", "expected_port"),
+    [
+        ("https://official.example/results.json", 443),
+        ("https://official.example:1/results.json", 1),
+        ("https://official.example:443/results.json", 443),
+        ("https://official.example:8443/results.json", 8443),
+        ("https://official.example:65535/results.json", 65535),
+    ],
+)
+def test_https_url_validation_preserves_valid_explicit_ports(
+    url: str,
+    expected_port: int,
+) -> None:
+    assert safe_fetch._validate_https_url(url) == ("official.example", expected_port)
+
+
+def test_explicit_port_zero_fails_before_dns_or_transport() -> None:
+    zero_port_url = "https://official.example:0/results.json"
+    transport = ScriptedTransport({})
+    resolver_calls: list[str] = []
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=lambda host, _port: resolver_calls.append(host) or ["8.8.8.8"],
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        client.fetch(
+            plan(
+                request_url=zero_port_url,
+                approved_urls=frozenset({zero_port_url}),
+            )
+        )
+
+    assert raised.value.code == "FETCH_URL_FORBIDDEN"
+    assert resolver_calls == []
+    assert transport.calls == []
 
 
 def test_safe_fetch_validates_each_redirect_against_the_certified_allowlist() -> None:

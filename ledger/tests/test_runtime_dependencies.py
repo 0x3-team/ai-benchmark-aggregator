@@ -86,12 +86,22 @@ class RecordingRateLimiter:
     def __init__(self, events: list[str]) -> None:
         self.events = events
         self.urls: list[str] = []
+        self.timeout_budgets: list[float] = []
 
-    def acquire(self, *, source_id: str, url: str, observed_at: datetime) -> None:
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: datetime,
+        timeout_seconds: float,
+    ) -> None:
         assert source_id == "runtime-fixture"
         assert observed_at == datetime(2026, 7, 15, 12, 0, tzinfo=timezone.utc)
+        assert timeout_seconds > 0
         self.events.append("limit")
         self.urls.append(url)
+        self.timeout_budgets.append(timeout_seconds)
 
 
 class ScriptedTransport:
@@ -144,8 +154,20 @@ class ExplodingIncidentService:
 
 
 class ExplodingRateLimiter:
-    def acquire(self, *, source_id: str, url: str, observed_at: datetime) -> None:
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: datetime,
+        timeout_seconds: float,
+    ) -> None:
         raise AssertionError("dry-run consumed rate-limit state")
+
+
+class LegacyRateLimiter:
+    def acquire(self, *, source_id: str, url: str, observed_at: datetime) -> None:
+        _ = source_id, url, observed_at
 
 
 class AdminBearingStorage:
@@ -429,6 +451,24 @@ def test_forged_or_duck_typed_dependency_bundles_are_rejected() -> None:
         validate_runtime_dependencies(forged)
 
 
+def test_runtime_dependencies_reject_a_limiter_without_the_deadline_contract() -> None:
+    with pytest.raises(RuntimeDependencyError, match="deadline-aware contract"):
+        RuntimeDependencies(
+            fetch_transport=ScriptedTransport([]),
+            rate_limiter=LegacyRateLimiter(),  # type: ignore[arg-type]
+            capabilities=frozenset({RuntimeCapability.NETWORK_FETCH}),
+        )
+
+
+def test_runtime_dependencies_reject_a_limiter_class_instead_of_an_instance() -> None:
+    with pytest.raises(RuntimeDependencyError, match="deadline-aware contract"):
+        RuntimeDependencies(
+            fetch_transport=ScriptedTransport([]),
+            rate_limiter=RecordingRateLimiter,  # type: ignore[arg-type]
+            capabilities=frozenset({RuntimeCapability.NETWORK_FETCH}),
+        )
+
+
 def test_disabled_fetch_fails_before_clock_limiter_dns_or_transport() -> None:
     events: list[str] = []
 
@@ -497,6 +537,8 @@ def test_rate_limiter_precedes_every_transport_request_deterministically() -> No
         "transport",
     ]
     assert limiter.urls == [URL, REDIRECT_URL]
+    assert len(limiter.timeout_budgets) == 2
+    assert all(0 < budget <= 7.0 for budget in limiter.timeout_budgets)
     assert [call[0] for call in transport.calls] == [URL, REDIRECT_URL]
     assert all(call[1]["User-Agent"] == "injected-agent/1" for call in transport.calls)
     assert all(0 < call[2] <= 7.0 for call in transport.calls)

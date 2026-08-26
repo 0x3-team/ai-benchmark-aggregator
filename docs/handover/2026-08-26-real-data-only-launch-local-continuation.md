@@ -4,7 +4,9 @@
 **Repository:** `0x3-team/ai-benchmark-aggregator`
 **Visibility:** public
 **Integrated code baseline:** `08b2916813baf698ff4f7d58bb142c3337d7c339` on `main`
-**Closing lane:** PR #21 adds only the preserved plan, audit receipts, and this final handoff to that baseline.
+**Closing lane:** PR #21 originally added the preserved plan, local routing
+receipts, and this final handoff to that baseline. The local routing receipts
+were later removed from the public tree as a security remediation.
 
 ## Outcome
 
@@ -44,8 +46,8 @@ GitHub Actions can run under the intended public-repository policy.
 | #20 | Guarded Pages deployment candidate merged | `58f731cff8403aa29ac72ef7d499398fbd151f31` |
 | #6 | TypeScript 7.0.2 upgrade and config migration merged | `08b2916813baf698ff4f7d58bb142c3337d7c339` |
 
-PR #21 is the closing documentation lane. Its merge places this handoff and the
-preserved execution/audit records on `main`; it does not activate a source,
+PR #21 was the closing documentation lane. Its merge placed this handoff and
+the preserved execution baseline on `main`; it did not activate a source,
 publish data, or deploy the site.
 
 ## Accepted verification
@@ -132,12 +134,10 @@ npm run verify:bundle-budget
 npm run test:mobile-overflow
 ```
 
-## Preserved records
+## Preserved public record
 
 - Execution baseline: `docs/plans/2026-08-26-real-data-only-production-launch-execution-plan.md`
-- Parent routing and acceptance receipts: `docs/audits/2026-08-26-launch-orchestration-receipts.jsonl`
-- Wave 1 routing record: `docs/audits/2026-08-26-wave1-model-routing.json`
-- Wave 2 routing record: `docs/audits/2026-08-26-wave2-model-routing.jsonl`
 
-The audit files remain historical routing records. This handoff is the current
-status record for the integrated checkpoint.
+Local provider, model, permission, authentication, catalog, task, terminal, and
+cost-routing evidence is intentionally not tracked in this public repository.
+This handoff is the current public status record for the integrated checkpoint.

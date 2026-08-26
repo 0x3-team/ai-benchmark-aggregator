@@ -25,6 +25,7 @@ from app.ingestion.safe_fetch import (
     SafeFetchClient,
     SafeFetchError,
     SafeFetchSettings,
+    _rate_limiter_accepts_deadline,
     system_resolver,
 )
 from app.storage.base import (
@@ -77,7 +78,14 @@ class IncidentService(Protocol):
 class RateLimiter(Protocol):
     """Synchronous admission immediately before each transport request."""
 
-    def acquire(self, *, source_id: str, url: str, observed_at: datetime) -> None: ...
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: datetime,
+        timeout_seconds: float,
+    ) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,8 +115,15 @@ class NoOpIncidentService:
 
 @dataclass(frozen=True, slots=True)
 class NoOpRateLimiter:
-    def acquire(self, *, source_id: str, url: str, observed_at: datetime) -> None:
-        _ = source_id, url, observed_at
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: datetime,
+        timeout_seconds: float,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds
 
 
 StorageFactory = Callable[[], SnapshotStorageRunner]
@@ -230,6 +245,10 @@ class RuntimeDependencies:
         ):
             if not isinstance(dependency, protocol):
                 raise RuntimeDependencyError(f"{label} does not implement its runtime protocol.")
+        if not _rate_limiter_accepts_deadline(self.rate_limiter):
+            raise RuntimeDependencyError(
+                "rate_limiter must accept the complete deadline-aware contract."
+            )
         if (
             not isinstance(self.fetch_transport, DisabledNetworkTransport)
             and type(self.rate_limiter) is NoOpRateLimiter

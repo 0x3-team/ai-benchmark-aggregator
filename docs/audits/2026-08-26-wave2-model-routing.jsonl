@@ -1,6 +1,0 @@
-{"lane":"P3 scheduled runner","base":"capy/add-capability-gated-pinned","model":"gpt-5.6-terra","effort":"high","ownership":"bounded workflow; no credentials/live authority"}
-{"lane":"P10 sparse Official ranking","base":"capy/remove-synthetic-runtime-data","model":"gpt-5.6-terra","effort":"high","ownership":"bounded frontend presentation policy"}
-{"lane":"P13 deployment workflow","base":"capy/harden-static-launch-shell","model":"gpt-5.6-terra","effort":"high","ownership":"workflow candidate; no deploy credentials or execution"}
-{"lane":"LMArena source adapter","base":"capy/prepare-bounded-source","model":"gpt-5.6-sol","effort":"high","ownership":"fixture-only parser/candidate; no certification or fetch"}
-{"lane":"structured source discovery coding-agentic","base":"main","model":"gpt-5.6-luna","effort":"high","ownership":"read-only current rights/authority research"}
-{"lane":"structured source discovery reasoning-multimodal","base":"main","model":"gpt-5.6-luna","effort":"high","ownership":"read-only current rights/authority research"}

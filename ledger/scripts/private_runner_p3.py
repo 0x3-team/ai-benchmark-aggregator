@@ -33,8 +33,15 @@ class PrivateRunnerBlockedError(RuntimeError):
 class DenyAllP3RateLimiter:
     """Inert-only limiter that rejects before any transport request."""
 
-    def acquire(self, *, source_id: str, url: str, observed_at: object) -> None:
-        _ = source_id, url, observed_at
+    def acquire(
+        self,
+        *,
+        source_id: str,
+        url: str,
+        observed_at: object,
+        timeout_seconds: float,
+    ) -> None:
+        _ = source_id, url, observed_at, timeout_seconds
         raise PrivateRunnerBlockedError(
             "H4_BLOCKED: inert private-runner composition refuses every fetch request."
         )
