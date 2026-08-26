@@ -202,6 +202,37 @@ def test_dns_time_is_subtracted_before_transport_dispatch(
     assert transport.timeout_budgets == [5.0]
 
 
+def test_redirect_hops_share_one_total_timeout_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeMonotonic()
+
+    class RedirectBudgetTransport(RecordingBudgetTransport):
+        def request(self, **kwargs):  # type: ignore[no-untyped-def]
+            result = super().request(**kwargs)
+            clock.advance(4.0)
+            return result
+
+    transport = RedirectBudgetTransport(
+        {
+            URL: response(URL, status=302, headers={"location": REDIRECT_URL}),
+            REDIRECT_URL: response(REDIRECT_URL),
+        }
+    )
+    monkeypatch.setattr(safe_fetch.time, "monotonic", clock)
+    client = SafeFetchClient(
+        transport=transport,
+        resolver=public_resolver,
+        settings=SafeFetchSettings(timeout_seconds=7.0),
+    )
+
+    with pytest.raises(SafeFetchError) as raised:
+        client.fetch(plan(timeout_seconds=7.0))
+
+    assert raised.value.code == "FETCH_TIMEOUT"
+    assert transport.timeout_budgets == [7.0, 3.0]
+
+
 def test_safe_fetch_validates_each_redirect_against_the_certified_allowlist() -> None:
     transport = ScriptedTransport(
         {

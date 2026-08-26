@@ -439,6 +439,7 @@ class SafeFetchClient:
             "Accept": ", ".join(sorted(plan.accepted_content_types)),
             "User-Agent": self._settings.user_agent,
         }
+        deadline = _FetchDeadline.start(float(self._settings.timeout_seconds))
 
         while True:
             if current_url not in plan.approved_urls:
@@ -446,7 +447,6 @@ class SafeFetchClient:
                     "FETCH_URL_NOT_APPROVED",
                     "request or redirect URL is not in the certified allowlist",
                 )
-            deadline = _FetchDeadline.start(float(self._settings.timeout_seconds))
             observed_at = self._clock.now()
             if (
                 not isinstance(observed_at, datetime)
@@ -462,6 +462,7 @@ class SafeFetchClient:
                 url=current_url,
                 observed_at=observed_at,
             )
+            deadline.remaining()
             resolved_addresses = _resolve_global_addresses(current_url, self._resolver, deadline)
             response = self._transport.request(
                 url=current_url,
@@ -470,6 +471,7 @@ class SafeFetchClient:
                 resolved_addresses=resolved_addresses,
                 max_bytes=plan.max_bytes,
             )
+            deadline.remaining()
             if response.url != current_url:
                 raise SafeFetchError(
                     "FETCH_TRANSPORT_URL_MISMATCH",

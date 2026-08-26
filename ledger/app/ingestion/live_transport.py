@@ -145,6 +145,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             self.sock = self._context.wrap_socket(
                 connected_socket,
                 server_hostname=self.host,
+                suppress_ragged_eofs=False,
             )
         except (OSError, SafeFetchError, ValueError):
             connected_socket.close()
@@ -409,11 +410,15 @@ class PinnedHTTPSFetchTransport:
                     response_headers[normalized] = f"{response_headers[normalized]}, {value}"
                 else:
                     response_headers[normalized] = value
-            body = _read_bounded_body(
-                response,
-                max_bytes,
-                connection=connection,
-                deadline=deadline,
+            body = (
+                _read_bounded_body(
+                    response,
+                    max_bytes,
+                    connection=connection,
+                    deadline=deadline,
+                )
+                if 200 <= response.status < 300
+                else b""
             )
             return FetchTransportResponse(
                 url=url,

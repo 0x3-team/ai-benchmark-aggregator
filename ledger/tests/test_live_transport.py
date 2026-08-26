@@ -336,8 +336,14 @@ def test_pinned_connection_uses_address_without_dns_and_tls_uses_original_hostna
         verify_mode = ssl.CERT_REQUIRED
         check_hostname = True
 
-        def wrap_socket(self, raw_socket: RawSocket, *, server_hostname: str) -> RawSocket:
-            events.append(("tls", server_hostname))
+        def wrap_socket(
+            self,
+            raw_socket: RawSocket,
+            *,
+            server_hostname: str,
+            suppress_ragged_eofs: bool,
+        ) -> RawSocket:
+            events.append(("tls", server_hostname, suppress_ragged_eofs))
             clock.advance(2.0)
             return raw_socket
 
@@ -361,7 +367,7 @@ def test_pinned_connection_uses_address_without_dns_and_tls_uses_original_hostna
     connection.connect()
 
     assert ("connect", "8.8.8.8", 443) in events
-    assert ("tls", "official.example") in events
+    assert ("tls", "official.example", False) in events
     assert ("timeout", 7.0) in events
     assert ("timeout", 5.0) in events
 
@@ -424,16 +430,18 @@ def test_transport_reports_exhausted_addresses_without_resetting_deadline(
 
 def test_transport_returns_redirect_without_following_it(monkeypatch: pytest.MonkeyPatch) -> None:
     response = ScriptedResponse(
-        b"",
+        b"redirect-body-is-not-part-of-the-source-artifact",
         status=302,
         headers=[("location", "https://redirected.example/secret")],
     )
     connection = _install_connection(monkeypatch, response)
 
-    result = _request(PinnedHTTPSFetchTransport())
+    result = _request(PinnedHTTPSFetchTransport(), max_bytes=4)
 
     assert result.status_code == 302
     assert result.url == URL
+    assert result.body == b""
+    assert response.read_sizes == []
     assert connection.requests == [("GET", "/results.json", REQUEST_HEADERS)]
 
 
