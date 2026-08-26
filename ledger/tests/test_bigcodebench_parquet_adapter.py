@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import io
 import inspect
+import io
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -15,7 +15,6 @@ from app.ingestion.adapters.bigcodebench_parquet import (
 )
 from app.ingestion.parquet_cells import read_parquet_record
 from app.schemas.boundary import OfficialSource
-
 
 SNAPSHOT = SourceSnapshot(
     id="11111111-1111-1111-1111-111111111111",
@@ -38,6 +37,22 @@ def _parquet(rows: list[dict[str, object]], *, row_group_size: int | None = None
     )
     buffer = io.BytesIO()
     pq.write_table(table, buffer, row_group_size=row_group_size)
+    return buffer.getvalue()
+
+
+def _source_shaped_parquet(rows: list[dict[str, object]]) -> bytes:
+    table = pa.Table.from_pylist(
+        rows,
+        schema=pa.schema(
+            [
+                pa.field("model", pa.string()),
+                pa.field("complete", pa.float64()),
+                pa.field("instruct", pa.float64()),
+            ]
+        ),
+    )
+    buffer = io.BytesIO()
+    pq.write_table(table, buffer)
     return buffer.getvalue()
 
 
@@ -77,6 +92,34 @@ def test_extracts_every_declared_dimension_with_exact_typed_locator() -> None:
         "row_index": 0,
         "fields": {"model_raw": "model", "score_raw": "complete"},
     }
+
+
+def test_source_shaped_float_scores_preserve_resolver_lexemes() -> None:
+    raw = _source_shaped_parquet(
+        [{"model": "Model A", "complete": 47.6, "instruct": 36.2}]
+    )
+
+    claims = BigCodeBenchParquetAdapter().extract_claims(_source(), SNAPSHOT, raw)
+
+    assert [(claim.metric_raw, claim.score_raw) for claim in claims] == [
+        ("complete", "47.6"),
+        ("instruct", "36.2"),
+    ]
+    assert all(
+        BigCodeBenchParquetAdapter().validate_claim(claim, raw)[0].outcome == "pass"
+        for claim in claims
+    )
+
+
+def test_source_shaped_null_dimension_stops_complete_artifact_accounting() -> None:
+    raw = _source_shaped_parquet(
+        [{"model": "Base Model", "complete": 27.7, "instruct": None}]
+    )
+
+    with pytest.raises(BigCodeBenchBatchError) as raised:
+        BigCodeBenchParquetAdapter().extract_claims(_source(), SNAPSHOT, raw)
+
+    assert raised.value.reason_code == "PARQUET_COLUMN_MISSING"
 
 
 def test_registered_adapter_is_concrete_and_constructible() -> None:

@@ -10,6 +10,12 @@ import { verifyPagesStatic } from "./verify-pages-static.mjs";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = join(repoRoot, "public");
 const requiredFiles = ["404.html", "_headers", "robots.txt"];
+const requiredAssets = [
+  "favicon.svg",
+  "favicon-32x32.png",
+  "apple-touch-icon.png",
+  "social-preview.png",
+];
 
 async function textFile(relativePath) {
   return readFile(join(repoRoot, relativePath), "utf8");
@@ -24,6 +30,13 @@ test("Pages source assets exist and are copyable without mutation", async () => 
       assert.ok(sourceStat.isFile(), `${file} must be a regular file`);
       await cp(sourcePath, join(stagingDir, file));
       assert.equal(await readFile(join(stagingDir, file), "utf8"), await readFile(sourcePath, "utf8"));
+    }
+    for (const file of requiredAssets) {
+      const sourcePath = join(publicDir, file);
+      const sourceStat = await stat(sourcePath);
+      assert.ok(sourceStat.isFile(), `${file} must be a regular file`);
+      await cp(sourcePath, join(stagingDir, file));
+      assert.deepEqual(await readFile(join(stagingDir, file)), await readFile(sourcePath));
     }
   } finally {
     await rm(stagingDir, { recursive: true, force: true });
@@ -58,7 +71,40 @@ test("index.html declares a custom-domain canonical URL", async () => {
   assert.match(index, /<meta\s+name=["']robots["']\s+content=["']index,\s*follow["']/i);
 });
 
-test("_headers contains conservative static security and preview directives", async () => {
+test("index.html declares production metadata and native favicon assets", async () => {
+  const index = await textFile("index.html");
+  for (const expected of [
+    /<meta\s+name=["']description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']theme-color["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:title["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+property=["']og:url["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/["'][^>]*>/i,
+    /<meta\s+property=["']og:image["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/social-preview\.png["'][^>]*>/i,
+    /<meta\s+property=["']og:image:width["']\s+content=["']1200["'][^>]*>/i,
+    /<meta\s+property=["']og:image:height["']\s+content=["']630["'][^>]*>/i,
+    /<meta\s+property=["']og:image:alt["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:card["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:url["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/["'][^>]*>/i,
+    /<meta\s+name=["']twitter:title["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:description["']\s+content=["'][^"']+[^>]*>/i,
+    /<meta\s+name=["']twitter:image["']\s+content=["']https:\/\/benchmark\.0x3\.dev\/social-preview\.png["'][^>]*>/i,
+    /<meta\s+name=["']twitter:image:alt["']\s+content=["'][^"']+[^>]*>/i,
+    /<link\s+rel=["']icon["'][^>]+href=["']\/favicon\.svg["']/i,
+    /<link\s+rel=["']icon["'][^>]+href=["']\/favicon-32x32\.png["']/i,
+    /<link\s+rel=["']apple-touch-icon["'][^>]+href=["']\/apple-touch-icon\.png["']/i,
+  ]) {
+    assert.match(index, expected);
+  }
+  for (const file of requiredAssets) {
+    assert.ok((await stat(join(publicDir, file))).isFile(), `${file} must be present`);
+  }
+  const socialPreview = await readFile(join(publicDir, "social-preview.png"));
+  assert.equal(socialPreview.readUInt32BE(0), 0x89504e47, "social-preview.png must be PNG");
+  assert.equal(socialPreview.readUInt32BE(16), 1200, "social preview must be 1200px wide");
+  assert.equal(socialPreview.readUInt32BE(20), 630, "social preview must be 630px tall");
+});
+
+test("_headers contains report-only CSP, no enforcing policy, and preview directives", async () => {
   const headers = await textFile("public/_headers");
   for (const expected of [
     "X-Content-Type-Options: nosniff",
@@ -73,7 +119,17 @@ test("_headers contains conservative static security and preview directives", as
     assert.ok(headers.includes(expected), `_headers is missing ${expected}`);
   }
   assert.doesNotMatch(headers, /^\s*Strict-Transport-Security:/im, "HSTS needs domain/deployment proof");
-  assert.doesNotMatch(headers, /^\s*Content-Security-Policy:/im, "CSP must remain report-only until verified");
+  assert.doesNotMatch(
+    headers,
+    /^\s*Content-Security-Policy:/im,
+    "enforcing CSP must remain staged until provider/browser evidence",
+  );
+  assert.match(
+    headers,
+    /^\s*Content-Security-Policy-Report-Only:\s*default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'\s*$/im,
+    "report-only CSP must retain the complete policy",
+  );
+  assert.match(headers, /HOST-03 keeps enforcing CSP and HSTS staged in comments(?:\s+#)?\s+only/i);
   assert.doesNotMatch(headers, /_worker\.js|functions\//i, "static Pages lane must not add a Worker");
 });
 
@@ -82,6 +138,7 @@ test("public contains only source-only static controls for this lane", async () 
   assert.ok(entries.includes("404.html"));
   assert.ok(entries.includes("robots.txt"));
   assert.ok(entries.includes("_headers"));
+  for (const file of requiredAssets) assert.ok(entries.includes(file));
   assert.ok(!entries.some((entry) => entry === "_worker.js" || entry === "functions"));
 });
 
