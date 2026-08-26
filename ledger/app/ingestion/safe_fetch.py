@@ -17,7 +17,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import ipaddress
 import math
+from queue import Empty, Queue
 import socket
+from threading import BoundedSemaphore, Thread
+import time
 from typing import TYPE_CHECKING, Callable, Mapping, Protocol, runtime_checkable
 from urllib.parse import parse_qsl, urljoin, urlsplit, urlunsplit
 
@@ -39,6 +42,8 @@ REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 SENSITIVE_QUERY_NAMES = frozenset(
     {"access_token", "api_key", "apikey", "authorization", "key", "password", "secret", "signature", "token"}
 )
+MAX_CONCURRENT_RESOLVERS = 8
+_RESOLVER_SLOTS = BoundedSemaphore(MAX_CONCURRENT_RESOLVERS)
 
 
 class SafeFetchError(RuntimeError):
@@ -48,6 +53,24 @@ class SafeFetchError(RuntimeError):
         super().__init__(f"{code}: {detail}")
         self.code = code
         self.detail = detail
+
+
+@dataclass(frozen=True, slots=True)
+class _FetchDeadline:
+    expires_at: float
+
+    @classmethod
+    def start(cls, timeout_seconds: float) -> _FetchDeadline:
+        return cls(expires_at=time.monotonic() + timeout_seconds)
+
+    def remaining(self) -> float:
+        remaining = self.expires_at - time.monotonic()
+        if remaining <= 0:
+            raise SafeFetchError(
+                "FETCH_TIMEOUT",
+                "HTTPS request exceeded the total timeout",
+            )
+        return remaining
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,9 +223,80 @@ def _validate_https_url(url: str) -> tuple[str, int]:
     return parsed.hostname, port or 443
 
 
-def _resolve_global_addresses(url: str, resolver: Resolver) -> tuple[str, ...]:
+def _is_global_unicast_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if (
+        not address.is_global
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_private
+    ):
+        return False
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.is_site_local:
+            return False
+        if address.ipv4_mapped is not None or address.sixtofour is not None or address.teredo is not None:
+            return False
+    return True
+
+
+def _run_resolver_with_deadline(
+    resolver: Resolver,
+    host: str,
+    port: int,
+    deadline: _FetchDeadline,
+) -> list[str]:
+    """Bound blocking resolver calls behind a fixed-size daemon-thread gate."""
+
+    if not _RESOLVER_SLOTS.acquire(blocking=False):
+        raise SafeFetchError("FETCH_DNS_FAILURE", "resolver capacity is unavailable")
+    result_queue: Queue[tuple[bool, object]] = Queue(maxsize=1)
+
+    def resolve() -> None:
+        outcome: tuple[bool, object] | None = None
+        try:
+            outcome = (True, resolver(host, port))
+        except Exception as exc:
+            outcome = (False, exc)
+        finally:
+            try:
+                if outcome is not None:
+                    result_queue.put_nowait(outcome)
+            finally:
+                _RESOLVER_SLOTS.release()
+
+    worker = Thread(target=resolve, name="safe-fetch-resolver", daemon=True)
+    try:
+        worker.start()
+    except RuntimeError:
+        _RESOLVER_SLOTS.release()
+        raise SafeFetchError("FETCH_DNS_FAILURE", "resolver worker could not start") from None
+    try:
+        succeeded, payload = result_queue.get(timeout=deadline.remaining())
+    except Empty:
+        raise SafeFetchError(
+            "FETCH_TIMEOUT",
+            "HTTPS request exceeded the total timeout",
+        ) from None
+    deadline.remaining()
+    if not succeeded:
+        if isinstance(payload, SafeFetchError):
+            raise payload
+        raise SafeFetchError("FETCH_DNS_FAILURE", "hostname resolution failed") from None
+    if not isinstance(payload, list):
+        raise SafeFetchError("FETCH_DNS_INVALID", "resolver returned an invalid address set")
+    return payload
+
+
+def _resolve_global_addresses(
+    url: str,
+    resolver: Resolver,
+    deadline: _FetchDeadline,
+) -> tuple[str, ...]:
     host, port = _validate_https_url(url)
-    addresses = resolver(host, port)
+    addresses = _run_resolver_with_deadline(resolver, host, port, deadline)
     if not addresses:
         raise SafeFetchError("FETCH_DNS_EMPTY", "hostname resolved to no addresses")
     validated: list[str] = []
@@ -213,10 +307,10 @@ def _resolve_global_addresses(url: str, resolver: Resolver) -> tuple[str, ...]:
             address = ipaddress.ip_address(raw_address)
         except ValueError as exc:
             raise SafeFetchError("FETCH_DNS_INVALID", "resolver returned a non-IP address") from exc
-        if not address.is_global:
+        if not _is_global_unicast_address(address):
             raise SafeFetchError(
                 "FETCH_PRIVATE_NETWORK_FORBIDDEN",
-                "the source hostname resolved to a non-public address",
+                "the source hostname resolved to a non-public or non-unicast address",
             )
         canonical = str(address)
         if canonical not in validated:
@@ -352,6 +446,7 @@ class SafeFetchClient:
                     "FETCH_URL_NOT_APPROVED",
                     "request or redirect URL is not in the certified allowlist",
                 )
+            deadline = _FetchDeadline.start(float(self._settings.timeout_seconds))
             observed_at = self._clock.now()
             if (
                 not isinstance(observed_at, datetime)
@@ -367,11 +462,11 @@ class SafeFetchClient:
                 url=current_url,
                 observed_at=observed_at,
             )
-            resolved_addresses = _resolve_global_addresses(current_url, self._resolver)
+            resolved_addresses = _resolve_global_addresses(current_url, self._resolver, deadline)
             response = self._transport.request(
                 url=current_url,
                 headers=request_headers,
-                timeout_seconds=float(self._settings.timeout_seconds),
+                timeout_seconds=deadline.remaining(),
                 resolved_addresses=resolved_addresses,
                 max_bytes=plan.max_bytes,
             )
