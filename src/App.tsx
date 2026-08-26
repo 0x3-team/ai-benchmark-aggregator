@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import type { BenchmarkCategory } from "./types";
+import { ALL_CATEGORIES, CATEGORIES, type BenchmarkCategory } from "./types";
 import {
   DatasetProvider,
   useDataset,
@@ -10,6 +10,7 @@ import { loadOfficialData, type OfficialLoadResult } from "./data/official";
 import { selectOfficialDataset } from "./data/dataSelection";
 import {
   computeRanking,
+  modelsForComparisonClass,
   sortModels,
   type RankRow,
 } from "./lib/aggregate";
@@ -48,6 +49,11 @@ import {
   PERMALINK_MAX_VALUE_LENGTH,
   type PermalinkState,
 } from "./lib/permalinkState";
+import {
+  benchmarksForComparisonClass,
+  comparisonClassForCategory,
+  type ComparisonClass,
+} from "./lib/categories";
 
 const PERMALINK_SYNC_DELAY_MS = 300;
 
@@ -156,7 +162,8 @@ function readPermalinkState(): PermalinkState {
 function validatePermalinkState(
   state: PermalinkState,
   models: readonly DatasetModel[],
-  benchmarks: readonly DatasetBenchmark[]
+  benchmarks: readonly DatasetBenchmark[],
+  getValue?: (modelId: string, benchmarkId: string) => number | null
 ): PermalinkState {
   if (models.length === 0 && benchmarks.length === 0) {
     return createDefaultPermalinkState();
@@ -170,17 +177,39 @@ function validatePermalinkState(
   const availableCategories = new Set(
     benchmarks.map((benchmark) => benchmark.category)
   );
+  const hasGeneralBenchmarks = benchmarks.some(
+    (benchmark) => comparisonClassForCategory(benchmark.category) === "general"
+  );
+  const hasEmbeddingBenchmarks = benchmarks.some(
+    (benchmark) => comparisonClassForCategory(benchmark.category) === "embedding"
+  );
   const category =
     state.category && availableCategories.has(state.category)
       ? state.category
-      : null;
+      : !hasGeneralBenchmarks && hasEmbeddingBenchmarks
+        ? "embedding"
+        : null;
+  const selectedClass = category === "embedding" ? "embedding" : "general";
+  const classBenchmarks = benchmarksForComparisonClass(benchmarks, selectedClass);
+  const classModelIds = new Set(
+    models
+      .filter((model) =>
+        getValue
+          ? classBenchmarks.some((benchmark) => getValue(model.id, benchmark.id) != null)
+          : true
+      )
+      .map((model) => model.id)
+  );
   const sortBenchmark = state.sort
     ? benchmarkById.get(state.sort.benchmarkId)
     : undefined;
   const sort =
     state.sort &&
     sortBenchmark &&
-    (category === null || sortBenchmark.category === category)
+    (category === "embedding"
+      ? sortBenchmark.category === "embedding"
+      : sortBenchmark.category !== "embedding" &&
+        (category === null || sortBenchmark.category === category))
       ? state.sort
       : null;
 
@@ -189,13 +218,16 @@ function validatePermalinkState(
     vendor: state.vendor.filter((vendor) => vendorNames.has(vendor)),
     category,
     sort,
-    compare: state.compare.filter((modelId) => modelIds.has(modelId)),
-    model: state.model && modelIds.has(state.model) ? state.model : null,
+    compare: state.compare.filter((modelId) => modelIds.has(modelId) && classModelIds.has(modelId)),
+    model: state.model && modelIds.has(state.model) && classModelIds.has(state.model) ? state.model : null,
     benchmark:
       state.benchmark && benchmarkById.has(state.benchmark)
-        ? state.benchmark
+        ? ((category === "embedding" && benchmarkById.get(state.benchmark)?.category === "embedding") ||
+            (category !== "embedding" && benchmarkById.get(state.benchmark)?.category !== "embedding"))
+          ? state.benchmark
+          : null
         : null,
-    all: state.all && category === null && benchmarks.length > 12,
+    all: state.all && classBenchmarks.length > 12,
   };
 }
 
@@ -225,9 +257,14 @@ function AppContent({
   } = useDataset();
 
   const [permalinkState, setPermalinkState] = useState<PermalinkState>(() =>
-    restorePermalinkFromLocation
-      ? validatePermalinkState(readPermalinkState(), activeModels, activeBenchmarks)
-      : createDefaultPermalinkState()
+    validatePermalinkState(
+      restorePermalinkFromLocation
+        ? readPermalinkState()
+        : createDefaultPermalinkState(),
+      activeModels,
+      activeBenchmarks,
+      getValue
+    )
   );
   const {
     view,
@@ -241,6 +278,9 @@ function AppContent({
     all: showAllBenchmarks,
     zero: showModelsWithNoPublishedScores,
   } = permalinkState;
+  const comparisonClass: ComparisonClass = comparisonClassForCategory(
+    categoryFilter ?? "other"
+  );
   const vendorFilter = useMemo(
     () => new Set(permalinkState.vendor),
     [permalinkState.vendor]
@@ -253,13 +293,14 @@ function AppContent({
         validatePermalinkState(
           decodePermalink(window.location.search),
           activeModels,
-          activeBenchmarks
+          activeBenchmarks,
+          getValue
         )
       );
     };
     window.addEventListener("popstate", restoreFromLocation);
     return () => window.removeEventListener("popstate", restoreFromLocation);
-  }, [activeBenchmarks, activeModels]);
+  }, [activeBenchmarks, activeModels, getValue]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -287,10 +328,39 @@ function AppContent({
 
   const categoryBenchmarks = useMemo(
     () =>
-      categoryFilter
-        ? activeBenchmarks.filter((b) => b.category === categoryFilter)
-        : activeBenchmarks,
+      categoryFilter === "embedding"
+        ? benchmarksForComparisonClass(activeBenchmarks, "embedding")
+        : categoryFilter
+          ? activeBenchmarks.filter((b) => b.category === categoryFilter)
+          : benchmarksForComparisonClass(activeBenchmarks, "general"),
     [categoryFilter, activeBenchmarks]
+  );
+
+  const comparisonBenchmarks = useMemo(
+    () => benchmarksForComparisonClass(activeBenchmarks, comparisonClass),
+    [activeBenchmarks, comparisonClass]
+  );
+
+  const hasGeneralBenchmarks = activeBenchmarks.some(
+    (benchmark) => benchmark.category !== "embedding"
+  );
+  const hasEmbeddingBenchmarks = activeBenchmarks.some(
+    (benchmark) => benchmark.category === "embedding"
+  );
+  const availableFilterCategories = useMemo(() => {
+    if (!hasGeneralBenchmarks && hasEmbeddingBenchmarks) return ["embedding"] as const;
+    return hasEmbeddingBenchmarks ? ALL_CATEGORIES : CATEGORIES;
+  }, [hasGeneralBenchmarks, hasEmbeddingBenchmarks]);
+
+  const comparisonModels = useMemo(
+    () =>
+      modelsForComparisonClass(
+        activeModels,
+        activeBenchmarks,
+        getValue,
+        comparisonClass
+      ),
+    [activeModels, activeBenchmarks, getValue, comparisonClass]
   );
 
   // Limit benchmark columns to avoid rendering too many DOM nodes at once.
@@ -307,7 +377,7 @@ function AppContent({
 
   const filteredModels = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return activeModels.filter((m) => {
+    return comparisonModels.filter((m) => {
       if (vendorFilter.size > 0 && !vendorFilter.has(m.vendor)) return false;
       if (openWeightsOnly && !m.openWeights) return false;
       if (q) {
@@ -316,14 +386,34 @@ function AppContent({
       }
       return true;
     });
-  }, [search, vendorFilter, openWeightsOnly, activeModels]);
+  }, [search, vendorFilter, openWeightsOnly, comparisonModels]);
 
-  // The presentation cohort is the entire immutable dataset snapshot. Search,
-  // vendor, category, and open-weights filters only control visible rows; they
-  // cannot promote a partial or filtered model into an overall leader.
+  const filteredUnrankedModels = useMemo(() => {
+    if (!showModelsWithNoPublishedScores || comparisonBenchmarks.length === 0) return [];
+    const q = search.trim().toLowerCase();
+    const hasClassScore = (model: DatasetModel) =>
+      comparisonBenchmarks.some((benchmark) => getValue(model.id, benchmark.id) != null);
+    return activeModels.filter((model) => {
+      if (hasClassScore(model)) return false;
+      if (vendorFilter.size > 0 && !vendorFilter.has(model.vendor)) return false;
+      if (openWeightsOnly && !model.openWeights) return false;
+      if (q && !`${model.name} ${model.vendor} ${model.family}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [showModelsWithNoPublishedScores, search, vendorFilter, openWeightsOnly, activeModels, comparisonBenchmarks, getValue]);
+
+  // The presentation cohort is the complete active comparison-class snapshot.
+  // Search, vendor, benchmark-category, and open-weights filters only control
+  // visible rows; they cannot mix embedding and general-model rankings.
   const presentationRanking = useMemo(
-    () => computeRanking(activeModels, activeBenchmarks, getValue),
-    [activeModels, activeBenchmarks, getValue]
+    () =>
+      computeRanking(
+        comparisonModels,
+        comparisonBenchmarks,
+        getValue,
+        comparisonBenchmarks
+      ),
+    [comparisonModels, comparisonBenchmarks, getValue]
   );
 
   const rankMap = useMemo(() => {
@@ -333,16 +423,17 @@ function AppContent({
   }, [presentationRanking]);
 
   const modelsWithPublishedScores = useMemo(
-    () =>
-      showModelsWithNoPublishedScores
-        ? filteredModels
-        : filteredModels.filter((model) => (rankMap[model.id]?.covered ?? 0) > 0),
-    [filteredModels, rankMap, showModelsWithNoPublishedScores]
+    () => filteredModels,
+    [filteredModels]
   );
 
   const hasModelsWithNoPublishedScores = useMemo(
-    () => presentationRanking.some((row) => row.covered === 0),
-    [presentationRanking]
+    () =>
+      comparisonBenchmarks.length > 0 &&
+      activeModels.some((model) =>
+        comparisonBenchmarks.every((benchmark) => getValue(model.id, benchmark.id) == null)
+      ),
+    [activeModels, comparisonBenchmarks, getValue]
   );
 
   const sortedModels = useMemo(
@@ -351,7 +442,7 @@ function AppContent({
         modelsWithPublishedScores,
         sort,
         visibleBenchmarks,
-        activeBenchmarks,
+        comparisonBenchmarks,
         getValue,
         presentationRanking
       ),
@@ -359,26 +450,30 @@ function AppContent({
       modelsWithPublishedScores,
       sort,
       visibleBenchmarks,
-      activeBenchmarks,
+      comparisonBenchmarks,
       getValue,
       presentationRanking,
     ]
   );
 
+  const visibleModelCount = sortedModels.length + filteredUnrankedModels.length;
+  const hasNoPublishedScoresInCohort =
+    comparisonBenchmarks.length > 0 && comparisonModels.length === 0;
+
   const selectedBenchmark = selectedBenchmarkId
-    ? activeBenchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
+    ? comparisonBenchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
     : null;
 
   const selectedModel = selectedModelId
-    ? activeModels.find((m) => m.id === selectedModelId) ?? null
+    ? comparisonModels.find((m) => m.id === selectedModelId) ?? null
     : null;
 
   const selectedModelObjects = useMemo(
     () =>
       selectedModels
-        .map((id) => activeModels.find((m) => m.id === id))
+        .map((id) => comparisonModels.find((m) => m.id === id))
         .filter((m): m is DatasetModel => m != null),
-    [selectedModels, activeModels]
+    [selectedModels, comparisonModels]
   );
 
   function handleSort(benchmarkId: string) {
@@ -411,6 +506,12 @@ function AppContent({
     });
   }
 
+  function focusCategoryControl(next: BenchmarkCategory | null) {
+    if (typeof document === "undefined") return;
+    const id = next === null ? "category-filter-all" : `category-filter-${next}`;
+    window.setTimeout(() => document.getElementById(id)?.focus(), 0);
+  }
+
   function handleCategoryFilter(next: BenchmarkCategory | null) {
     // A column sort must never stay active after its column leaves the visible
     // category. Clearing is less surprising than retaining a hidden order.
@@ -419,7 +520,12 @@ function AppContent({
       category: next,
       sort: null,
       all: next === null ? previous.all : false,
+      ...(comparisonClassForCategory(previous.category ?? "other") !==
+      comparisonClassForCategory(next ?? "other")
+        ? { compare: [], model: null, benchmark: null, view: "table" as const }
+        : {}),
     }));
+    focusCategoryControl(next);
   }
 
   function toggleModelSelect(id: string) {
@@ -445,14 +551,21 @@ function AppContent({
   }
 
   function clearFilters() {
+    const hasGeneralClass = activeBenchmarks.some(
+      (benchmark) => comparisonClassForCategory(benchmark.category) === "general"
+    );
     setPermalinkState((previous) => ({
       ...previous,
       q: "",
       vendor: [],
-      category: null,
+      category: hasGeneralClass ? null : "embedding",
       open: false,
       zero: false,
       sort: null,
+      compare: [],
+      model: null,
+      benchmark: null,
+      view: "table",
     }));
   }
 
@@ -509,6 +622,22 @@ function AppContent({
                 </div>
               ) : (
               <>
+              <p
+                id="comparison-class-status"
+                role="status"
+                aria-live="polite"
+                className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-slate-300"
+              >
+                <strong className="text-foreground">
+                  {comparisonBenchmarks.length > 0
+                    ? `${comparisonClass === "embedding" ? "Embeddings" : "General"} comparison class.`
+                    : `${comparisonClass === "embedding" ? "Embeddings" : "General"} comparison class unavailable.`}
+                </strong>{" "}
+                {comparisonBenchmarks.length > 0
+                  ? <>Rankings, coverage, and missing-score penalties use only the complete active{" "}
+                    {comparisonClass === "embedding" ? "embedding" : "non-embedding"} benchmark cohort.</>
+                  : <>No active {comparisonClass === "embedding" ? "embedding" : "non-embedding"} benchmarks are available.</>}
+              </p>
               <Filters
                 search={search}
                 onSearch={(q) =>
@@ -522,12 +651,14 @@ function AppContent({
                 onToggleVendor={toggleVendor}
                 categoryFilter={categoryFilter}
                 onCategory={handleCategoryFilter}
+                availableCategories={availableFilterCategories}
+                showAllCategories={hasGeneralBenchmarks}
                 openWeightsOnly={openWeightsOnly}
                 onToggleOpenWeights={(open) =>
                   setPermalinkState((previous) => ({ ...previous, open }))
                 }
                 onClear={clearFilters}
-                resultCount={sortedModels.length}
+                resultCount={visibleModelCount}
                 hasModelsWithNoPublishedScores={hasModelsWithNoPublishedScores}
                 showModelsWithNoPublishedScores={showModelsWithNoPublishedScores}
                 onToggleModelsWithNoPublishedScores={(zero) =>
@@ -535,8 +666,8 @@ function AppContent({
                 }
               />
               <CategoryLeaders
-                models={activeModels}
-                benchmarks={activeBenchmarks}
+                models={comparisonModels}
+                benchmarks={comparisonBenchmarks}
                 categoryFilter={categoryFilter}
                 onOpenModel={openModel}
               />
@@ -555,18 +686,32 @@ function AppContent({
                       </div>
                     }
                   >
-                    <CatalogSharePie benchmarks={activeBenchmarks} />
+                    <CatalogSharePie benchmarks={comparisonBenchmarks} />
                   </Suspense>
                 </CardContent>
               </Card>
-              {sortedModels.length === 0 ? (
+              {sortedModels.length === 0 && filteredUnrankedModels.length === 0 ? (
                 <div className="glass-strong flex flex-col items-center justify-center gap-2 rounded-xl px-6 py-16 text-center">
-                  <p className="text-sm font-medium text-foreground">
-                    No models match your filters
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Try clearing the vendor, category, or open-weights filters.
-                  </p>
+                  {hasNoPublishedScoresInCohort ? (
+                    <>
+                      <p className="text-sm font-medium text-foreground">
+                        No published scores in this cohort
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Turn on “Show models with no published scores in this cohort” to view
+                        unranked models.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-foreground">
+                        No models match your filters
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Try clearing the vendor, category, or open-weights filters.
+                      </p>
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={clearFilters}
@@ -579,7 +724,7 @@ function AppContent({
                 <>
                 <ScoreTable
                   models={sortedModels}
-                  cohortModels={activeModels}
+                  cohortModels={comparisonModels}
                   benchmarks={visibleBenchmarks}
                   sort={sort}
                   onSort={handleSort}
@@ -591,7 +736,9 @@ function AppContent({
                   onToggleModelSelect={toggleModelSelect}
                   selectedModels={selectedModels}
                   rankMap={rankMap}
-                  rankCohortTotal={activeBenchmarks.length}
+                  rankCohortTotal={comparisonBenchmarks.length}
+                  unrankedModels={filteredUnrankedModels}
+                  comparisonClassLabel={comparisonClass === "embedding" ? "Embeddings" : "General"}
                 />
                 {hiddenBenchmarkCount > 0 && (
                   <div className="flex justify-center py-3">
@@ -635,8 +782,8 @@ function AppContent({
               >
                 <ModelComparison
                   models={selectedModelObjects}
-                  benchmarks={activeBenchmarks}
-                  allModels={activeModels}
+                  benchmarks={comparisonBenchmarks}
+                  allModels={comparisonModels}
                   onOpenModel={openModel}
                 />
               </Suspense>
@@ -670,7 +817,7 @@ function AppContent({
                     <BenchmarkCard
                       benchmark={selectedBenchmark}
                       models={sortedModels}
-                      cohortModels={activeModels}
+                      cohortModels={comparisonModels}
                     />
                   </Suspense>
                 </>
@@ -705,7 +852,7 @@ function AppContent({
                     <ModelDetail
                       model={selectedModel}
                       models={sortedModels}
-                      cohortModels={activeModels}
+                      cohortModels={comparisonModels}
                       benchmarks={visibleBenchmarks}
                       selectedModels={selectedModels}
                       onToggleModelSelect={toggleModelSelect}
@@ -719,7 +866,7 @@ function AppContent({
           <GlossaryDialog
             open={glossaryOpen}
             onOpenChange={setGlossaryOpen}
-            benchmarks={activeBenchmarks}
+            benchmarks={comparisonBenchmarks}
           />
         </div>
         <Toaster />

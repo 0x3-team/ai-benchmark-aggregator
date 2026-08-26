@@ -40,6 +40,12 @@ describe("permalinkState codec", () => {
     expect(decoded).toEqual(FULL_STATE_BENCHMARK);
   });
 
+  it("round-trips the explicit embedding comparison class", () => {
+    const state = { ...DEFAULT_PERMALINK_STATE, category: "embedding" as const };
+    expect(decodePermalink(encodePermalink(state))).toEqual(state);
+    expect(decodePermalink("?v=1&category=Embedding")).toEqual(DEFAULT_PERMALINK_STATE);
+  });
+
   it("round-trips the default state through encode/decode", () => {
     const encoded = encodePermalink(DEFAULT_PERMALINK_STATE);
     expect(encoded).toBe("?v=1");

@@ -1,6 +1,6 @@
 import { Search, RotateCcw } from "lucide-react";
 import type { BenchmarkCategory } from "../types";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import { ALL_CATEGORIES, CATEGORY_LABELS } from "../types";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ interface FiltersProps {
   onToggleVendor: (v: string) => void;
   categoryFilter: BenchmarkCategory | null;
   onCategory: (c: BenchmarkCategory | null) => void;
+  availableCategories?: readonly BenchmarkCategory[];
+  showAllCategories?: boolean;
   openWeightsOnly: boolean;
   onToggleOpenWeights: (v: boolean) => void;
   onClear: () => void;
@@ -31,6 +33,8 @@ export function Filters({
   onToggleVendor,
   categoryFilter,
   onCategory,
+  availableCategories = ALL_CATEGORIES,
+  showAllCategories = true,
   openWeightsOnly,
   onToggleOpenWeights,
   onClear,
@@ -85,24 +89,28 @@ export function Filters({
           Category
         </legend>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Category filters">
-          <Badge
-            interactive
-            variant={categoryFilter === null ? "default" : "ghost"}
-            onClick={() => onCategory(null)}
-            aria-pressed={categoryFilter === null}
-            aria-label="Show all categories"
-            className={cn(
-              categoryFilter === null
-                ? ""
-                : "border-white/10 bg-white/5 text-slate-300"
-            )}
-          >
-            All
-          </Badge>
-          {CATEGORIES.map((c) => (
+          {showAllCategories && (
+            <Badge
+              interactive
+              id="category-filter-all"
+              variant={categoryFilter === null ? "default" : "ghost"}
+              onClick={() => onCategory(null)}
+              aria-pressed={categoryFilter === null}
+              aria-label="Show all categories"
+              className={cn(
+                categoryFilter === null
+                  ? ""
+                  : "border-white/10 bg-white/5 text-slate-300"
+              )}
+            >
+              All
+            </Badge>
+          )}
+          {availableCategories.map((c) => (
             <Badge
               key={c}
               interactive
+              id={`category-filter-${c}`}
               onClick={() => onCategory(c)}
               aria-pressed={categoryFilter === c}
               aria-label={`Filter by category ${CATEGORY_LABELS[c]}`}
@@ -133,9 +141,9 @@ export function Filters({
           <Switch
             checked={showModelsWithNoPublishedScores}
             onCheckedChange={onToggleModelsWithNoPublishedScores}
-            aria-label="Show models with no published scores"
+            aria-label="Show models with no published scores in this cohort"
           />
-          Show models with no published scores
+          Show models with no published scores in this cohort
         </label>
       ) : null}
 

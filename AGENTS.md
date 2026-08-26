@@ -34,6 +34,10 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
   missing cohort cell the deterministic `models.length + 1` rank penalty before
   averaging across that full cohort. Keep raw coverage visible and never store
   this derived ranking as a ledger claim.
+- `benchmark.category` in the governed Official artifact is the sole comparison
+  class truth. `embedding` is its own class; all other categories are general.
+  General and embedding rankings use independent complete benchmark and active
+  model cohorts. A model with scores in both classes participates independently.
 - Dataset state must come from an immutable `DatasetProvider`; do not add a
   module-global active registry or a default Demo fallback. Context provenance
   is value-free, so consumers cannot bypass `getValue` with a raw score entry.

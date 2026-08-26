@@ -227,6 +227,7 @@ const BENCHMARK_CATEGORIES = new Set<BenchmarkCategory>([
   "instruction",
   "chat",
   "vision",
+  "embedding",
   "other",
 ]);
 const EVIDENCE_TYPES = new Set<OfficialEvidenceLocation["type"]>([

@@ -116,6 +116,18 @@ const CREDENTIAL_QUERY_KEYS = new Set([
   "x-goog-credential",
   "x-goog-signature",
 ]);
+const BENCHMARK_CATEGORIES = new Set([
+  "knowledge",
+  "reasoning",
+  "math",
+  "coding",
+  "agentic",
+  "instruction",
+  "chat",
+  "vision",
+  "embedding",
+  "other",
+]);
 
 export class OfficialArtifactValidationError extends Error {
   constructor(message) {
@@ -608,6 +620,11 @@ function validatePublishedArtifactRelationships(artifact) {
     );
   }
   for (const benchmark of artifact.benchmarks) {
+    if (typeof benchmark.category !== "string" || !BENCHMARK_CATEGORIES.has(benchmark.category)) {
+      throw new OfficialArtifactValidationError(
+        "Published Official release benchmark has an unsupported category."
+      );
+    }
     requirePublicHttpsUrl(benchmark.sourceUrl, "Published Official release benchmark sourceUrl");
   }
   for (const source of artifact.sourceManifest) {

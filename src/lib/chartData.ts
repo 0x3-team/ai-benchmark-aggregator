@@ -1,4 +1,4 @@
-import { CATEGORIES, CATEGORY_LABELS } from "@/types";
+import { CATEGORY_LABELS, categoriesForBenchmarks } from "@/types";
 import {
   isNormalizableBenchmark,
   normalizeForPresentation,
@@ -72,7 +72,7 @@ function buildCategoryRowAccumulator(
   benchmarks: readonly DatasetBenchmark[],
   getValue: GetValue
 ): CategoryRow[] {
-  return CATEGORIES.map((cat) => {
+  return categoriesForBenchmarks(benchmarks).map((cat) => {
     const row: CategoryRow = { category: cat };
     models.forEach((m, i) => {
       const points = radarAverages(m.id, benchmarks, getValue);
@@ -133,7 +133,7 @@ export function buildFieldAverageByCategory(
   benchmarks: readonly DatasetBenchmark[],
   getValue: GetValue
 ): { category: string; fieldPct: number | null }[] {
-  return CATEGORIES.map((cat) => {
+  return categoriesForBenchmarks(benchmarks).map((cat) => {
     const catBenches = benchmarks.filter((b) => b.category === cat);
     if (catBenches.length === 0) return { category: cat, fieldPct: null };
     let sum = 0;
@@ -156,7 +156,7 @@ export function buildFieldAverageByCategory(
 export function buildCatalogShare(
   benchmarks: readonly DatasetBenchmark[]
 ): CatalogShareRow[] {
-  return CATEGORIES.map((cat) => ({
+  return categoriesForBenchmarks(benchmarks).map((cat) => ({
     category: cat,
     count: benchmarks.filter((b) => b.category === cat).length,
   }));
@@ -222,7 +222,7 @@ export function buildSankeyData(
   }
 
   // Build nodes: category labels first, then benchmark names
-  const usedCategories = CATEGORIES.filter((c) => usedCats.has(c));
+  const usedCategories = categoriesForBenchmarks(benchmarks).filter((c) => usedCats.has(c));
   const catLabels = usedCategories.map((c) => CATEGORY_LABELS[c]);
   const catNodeIndex = new Map<string, number>();
   catLabels.forEach((label, i) => catNodeIndex.set(label, i));

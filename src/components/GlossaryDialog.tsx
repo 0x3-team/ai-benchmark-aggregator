@@ -1,5 +1,5 @@
 import { BookOpen } from "lucide-react";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import { CATEGORY_LABELS, categoriesForBenchmarks } from "../types";
 import type { DatasetBenchmark } from "../data/dataset";
 import {
   Dialog,
@@ -17,6 +17,10 @@ interface GlossaryDialogProps {
 }
 
 export function GlossaryDialog({ open, onOpenChange, benchmarks }: GlossaryDialogProps) {
+  const categories = categoriesForBenchmarks(benchmarks).filter((category) =>
+    benchmarks.some((benchmark) => benchmark.category === category)
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -27,7 +31,7 @@ export function GlossaryDialog({ open, onOpenChange, benchmarks }: GlossaryDialo
           </DialogTitle>
           <DialogDescription>
             {benchmarks.length} evaluations across{" "}
-            {CATEGORIES.length} capability areas. Hover a header in the
+            {categories.length} capability areas. Hover a header in the
             leaderboard for a quick definition, or pick a category below.
           </DialogDescription>
         </DialogHeader>
@@ -40,7 +44,7 @@ export function GlossaryDialog({ open, onOpenChange, benchmarks }: GlossaryDialo
         </div>
 
         <div className="flex flex-col gap-5">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const items = benchmarks.filter((b) => b.category === cat);
             if (items.length === 0) return null;
             return (

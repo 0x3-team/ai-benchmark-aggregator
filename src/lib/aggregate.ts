@@ -5,7 +5,11 @@ import type {
   GetValue,
 } from "../data/dataset";
 import { normalizeBenchmarkValue } from "../data/benchmarkNormalization";
-import { CATEGORIES } from "../types";
+import { categoriesForBenchmarks } from "../types";
+import {
+  benchmarksForComparisonClass,
+  type ComparisonClass,
+} from "./categories";
 
 export interface RankRow {
   model: DatasetModel;
@@ -21,6 +25,19 @@ export interface RankRow {
 }
 
 export const RANK_COVERAGE_THRESHOLD = 0.6;
+
+/** Return active models that have at least one published cell in a class. */
+export function modelsForComparisonClass(
+  models: readonly DatasetModel[],
+  benchmarks: readonly DatasetBenchmark[],
+  getValue: GetValue,
+  comparisonClass: ComparisonClass
+): DatasetModel[] {
+  const classBenchmarks = benchmarksForComparisonClass(benchmarks, comparisonClass);
+  return models.filter((model) =>
+    classBenchmarks.some((benchmark) => getValue(model.id, benchmark.id) != null)
+  );
+}
 
 function compareModels(a: DatasetModel, b: DatasetModel): number {
   return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
@@ -103,9 +120,10 @@ export function rankForBenchmark(
 export function computeRanking(
   models: readonly DatasetModel[],
   visible: readonly DatasetBenchmark[],
-  getValue: GetValue
+  getValue: GetValue,
+  cohortBenchmarks: readonly DatasetBenchmark[] = visible
 ): RankRow[] {
-  const n = visible.length;
+  const n = cohortBenchmarks.length;
 
   if (n === 0) {
     return [...models]
@@ -124,7 +142,7 @@ export function computeRanking(
 
   // Precompute: Map<benchmarkId, Map<modelId, rank>>
   const rankCache = new Map<string, Map<string, number>>();
-  for (const bench of visible) {
+  for (const bench of cohortBenchmarks) {
     const ranked = rankForBenchmark(models, bench, getValue);
     const benchRanks = new Map<string, number>();
     for (const r of ranked) {
@@ -139,7 +157,7 @@ export function computeRanking(
     let sum = 0;
     let count = 0;
     let firsts = 0;
-    for (const bench of visible) {
+    for (const bench of cohortBenchmarks) {
       const rank = rankCache.get(bench.id)?.get(model.id);
       if (rank != null) {
         sum += rank;
@@ -212,24 +230,13 @@ export function radarAverages(
     arr.push(norm);
     byCat.set(bench.category, arr);
   }
-  return (Object.keys(CATEGORY_ORDER) as BenchmarkCategory[]).map((category) => {
+  const categories = categoriesForBenchmarks(benchmarks);
+  return categories.map((category) => {
     const arr = byCat.get(category);
     if (!arr || arr.length === 0) return { category, value: null };
     return { category, value: arr.reduce((s, x) => s + x, 0) / arr.length };
   });
 }
-
-const CATEGORY_ORDER: Record<BenchmarkCategory, number> = {
-  knowledge: 0,
-  reasoning: 1,
-  math: 2,
-  coding: 3,
-  agentic: 4,
-  instruction: 5,
-  chat: 6,
-  vision: 7,
-  other: 8,
-};
 
 export function sortModels(
   models: readonly DatasetModel[],
@@ -288,9 +295,10 @@ export function categoryAverages(
   getValue: GetValue
 ): Record<BenchmarkCategory, CategoryAvg[]> {
   const result = {} as Record<BenchmarkCategory, CategoryAvg[]>;
-  for (const cat of CATEGORIES) result[cat] = [];
+  const categories = categoriesForBenchmarks(visible);
+  for (const cat of categories) result[cat] = [];
 
-  for (const cat of CATEGORIES) {
+  for (const cat of categories) {
     const catBenches = visible.filter(
       (b) => b.category === cat && isNormalizableBenchmark(b)
     );

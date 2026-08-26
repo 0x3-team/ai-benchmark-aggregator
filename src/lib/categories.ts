@@ -11,8 +11,25 @@ export const CATEGORY_COLORS: Record<BenchmarkCategory, string> = {
   instruction: "#22d3ee", // cyan
   chat: "#fb7185", // rose
   vision: "#f59e0b", // orange
+  embedding: "#c084fc", // orchid — separate comparison class
   other: "#94a3b8", // slate — catch-all for official categories outside the named taxonomy
 };
+
+export type ComparisonClass = "general" | "embedding";
+
+/** The governed artifact category is the only source of comparison class. */
+export function comparisonClassForCategory(category: BenchmarkCategory): ComparisonClass {
+  return category === "embedding" ? "embedding" : "general";
+}
+
+export function benchmarksForComparisonClass<T extends { category: BenchmarkCategory }>(
+  benchmarks: readonly T[],
+  comparisonClass: ComparisonClass
+): T[] {
+  return benchmarks.filter(
+    (benchmark) => comparisonClassForCategory(benchmark.category) === comparisonClass
+  );
+}
 
 export function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace("#", "");

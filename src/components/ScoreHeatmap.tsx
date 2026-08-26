@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useDataset, type DatasetBenchmark, type DatasetModel } from "../data/dataset";
 import { columnStats, heatmapColor } from "../lib/color";
 import { computeRanking, bestModelId } from "../lib/aggregate";
-import { CATEGORIES, CATEGORY_LABELS } from "../types";
+import { CATEGORY_LABELS, categoriesForBenchmarks } from "../types";
 import { CATEGORY_COLORS, categoryTint } from "../lib/categories";
 import { cn } from "@/lib/utils";
 import { fmtScore as fmt } from "../lib/format";
@@ -38,7 +38,7 @@ export function ScoreHeatmap({ models, benchmarks, onOpenModel }: ScoreHeatmapPr
 
   const groups = useMemo(
     () =>
-      CATEGORIES.map((cat) => ({
+      categoriesForBenchmarks(benchmarks).map((cat) => ({
         cat,
         items: benchmarks.filter((b) => b.category === cat),
       })).filter((g) => g.items.length > 0),
