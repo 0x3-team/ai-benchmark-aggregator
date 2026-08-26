@@ -18,6 +18,9 @@ interface FiltersProps {
   onToggleOpenWeights: (v: boolean) => void;
   onClear: () => void;
   resultCount: number;
+  hasModelsWithNoPublishedScores: boolean;
+  showModelsWithNoPublishedScores: boolean;
+  onToggleModelsWithNoPublishedScores: (show: boolean) => void;
 }
 
 export function Filters({
@@ -32,6 +35,9 @@ export function Filters({
   onToggleOpenWeights,
   onClear,
   resultCount,
+  hasModelsWithNoPublishedScores,
+  showModelsWithNoPublishedScores,
+  onToggleModelsWithNoPublishedScores,
 }: FiltersProps) {
   return (
     <div className="glass mb-3 flex flex-wrap items-center gap-3 rounded-xl px-4 py-3">
@@ -121,6 +127,17 @@ export function Filters({
         />
         Open weights only
       </label>
+
+      {hasModelsWithNoPublishedScores ? (
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+          <Switch
+            checked={showModelsWithNoPublishedScores}
+            onCheckedChange={onToggleModelsWithNoPublishedScores}
+            aria-label="Show models with no published scores"
+          />
+          Show models with no published scores
+        </label>
+      ) : null}
 
       <Button variant="ghost" size="sm" onClick={onClear} className="gap-1.5">
         <RotateCcw className="h-3.5 w-3.5" />

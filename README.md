@@ -2,16 +2,26 @@
 
 **Organization:** 0x3-team  
 **Repository:** `0x3-team/ai-benchmark-aggregator`  
-**Status:** Private (MIT-licensed, open-source-quality standards) — Demo available; Official publication intentionally unavailable pending source certification
+**Status:** Public (MIT-licensed, open-source-quality standards) — Official publication intentionally unavailable pending source certification; the frontend truthfully renders an empty awaiting-publication state
 
-A single-page **AI model benchmark comparison dashboard** with a **dual-mode data architecture**:
+A single-page **AI model benchmark comparison dashboard** with a real-only publication boundary:
 
-| Mode | Source | Purpose |
+| Runtime state | Source | Behavior |
 |------|--------|---------|
-| **Demo (Synthetic)** | `src/data/scores.ts` — curated demo fixtures | Instant UI development, zero dependencies |
-| **Official (Ledger)** | Tracked unavailable artifact; future governed ledger release artifact | Explicitly unavailable until source, evidence, review, and release gates pass |
+| **Awaiting publication** | `src/data/official/export.unavailable.json` | Shows no models, benchmarks, or scores while release gates remain incomplete |
+| **Official (Ledger)** | Future governed ledger release artifact | Shows only an explicitly approved, immutable release |
 
-> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export or a sample fixture is not an Official release artifact. The future v2 artifact parser is deliberately dormant until REL-05 provides a separately governed authorization that pins an immutable artifact and its digest. Until then, an Official request explicitly keeps the visible dataset in Demo (synthetic); a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
+> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export, test fixture, or sample artifact is not an Official release artifact. The v2 activation seam requires canonical artifact bytes plus a separately governed external authorization that exactly pins the artifact ID, digest, approval decision, and policy. The repository supplies neither, so the production provider receives an immutable empty snapshot; a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
+
+### Presentation ranking policy
+
+For a governed Official release, overall rankings are UI-only presentation data,
+not ledger claims. The ranking cohort is every benchmark in the immutable active
+snapshot, regardless of filters. A model needs published scores for at least
+60% of that cohort to receive an ordinal rank. Each missing score receives the
+deterministic rank penalty `models.length + 1`, then the resulting ranks are
+averaged across the complete cohort. Raw published-score coverage remains
+visible, and competition ties remain presentation-only.
 
 ### Future governed score evidence
 
@@ -22,9 +32,9 @@ claim and snapshot IDs, evidence location, retrieval timestamp, and governing
 policy. The disclosure resolves only when the score provenance exactly matches
 the release source manifest; malformed or mismatched provenance exposes no
 evidence control, and malformed URLs never produce empty links. The future
-Official status area also provides a separate source-manifest disclosure. Demo
-scores and presentation-only rankings/averages are intentionally not labelled
-as Official claims.
+Official status area also provides a separate source-manifest disclosure.
+Archived test fixtures and presentation-only rankings/averages are never
+labelled as Official claims.
 
 ---
 
@@ -121,6 +131,7 @@ retention, role/ACL recovery, RPO/RTO, cutover, or Official publication. See
 ai-benchmark-aggregator/
 ├── .github/                    # GitHub org config
 │   ├── workflows/verify.yml    # CI: ledger/frontend checks + clean archive build
+│   ├── workflows/deploy-cloudflare-pages.yml # Environment-gated Pages candidate
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── dependabot.yml          # Weekly dependency updates (npm, pip, actions)
 │   └── CODEOWNERS              # Auto-review assignment
@@ -129,9 +140,9 @@ ai-benchmark-aggregator/
 │   │   ├── evilcharts/        # Vendored EvilCharts (Recharts 3 + Motion), read-only
 │   │   └── charts/             # App chart adapters mapping app data to EvilCharts
 │   ├── data/                   # Data access layer
-│   │   ├── official/           # Tracked unavailable artifact; ignored local export is not runtime input
+│   │   ├── official/           # Tracked unavailable artifact; sample/local exports are not runtime input
 │   │   ├── dataset.tsx         # Immutable React snapshot + sole getValue() accessor
-│   │   └── scores.ts           # Deterministic synthetic Demo score generator
+│   │   └── testFixtures.ts     # Minimal explicit test-only data; unreachable from src/main.tsx
 │   ├── lib/                    # Utilities (colors, aggregation, categories, chartData builders)
 │   └── types.ts                # Shared TypeScript types
 ├── ledger/                     # Python CLI (Typer + SQLAlchemy + Pydantic)
@@ -171,6 +182,15 @@ Python constraints are reviewed in [`ledger/requirements-ci.lock`](ledger/requir
 they are not a release-artifact authorization or a replacement for future
 SBOM/provenance review.
 
+The [Cloudflare Pages deployment candidate](docs/runbooks/cloudflare-pages-deployment.md)
+is workflow-dispatch-only and requires an explicit `DEPLOY` confirmation plus
+a successful `Verify` push run for the exact full SHA. ND4 keeps every public
+deployment blocked until the future REL-05 governed artifact, authorization,
+and composition verifier paths land together. This is not a claim that any
+provider, domain, DNS, environment, or secret is currently configured. The
+companion smoke check is manual-only until an owner approves monitoring
+permissions and a schedule.
+
 **Branch protection:** recommended settings are requiring the `verify` workflow
 and code review from `CODEOWNERS`; this README does not claim those settings are
 enabled.
@@ -182,7 +202,7 @@ enabled.
 ```
 Tracked `src/data/official/export.unavailable.json`
          ↓
-Demo remains the only selectable runtime dataset
+Immutable empty DatasetProvider snapshot (awaiting publication)
          ↓
 Future governed path (currently disabled): certified source revision
 → immutable snapshot → raw claim + review decision
@@ -203,6 +223,10 @@ not committed, imported by the runtime, or accepted by CI as release evidence.
 | `fake` | Retired LDR-06 synthetic fixture adapter — temporary test-database fixture only; never an Official ingestion source |
 | `artificial_analysis_api` | Retired LDR-06 third-party aggregate route — fixture parser only; never an Official ingestion source |
 | `lmsys_arena_api` | Retired LDR-06 primary-plus-fallback route — fixture parser only; never an Official ingestion source |
+| `lmarena_leaderboard_parquet` | Inactive, not-certified fixture candidate pinned to first-party `lmarena-ai/leaderboard-dataset` `text_style_control/latest`; no live fetch or claim authorization |
+| `agc_bench` | Inactive generated-fixture CSV parser candidate; no source registration, live fetch, or claim authorization |
+| `elbench_results` | Inactive reduced-fixture aggregate parser candidate; no source registration, live fetch, or claim authorization |
+| `evalplus_results` | Inactive generated-fixture single-file summary parser candidate; no source registration, live fetch, or claim authorization |
 | `livebench_adapter` | Retired LDR-06 assembled/derived aggregate route — fixture parser only; never an Official ingestion source |
 | `livecodebench_adapter` | Retired LDR-06 date-window derived aggregate route — fixture parser only; never an Official ingestion source |
 | `github_yaml` | Aider Polyglot (YAML in repo) |
@@ -249,6 +273,7 @@ routes. See the [safe-fetch runbook](docs/runbooks/source-certification-and-safe
 | ADR-008 | Continuous Collection Contracts | Inert source, identity, schedule, incident, and notification boundaries before runtime/persistence work |
 | ADR-009 | Operational Persistence | Durable operational evidence and explicit live-disabled runtime composition on fresh/disposable targets; service/provider activation remains gated |
 | ADR-010 | Provider-neutral Recovery Evidence | Immutable cycle/database/object checkpoints, measured new-target receipts, and explicit non-claims for provider/RPO/RTO/cutover |
+| ADR-011 | Vendor-reported Claims and Release Authorization | Proposed trust-class distinction plus an exact external v2 release pin; no source or release is authorized |
 
 See `docs/adr/` for full records.
 

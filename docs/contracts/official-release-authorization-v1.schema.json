@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-benchmark-platform.local/contracts/official-release-authorization-v1.schema.json",
+  "title": "External Official Release Authorization v1",
+  "description": "An external exact pin for one v2 release artifact. A schema-valid document is not itself an approval or authorization; only the governed release-control owner may issue a real record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifactId",
+    "contentSha256",
+    "releaseApprovalDecisionId",
+    "policyVersion"
+  ],
+  "properties": {
+    "artifactId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$"
+    },
+    "contentSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "releaseApprovalDecisionId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$"
+    },
+    "policyVersion": {
+      "const": "official-release-artifact-v2"
+    }
+  }
+}

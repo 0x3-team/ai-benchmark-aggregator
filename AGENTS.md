@@ -4,7 +4,7 @@
 
 This repository is the **AI Benchmark Platform**:
 
-1. **Frontend** (`src/*`) — React SPA for model benchmark comparison (demo synthetic data + planned official mode).
+1. **Frontend** (`src/*`) — React SPA that shows a governed Official release or an honest awaiting-publication state.
 2. **Ledger** (`ledger/*`) — Python CLI that captures official benchmark results as immutable source-backed claims.
 
 The ledger does **not** run benchmarks and does **not** recalculate scores.
@@ -29,6 +29,11 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 ## Frontend rules
 
 - `getValue(modelId, benchmarkId)` is the only score accessor.
+- Overall ranking is UI-only: use the complete immutable active benchmark cohort,
+  require at least 60% published-score coverage for eligibility, and give every
+  missing cohort cell the deterministic `models.length + 1` rank penalty before
+  averaging across that full cohort. Keep raw coverage visible and never store
+  this derived ranking as a ledger claim.
 - Dataset state must come from an immutable `DatasetProvider`; do not add a
   module-global active registry or a default Demo fallback. Context provenance
   is value-free, so consumers cannot bypass `getValue` with a raw score entry.
@@ -63,7 +68,7 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 - Fixture tests for every adapter.
 - Run ledger tests: `cd ledger && pytest -q`.
 - Run frontend: `npm run typecheck` and `npm run build`.
-- If GitHub Actions is billing-blocked (jobs fail in seconds with a billing annotation), temporarily switch the repo to public so CI runs on free minutes, then switch it back to private; scan for committed secrets before any flip, and note visibility changes need a human with repo admin.
+- This repository is public. Keep it public; do not change visibility as a CI workaround. Treat any future CI failure as a workflow, runner, or account issue and diagnose the exact check evidence.
 - Update README/AGENTS when CLI or trust UI changes.
 
 ## Local model orchestration

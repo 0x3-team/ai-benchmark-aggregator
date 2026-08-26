@@ -34,17 +34,18 @@ provider. A requested Official mode receives an Official snapshot only after a
 validated `availability: "published"` result; all unavailable results retain
 the Demo snapshot and Demo label in the same React commit.
 
-The new
+The
 [`official-release-artifact-v2.schema.json`](../contracts/official-release-artifact-v2.schema.json)
-is a **future-only** contract, not a public release. Its dormant parser requires
+is a **future-only** contract, not a public release. Its activation seam requires
 exact shapes, complete UI metadata, finite values, raw claim fields, closed
 typed evidence, exact source-manifest links, six-part identity ordering, one
 two-key UI cell, a canonical Web Crypto digest, and an external authorization
 pin for artifact ID, release decision, policy, and digest. `loadOfficialData()`
-continues to import only the tracked unavailable v1 artifact; it does not import
-a v2 document, sample, candidate projection, report, or ignored local export.
-REL-05 must provide the controlled authorization and release artifact before
-this parser can be wired into the runtime.
+continues to import only the tracked unavailable v1 artifact. Its optional v2
+input is callable only with canonical bytes and the exact external pin; no v2
+document, authorization, sample, candidate projection, report, or ignored local
+export is imported by the runtime. REL-05 still requires an accountable owner
+to issue and connect a real authorization and immutable artifact.
 
 ## UI-03 trust-state interaction (2026-07-13)
 

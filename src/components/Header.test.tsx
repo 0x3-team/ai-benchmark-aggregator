@@ -66,9 +66,7 @@ function renderHeader(
     onViewChange: vi.fn(),
     selectedCount: 0,
     onOpenGlossary: vi.fn(),
-    dataModeLabel: "Awaiting data",
-    dataMode: "demo" as const,
-    onDataModeChange: vi.fn(),
+    dataStatus: "awaiting-publication" as const,
   };
 
   function render(next: Partial<Parameters<typeof Header>[0]>) {
@@ -89,33 +87,19 @@ function renderHeader(
   };
 }
 
-function buttonByText(container: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.trim() === text
-  );
-  if (!button) throw new Error("Expected source button.");
-  return button;
-}
-
 describe("Header trust status", () => {
-  it("keeps unavailable Official focusable, described, and explicit about visible Demo data", () => {
-    const onDataModeChange = vi.fn();
+  it("states that the unavailable build is awaiting publication and shows no source toggle", () => {
     const view = renderHeader({
-      onDataModeChange,
       officialUnavailableReason: "No release artifact is authorized for this build.",
     });
     try {
       const status = view.container.querySelector("#official-data-status");
-      const official = buttonByText(view.container, "Official unavailable");
       expect(status?.getAttribute("role")).toBe("status");
-      expect(status?.textContent).toContain("Official claims unavailable.");
+      expect(status?.textContent).toContain("Awaiting Official publication.");
       expect(status?.textContent).toContain("No benchmark data is currently published");
-      expect(official.getAttribute("aria-disabled")).toBeNull();
-      expect(official.getAttribute("aria-label")).toContain("Official claims unavailable");
-      expect(official.getAttribute("aria-describedby")).toBe("official-data-status");
-
-      act(() => official.click());
-      expect(onDataModeChange).toHaveBeenCalledWith("official");
+      expect(status?.textContent).not.toContain("Synthetic");
+      expect(view.container.querySelector('[aria-label="Data source"]')).toBeNull();
+      expect(view.container.textContent).toContain("Awaiting publication");
     } finally {
       view.cleanup();
     }
@@ -123,8 +107,7 @@ describe("Header trust status", () => {
 
   it("shows exact artifact, approval, timestamp, and policy without a verification color cue", () => {
     const view = renderHeader({
-      dataMode: "official",
-      dataModeLabel: "Official claims",
+      dataStatus: "official",
       officialArtifact: artifact,
     });
     try {
@@ -143,8 +126,7 @@ describe("Header trust status", () => {
 
   it("consumes the governed source manifest through a keyboard-operable disclosure", () => {
     const view = renderHeader({
-      dataMode: "official",
-      dataModeLabel: "Official claims",
+      dataStatus: "official",
       officialArtifact: artifactWithSourceManifest,
     });
     try {
@@ -158,20 +140,6 @@ describe("Header trust status", () => {
       expect(document.body.textContent).toContain("Header official source");
       expect(document.body.textContent).toContain("header-revision-decision-001");
       expect(document.activeElement).toBe(trigger);
-    } finally {
-      view.cleanup();
-    }
-  });
-
-  it("restores focus to the newly active data-source control after a mode switch", () => {
-    const view = renderHeader({ officialArtifact: artifact });
-    try {
-      view.rerender({
-        dataMode: "official",
-        dataModeLabel: "Official claims",
-        officialArtifact: artifact,
-      });
-      expect(document.activeElement).toBe(buttonByText(view.container, "Official"));
     } finally {
       view.cleanup();
     }

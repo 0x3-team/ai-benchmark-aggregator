@@ -335,8 +335,14 @@ def test_real_universe_digest_and_baseline_denominators() -> None:
     )
     assert report["universe"]["approvalStatus"] == "draft_unapproved"
     assert report["manifest"]["denominators"]["universeBenchmarkIdCount"] == 42
-    assert report["manifest"]["denominators"]["sourceRowCount"] == 53
+    assert report["manifest"]["denominators"]["sourceRowCount"] == 54
     assert report["summary"]["statusCounts"]["known"] == 53
+    assert any(
+        issue["stableId"] == "lmarena_first_party_leaderboard_candidate"
+        and issue["reasonCode"] == "REGISTRY_SOURCE_OUTSIDE_UNIVERSE"
+        and issue["blocking"] is True
+        for issue in report["issues"]
+    )
     assert report["summary"]["certificationAssessmentStatus"] == "not_assessed"
     assert report["summary"]["certifiedSourceCount"] is None
     assert report["summary"]["publishedSourceCount"] is None

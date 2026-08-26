@@ -869,8 +869,16 @@ class _CertifiedFixtureTransport:
     def __init__(self, raw_bytes: bytes = RAW_BYTES) -> None:
         self.raw_bytes = raw_bytes
 
-    def request(self, *, url: str, headers, timeout_seconds: float) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
-        _ = headers, timeout_seconds
+    def request(
+        self,
+        *,
+        url: str,
+        headers,
+        timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
+    ) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+        _ = headers, timeout_seconds, resolved_addresses, max_bytes
         return FetchTransportResponse(
             url=url,
             status_code=200,

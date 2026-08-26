@@ -1,0 +1,86 @@
+name: Manual Cloudflare Pages Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: HTTPS Pages deployment URL to check
+        required: true
+        type: string
+      confirm_smoke:
+        description: Type SMOKE to run this manually approved check
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: cloudflare-pages-smoke-incident
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: inputs.confirm_smoke == 'SMOKE'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: cloudflare-pages-monitoring
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Smoke Pages deployment
+        env:
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+        run: ./scripts/smoke-pages-deployment.sh "$DEPLOYMENT_URL"
+      - name: Create or update Pages smoke incident
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title='[pages-smoke] deployment smoke failure'
+          marker='<!-- pages-smoke-workflow-owned -->'
+          safe_target="$(node ./scripts/pages-smoke-url.mjs "$DEPLOYMENT_URL" 2>/dev/null || printf '[invalid deployment URL]')"
+          printf -v body '%s\n\n- Run: %s\n- Target: %s\n- Commit: %s\n\n%s\n%s' \
+            'Cloudflare Pages smoke check failed.' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            "$safe_target" \
+            "$GITHUB_SHA" \
+            'This workflow is manual-only. Investigate before any redeploy or rollback.' \
+            "$marker"
+          issue_number="$(gh api --paginate \
+            "/repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" \
+            | jq -r --arg title "$title" --arg marker "$marker" '
+              .[]
+              | select(
+                  .title == $title
+                  and (.pull_request | not)
+                  and .user.login == "github-actions[bot]"
+                  and ((.body // "") | contains($marker))
+                )
+              | .number
+            ' \
+            | head -n 1)"
+          payload="$(jq -n --arg body "$body" '{body: $body}')"
+          if [ -n "$issue_number" ]; then
+            curl --fail-with-body --silent --show-error --request PATCH \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'Content-Type: application/json' \
+              --data "$payload" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues/$issue_number"
+          else
+            create_payload="$(jq -n --arg title "$title" --arg body "$body" '{title: $title, body: $body}')"
+            curl --fail-with-body --silent --show-error --request POST \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'Content-Type: application/json' \
+              --data "$create_payload" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues"
+          fi

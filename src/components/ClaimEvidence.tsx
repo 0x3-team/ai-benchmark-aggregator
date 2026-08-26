@@ -266,7 +266,7 @@ export function ClaimEvidence({
 }: ClaimEvidenceProps) {
   const { officialRelease } = useDataset();
 
-  // A score-like legacy/demo entry is never enough to claim governed evidence.
+  // A score-like legacy/test entry is never enough to claim governed evidence.
   // The manifest lookup also prevents a stale mixed snapshot from producing a
   // partial source link if a caller supplies inconsistent test data.
   if (!resolveClaimEvidence(entry, officialRelease)) return null;

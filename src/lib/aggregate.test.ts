@@ -5,6 +5,7 @@ import {
   categoryLeader,
   categoryAverages,
   computeRanking,
+  RANK_COVERAGE_THRESHOLD,
   radarAverages,
   rankForBenchmark,
   sortModels,
@@ -176,6 +177,99 @@ describe("coverage-aware presentation ranking", () => {
     ]);
   });
 
+  it("penalizes missing scores across the immutable cohort before ranking eligible rows", () => {
+    const complete = fixtureModel("complete", "Complete");
+    const eligibleSparse = fixtureModel("eligible-sparse", "Eligible sparse");
+    const ineligibleSparse = fixtureModel("ineligible-sparse", "Ineligible sparse");
+    const noPublishedScores = fixtureModel("no-published-scores", "No published scores");
+    const lowerIsBetter = {
+      ...fixtureBenchmark("latency", "reasoning"),
+      higherIsBetter: false,
+    };
+    const benchmarks = [
+      lowerIsBetter,
+      fixtureBenchmark("second", "reasoning"),
+      fixtureBenchmark("third", "reasoning"),
+      fixtureBenchmark("fourth", "reasoning"),
+      fixtureBenchmark("fifth", "reasoning"),
+    ];
+    const fixture = createDatasetAccess({
+      models: [noPublishedScores, ineligibleSparse, eligibleSparse, complete],
+      benchmarks,
+      scores: [
+        { modelId: complete.id, benchmarkId: lowerIsBetter.id, value: 30, date: "2026-01-01" },
+        { modelId: complete.id, benchmarkId: "second", value: 80, date: "2026-01-01" },
+        { modelId: complete.id, benchmarkId: "third", value: 80, date: "2026-01-01" },
+        { modelId: complete.id, benchmarkId: "fourth", value: 80, date: "2026-01-01" },
+        { modelId: complete.id, benchmarkId: "fifth", value: 80, date: "2026-01-01" },
+        { modelId: eligibleSparse.id, benchmarkId: lowerIsBetter.id, value: 12, date: "2026-01-01" },
+        { modelId: eligibleSparse.id, benchmarkId: "second", value: 99, date: "2026-01-01" },
+        { modelId: eligibleSparse.id, benchmarkId: "third", value: 99, date: "2026-01-01" },
+        { modelId: ineligibleSparse.id, benchmarkId: lowerIsBetter.id, value: 20, date: "2026-01-01" },
+        { modelId: ineligibleSparse.id, benchmarkId: "second", value: 100, date: "2026-01-01" },
+      ],
+    });
+
+    const ranking = computeRanking(fixture.models, fixture.benchmarks, fixture.getValue);
+    const byId = new Map(ranking.map((row) => [row.model.id, row]));
+
+    expect(RANK_COVERAGE_THRESHOLD).toBe(0.6);
+    expect(ranking.map((row) => row.model.id)).toEqual([
+      "complete",
+      "eligible-sparse",
+      "ineligible-sparse",
+      "no-published-scores",
+    ]);
+    expect(
+      rankForBenchmark(fixture.models, lowerIsBetter, fixture.getValue).map((row) => [
+        row.model.id,
+        row.rank,
+      ])
+    ).toEqual([
+      ["no-published-scores", null],
+      ["ineligible-sparse", 2],
+      ["eligible-sparse", 1],
+      ["complete", 3],
+    ]);
+    expect(byId.get("eligible-sparse")).toMatchObject({
+      rank: 2,
+      avgRank: 2.8,
+      covered: 3,
+      total: 5,
+      coverage: 0.6,
+      unrankedReason: null,
+    });
+    expect(byId.get("complete")).toMatchObject({
+      rank: 1,
+      avgRank: 2,
+      covered: 5,
+      total: 5,
+    });
+    expect(byId.get("ineligible-sparse")).toMatchObject({
+      rank: null,
+      covered: 2,
+      total: 5,
+      unrankedReason: "incomplete_coverage",
+    });
+    expect(byId.get("no-published-scores")).toMatchObject({
+      rank: null,
+      covered: 0,
+      total: 5,
+      unrankedReason: "incomplete_coverage",
+    });
+
+    expect(
+      sortModels(
+        [noPublishedScores, ineligibleSparse, complete, eligibleSparse],
+        null,
+        fixture.benchmarks,
+        fixture.benchmarks,
+        fixture.getValue,
+        ranking
+      ).map((model) => model.id)
+    ).toEqual(["complete", "eligible-sparse", "ineligible-sparse", "no-published-scores"]);
+  });
+
   it("uses competition ranks for score ties and a stable model-id order for display", () => {
     const alpha = fixtureModel("alpha", "Alpha");
     const beta = fixtureModel("beta", "Beta");
@@ -208,6 +302,48 @@ describe("coverage-aware presentation ranking", () => {
         fixture.getValue
       ).map((model) => model.id)
     ).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  it("keeps an eligible sparse score tie as a competition tie after missing penalties", () => {
+    const alpha = fixtureModel("alpha", "Alpha");
+    const beta = fixtureModel("beta", "Beta");
+    const complete = fixtureModel("complete", "Complete");
+    const benchmarks = [
+      fixtureBenchmark("first", "reasoning"),
+      fixtureBenchmark("second", "reasoning"),
+      fixtureBenchmark("third", "reasoning"),
+      fixtureBenchmark("fourth", "reasoning"),
+      fixtureBenchmark("fifth", "reasoning"),
+    ];
+    const fixture = createDatasetAccess({
+      models: [complete, beta, alpha],
+      benchmarks,
+      scores: [
+        ...[alpha, beta].flatMap((model) => [
+          { modelId: model.id, benchmarkId: "first", value: 100, date: "2026-01-01" },
+          { modelId: model.id, benchmarkId: "second", value: 100, date: "2026-01-01" },
+          { modelId: model.id, benchmarkId: "third", value: 100, date: "2026-01-01" },
+        ]),
+        ...benchmarks.map((benchmark) => ({
+          modelId: complete.id,
+          benchmarkId: benchmark.id,
+          value: 50,
+          date: "2026-01-01",
+        })),
+      ],
+    });
+
+    expect(
+      computeRanking(fixture.models, fixture.benchmarks, fixture.getValue).map((row) => [
+        row.model.id,
+        row.rank,
+        row.avgRank,
+      ])
+    ).toEqual([
+      ["alpha", 1, 2.2],
+      ["beta", 1, 2.2],
+      ["complete", 3, 2.2],
+    ]);
   });
 
   it("labels all-missing and no-benchmark cohorts as unranked rather than assigning an ordinal", () => {

@@ -11,7 +11,7 @@ import { BenchmarkCard } from "./components/BenchmarkCard";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function demoFixture(): DatasetInput {
+function datasetFixture(): DatasetInput {
   return {
     models: [fixtureModel],
     benchmarks: [fixtureBenchmark],
@@ -20,14 +20,14 @@ function demoFixture(): DatasetInput {
 }
 
 function publishedFixture(): OfficialLoadResult {
-  const demo = demoFixture();
+  const fixture = datasetFixture();
   const model = {
-    ...demo.models[0],
+    ...fixture.models[0],
     id: "official-ui03-model",
     name: "Official UI-03 Model",
   };
   const benchmark = {
-    ...demo.benchmarks[0],
+    ...fixture.benchmarks[0],
     id: "official-ui03-benchmark",
     name: "Official UI-03 Bench",
     fullName: "Official UI-03 Benchmark",
@@ -57,7 +57,7 @@ function publishedFixture(): OfficialLoadResult {
       benchmarks: [benchmark],
       scores: [
         {
-          ...demo.scores[0],
+          ...fixture.scores[0],
           modelId: model.id,
           benchmarkId: benchmark.id,
           value: 77,
@@ -73,7 +73,7 @@ function publishedFixture(): OfficialLoadResult {
   };
 }
 
-function wideDemoFixture(): DatasetInput {
+function wideDatasetFixture(): DatasetInput {
   const benchmarks = Array.from({ length: 13 }, (_, index) => ({
     ...fixtureBenchmark,
     id: `fixture-wide-bench-${index + 1}`,
@@ -87,6 +87,83 @@ function wideDemoFixture(): DatasetInput {
       ...fixtureScore,
       benchmarkId: benchmark.id,
     })),
+  };
+}
+
+function widePublishedFixture(): OfficialLoadResult {
+  const result = publishedFixture();
+  if (result.availability !== "published") throw new Error("Expected a published fixture.");
+  const data = wideDatasetFixture();
+  return {
+    ...result,
+    artifact: {
+      ...result.artifact,
+      artifactId: "official-wide-artifact",
+      manifest: {
+        ...result.artifact.manifest,
+        benchmarkCount: data.benchmarks.length,
+        scoreCount: data.scores.length,
+        contentSha256: "c".repeat(64),
+      },
+    },
+    data,
+  };
+}
+
+function sparsePublishedFixture(
+  artifactId = "official-sparse-artifact",
+  contentSha256 = "d".repeat(64)
+): OfficialLoadResult {
+  const result = publishedFixture();
+  if (result.availability !== "published") throw new Error("Expected a published fixture.");
+  const models = [
+    { ...fixtureModel, id: "sparse-complete", name: "Complete Model" },
+    { ...fixtureModel, id: "sparse-eligible", name: "Eligible Sparse Model" },
+    { ...fixtureModel, id: "sparse-ineligible", name: "Ineligible Sparse Model" },
+    { ...fixtureModel, id: "sparse-zero", name: "No Published Scores Model" },
+  ];
+  const benchmarks = Array.from({ length: 5 }, (_, index) => ({
+    ...fixtureBenchmark,
+    id: `sparse-benchmark-${index + 1}`,
+    name: `Sparse Bench ${index + 1}`,
+    fullName: `Sparse Benchmark ${index + 1}`,
+  }));
+  const score = (modelId: string, benchmarkIndex: number, value: number) => ({
+    ...fixtureScore,
+    modelId,
+    benchmarkId: benchmarks[benchmarkIndex].id,
+    value,
+  });
+
+  return {
+    ...result,
+    artifact: {
+      ...result.artifact,
+      artifactId,
+      manifest: {
+        ...result.artifact.manifest,
+        contentSha256,
+        modelCount: models.length,
+        benchmarkCount: benchmarks.length,
+        scoreCount: 10,
+      },
+    },
+    data: {
+      models,
+      benchmarks,
+      scores: [
+        score("sparse-complete", 0, 50),
+        score("sparse-complete", 1, 80),
+        score("sparse-complete", 2, 80),
+        score("sparse-complete", 3, 80),
+        score("sparse-complete", 4, 80),
+        score("sparse-eligible", 0, 99),
+        score("sparse-eligible", 1, 99),
+        score("sparse-eligible", 2, 99),
+        score("sparse-ineligible", 0, 100),
+        score("sparse-ineligible", 1, 100),
+      ],
+    },
   };
 }
 
@@ -115,33 +192,32 @@ function modelSelectionCheckbox(container: HTMLElement): HTMLInputElement {
   return checkbox;
 }
 
-describe("App data-mode transition", () => {
-  it("contains an invalid selected dataset without silently rendering Demo fallback data", () => {
+describe("App Official data boundary", () => {
+  it("contains an invalid published dataset without silently rendering fallback data", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
-    const demo = demoFixture();
+    const fixture = datasetFixture();
     const invalid: DatasetInput = {
-      ...demo,
-      scores: [...demo.scores, { ...demo.scores[0] }],
+      ...fixture,
+      scores: [...fixture.scores, { ...fixture.scores[0] }],
     };
-    const unavailable: OfficialLoadResult = {
-      availability: "unavailable",
-      reason: "No governed release authorization is configured for this build.",
-    };
+    const published = publishedFixture();
+    if (published.availability !== "published") throw new Error("Expected a published fixture.");
+    const invalidPublished: OfficialLoadResult = { ...published, data: invalid };
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     try {
       act(() => {
         root.render(
-          <AppWithDataSources demoData={invalid} officialLoadResult={unavailable} />
+          <AppWithDataSources officialLoadResult={invalidPublished} />
         );
       });
 
       const heading = container.querySelector("#dataset-error-title");
       expect(heading?.textContent).toBe("Data display unavailable");
       expect(container.textContent).toContain("No fallback dataset was selected.");
-      expect(container.textContent).not.toContain(demo.models[0].name);
+      expect(container.textContent).not.toContain(fixture.models[0].name);
       expect(container.querySelector("button")?.textContent).toBe("Try again");
       expect(document.activeElement).toBe(heading);
     } finally {
@@ -151,86 +227,134 @@ describe("App data-mode transition", () => {
     }
   });
 
-  it("keeps Demo selected and announces why when Official is unavailable", () => {
+  it("renders the tracked unavailable result as an honest empty awaiting state", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
-    const demo = demoFixture();
     const unavailable: OfficialLoadResult = {
       availability: "unavailable",
       reason: "No governed release authorization is configured for this build.",
+      artifactId: "official-unavailable-test",
     };
 
     try {
       act(() => {
         root.render(
-          <AppWithDataSources demoData={demo} officialLoadResult={unavailable} />
+          <AppWithDataSources officialLoadResult={unavailable} />
         );
       });
-      const official = buttonStartingWith(container, "Official unavailable");
-      official.focus();
-      act(() => official.click());
-
       const status = container.querySelector("#official-data-status");
       expect(status?.getAttribute("role")).toBe("status");
+      expect(status?.textContent).toContain("Awaiting Official publication");
       expect(status?.textContent).toContain("No benchmark data is currently published");
-      expect(status?.textContent).toContain("Official claims unavailab");
-      expect(container.textContent).toContain(demo.models[0].name);
-      expect(document.activeElement).toBe(official);
+      expect(container.textContent).toContain("0 models · 0 benchmarks · Awaiting publication");
+      expect(container.textContent).toContain("No benchmark claims are published in this build");
+      expect(container.textContent).not.toContain(fixtureModel.name);
+      expect(container.querySelector('[aria-label="Data source"]')).toBeNull();
     } finally {
       act(() => root.unmount());
       container.remove();
     }
   });
 
-  it("atomically resets data-dependent UI state and restores focus when switching to a verified Official result", () => {
+  it("renders a verified Official result directly with governed release metadata", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
-    const demo = demoFixture();
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={publishedFixture()} />);
+      });
+      expect(container.textContent).toContain("Official UI-03 Model");
+      expect(container.textContent).toContain("official-ui03-artifact");
+      expect(container.textContent).toContain("1 models · 1 benchmarks · Official claims");
+      expect(container.textContent).not.toContain("0 models · 0 benchmarks · Awaiting publication");
+      expect(container.querySelector('[aria-label="Data source"]')).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("uses a 60% immutable cohort threshold and hides zero-score models until requested", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
 
     try {
       act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+
+      const caption = container.querySelector("caption")?.textContent;
+      expect(caption).toBe("Official benchmark scores and coverage-adjusted presentation rankings.");
+      expect(container.querySelector("table")?.getAttribute("aria-describedby")).toBe(
+        "overall-ranking-policy"
+      );
+      const policy = container.querySelector("#overall-ranking-policy")?.textContent;
+      expect(policy).toContain("UI-only");
+      expect(policy).toContain("at least 60%");
+      expect(policy).toContain("3 of 5 benchmarks");
+      expect(policy).toContain("published-score coverage");
+      expect(policy).toContain("Each missing score counts as rank 5");
+      const rows = Array.from(container.querySelectorAll("tbody tr"));
+      expect(rows[0].textContent).toContain("Complete Model");
+      expect(rows[1].textContent).toContain("Eligible Sparse Model");
+      expect(rows[2].textContent).toContain("Ineligible Sparse Model");
+      expect(container.textContent).not.toContain("No Published Scores Model");
+
+      const toggle = container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      ) as HTMLButtonElement;
+      expect(toggle).toBeTruthy();
+      expect(toggle.getAttribute("aria-checked")).toBe("false");
+      act(() => toggle.click());
+      expect(toggle.getAttribute("aria-checked")).toBe("true");
+      expect(container.textContent).toContain("No Published Scores Model");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("resets the zero-score visibility control when the Official snapshot remounts", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={sparsePublishedFixture()} />);
+      });
+      const toggle = container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      ) as HTMLButtonElement;
+      act(() => toggle.click());
+      expect(container.textContent).toContain("No Published Scores Model");
+
+      act(() => {
         root.render(
           <AppWithDataSources
-            demoData={demo}
-            officialLoadResult={publishedFixture()}
+            officialLoadResult={sparsePublishedFixture(
+              "official-sparse-artifact-next",
+              "e".repeat(64)
+            )}
           />
         );
       });
 
-      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
-      const searchTerm = demo.models[0].name.toLowerCase();
-      setSearch(search, searchTerm);
-      expect(search.value).toBe(searchTerm);
-
-      const checkbox = modelSelectionCheckbox(container);
-      act(() => checkbox.click());
-      expect(checkbox.checked).toBe(true);
-
-      const sortButton = container.querySelector('[aria-label^="Sort by"]') as HTMLButtonElement;
-      act(() => sortButton.click());
-      expect(container.textContent).toContain("Sorted by");
-
-      const official = buttonStartingWith(container, "Official");
-      act(() => official.click());
-
-      const returnedSearch = container.querySelector('input[type="search"]') as HTMLInputElement;
-      const returnedCheckbox = modelSelectionCheckbox(container);
-      expect(returnedSearch).toBeTruthy();
-      expect(returnedSearch.value).toBe("");
-      expect(returnedCheckbox.checked).toBe(false);
-      expect(container.textContent).not.toContain("Sorted by");
-      expect(container.textContent).toContain("Official UI-03 Model");
-      expect(container.textContent).toContain("official-ui03-artifact");
-      expect(document.activeElement).toBe(official);
+      const resetToggle = container.querySelector(
+        '[aria-label="Show models with no published scores"]'
+      ) as HTMLButtonElement;
+      expect(resetToggle.getAttribute("aria-checked")).toBe("false");
+      expect(container.textContent).not.toContain("No Published Scores Model");
     } finally {
       act(() => root.unmount());
       container.remove();
     }
   });
 
-  it("resets show-all benchmark state when switching sources", () => {
+  it("resets all dependent state when the governed Official source changes", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -238,10 +362,7 @@ describe("App data-mode transition", () => {
     try {
       act(() => {
         root.render(
-          <AppWithDataSources
-            demoData={wideDemoFixture()}
-            officialLoadResult={publishedFixture()}
-          />
+          <AppWithDataSources officialLoadResult={widePublishedFixture()} />
         );
       });
 
@@ -249,13 +370,24 @@ describe("App data-mode transition", () => {
       act(() => showAll.click());
       expect(container.textContent).toContain("Show fewer benchmarks");
 
-      const official = buttonStartingWith(container, "Official");
-      act(() => official.click());
-      const data = buttonStartingWith(container, "Data");
-      act(() => data.click());
+      const search = container.querySelector('input[type="search"]') as HTMLInputElement;
+      setSearch(search, fixtureModel.name.toLowerCase());
+      const checkbox = modelSelectionCheckbox(container);
+      act(() => checkbox.click());
+      const sortButton = container.querySelector('[aria-label^="Sort by"]') as HTMLButtonElement;
+      act(() => sortButton.click());
 
-      expect(container.textContent).toContain("Show all 13 benchmarks");
+      act(() => {
+        root.render(<AppWithDataSources officialLoadResult={publishedFixture()} />);
+      });
+
+      const returnedSearch = container.querySelector('input[type="search"]') as HTMLInputElement;
+      const returnedCheckbox = modelSelectionCheckbox(container);
+      expect(returnedSearch.value).toBe("");
+      expect(returnedCheckbox.checked).toBe(false);
       expect(container.textContent).not.toContain("Show fewer benchmarks");
+      expect(container.textContent).not.toContain("Sorted by");
+      expect(container.textContent).toContain("Official UI-03 Model");
     } finally {
       act(() => root.unmount());
       container.remove();

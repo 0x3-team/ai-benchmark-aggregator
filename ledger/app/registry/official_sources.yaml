@@ -149,6 +149,43 @@ sources:
       mode: retired
       retirement_reason: third-party fallback route is not source-reported benchmark evidence
 
+  - id: lmarena_first_party_leaderboard_candidate
+    benchmark_id: chatbot_arena
+    source_name: LMArena first-party leaderboard dataset candidate
+    source_url: https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset/resolve/952c8f01f0c60d7762daab67639afec1722e6c2b/text_style_control/latest-00000-of-00001.parquet
+    source_type: lmarena_leaderboard_parquet
+    officialness_level: O5
+    machine_readable: true
+    requires_auth: false
+    supports_history: true
+    update_cadence: manual
+    parser_name: lmarena_leaderboard_parquet
+    parser_version: fixture-candidate-v1
+    status: inactive
+    notes: "Candidate only; not certified. Exact immutable revision candidate 952c8f01f0c60d7762daab67639afec1722e6c2b is first-party CC BY 4.0. Attribution, license notice, modification/display requirements, category inventory, Arena Score semantics, stable final URL, connected-peer transport, owner review, and source certification remain blockers. Fixture-only adapter; no live fetch, snapshot, claim, database, transport, or publication authorization."
+    parser_config:
+      mode: candidate
+      certification_status: not_certified
+      dataset_id: lmarena-ai/leaderboard-dataset
+      dataset_revision: 952c8f01f0c60d7762daab67639afec1722e6c2b
+      config: text_style_control
+      split: latest
+      artifact_path: text_style_control/latest-00000-of-00001.parquet
+      benchmark_raw: chatbot_arena
+      metric_raw: Arena Score
+      setting_raw: text_style_control
+      field_map:
+        model_raw: model_name
+        score_raw: rating
+        split_raw: category
+        evaluation_version_raw: leaderboard_publish_date
+        rank_raw: rank
+      omitted_context_fields:
+        - rating_lower
+        - rating_upper
+        - variance
+        - vote_count
+
   - id: artificial_analysis_leaderboard
     benchmark_id: artificial_analysis
     source_name: Artificial Analysis Leaderboard

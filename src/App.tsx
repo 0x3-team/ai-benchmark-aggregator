@@ -1,17 +1,17 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import type { BenchmarkCategory } from "./types";
-import { models as catalogModels } from "./data/models";
-import { benchmarks as catalogBenchmarks } from "./data/benchmarks";
-import { getScores } from "./data/scores";
 import {
   DatasetProvider,
   useDataset,
-  type DatasetInput,
   type DatasetModel,
 } from "./data/dataset";
 import { loadOfficialData, type OfficialLoadResult } from "./data/official";
-import { selectDataset } from "./data/dataSelection";
-import { computeRanking, sortModels, type RankRow } from "./lib/aggregate";
+import { selectOfficialDataset } from "./data/dataSelection";
+import {
+  computeRanking,
+  sortModels,
+  type RankRow,
+} from "./lib/aggregate";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ScoreTable } from "./components/ScoreTable";
@@ -24,7 +24,6 @@ import {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
-import { DATA_MODE_LABEL, type DataMode } from "./data/dataMode";
 import {
   Sheet,
   SheetContent,
@@ -74,12 +73,6 @@ const CatalogSharePie = lazy(() =>
   }))
 );
 
-const DEMO_DATASET: DatasetInput = {
-  models: catalogModels,
-  benchmarks: catalogBenchmarks,
-  scores: getScores(),
-};
-
 function Toaster() {
   const { toasts } = useToast();
   return (
@@ -100,46 +93,33 @@ function Toaster() {
 
 export default function App() {
   const officialLoadResult = useMemo(() => loadOfficialData(), []);
-  return (
-    <AppWithDataSources
-      demoData={DEMO_DATASET}
-      officialLoadResult={officialLoadResult}
-    />
-  );
+  return <AppWithDataSources officialLoadResult={officialLoadResult} />;
 }
 
 /**
- * The production App supplies only the fixed containment loader above. This
- * exported seam lets UI tests exercise a previously verified published result
- * without giving the runtime a second artifact import or a fallback path.
+ * The production App supplies only the fixed Official loader above. This seam
+ * lets UI tests exercise a previously verified published result without giving
+ * the runtime a second artifact import, sample path, or fallback dataset.
  */
 export function AppWithDataSources({
-  demoData,
   officialLoadResult,
 }: {
-  demoData: DatasetInput;
   officialLoadResult: OfficialLoadResult;
 }) {
-  // The discriminated selection is intentionally above DatasetProvider: every
-  // commit receives one matching mode label and immutable data snapshot. The
-  // current loader returns the tracked unavailable artifact, so `official`
-  // can never become selected without a later REL-05 release authorization.
-  const [requestedDataMode, setRequestedDataMode] = useState<DataMode>("demo");
   const selection = useMemo(
-    () => selectDataset(requestedDataMode, demoData, officialLoadResult),
-    [requestedDataMode, demoData, officialLoadResult]
+    () => selectOfficialDataset(officialLoadResult),
+    [officialLoadResult]
   );
 
   return (
     <AppErrorBoundary
       resetKey={selection.data}
-      sourceLabel={DATA_MODE_LABEL[selection.mode]}
+      sourceLabel="Official"
     >
-      <DatasetProvider data={selection.data}>
+      <DatasetProvider key={selection.key} data={selection.data}>
         <AppContent
-          dataMode={selection.mode}
+          dataStatus={selection.status}
           officialLoadResult={selection.official}
-          onRequestedDataModeChange={setRequestedDataMode}
         />
       </DatasetProvider>
     </AppErrorBoundary>
@@ -147,15 +127,13 @@ export function AppWithDataSources({
 }
 
 interface AppContentProps {
-  dataMode: DataMode;
+  dataStatus: "awaiting-publication" | "official";
   officialLoadResult: OfficialLoadResult;
-  onRequestedDataModeChange: (mode: DataMode) => void;
 }
 
 function AppContent({
-  dataMode,
+  dataStatus,
   officialLoadResult,
-  onRequestedDataModeChange,
 }: AppContentProps) {
   const [view, setView] = useState<"table" | "compare">("table");
   const [search, setSearch] = useState("");
@@ -167,11 +145,8 @@ function AppContent({
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const [officialUnavailableAnnouncement, setOfficialUnavailableAnnouncement] = useState<string | null>(
-    null
-  );
-  const [officialUnavailableAnnouncementId, setOfficialUnavailableAnnouncementId] = useState(0);
   const [showAllBenchmarks, setShowAllBenchmarks] = useState(false);
+  const [showModelsWithNoPublishedScores, setShowModelsWithNoPublishedScores] = useState(false);
   const { toast } = useToast();
 
   const officialUnavailableReason =
@@ -183,8 +158,8 @@ function AppContent({
       ? officialLoadResult.artifact
       : undefined;
 
-  // Every data-dependent render reads the atomic provider snapshot selected
-  // above this component. No handler can relabel a Demo snapshot as Official.
+  // Every data-dependent render reads the atomic Official provider snapshot
+  // selected above this component.
   const {
     models: activeModels,
     benchmarks: activeBenchmarks,
@@ -237,10 +212,29 @@ function AppContent({
     [activeModels, activeBenchmarks, getValue]
   );
 
+  const rankMap = useMemo(() => {
+    const map: Record<string, RankRow> = {};
+    presentationRanking.forEach((row) => (map[row.model.id] = row));
+    return map;
+  }, [presentationRanking]);
+
+  const modelsWithPublishedScores = useMemo(
+    () =>
+      showModelsWithNoPublishedScores
+        ? filteredModels
+        : filteredModels.filter((model) => (rankMap[model.id]?.covered ?? 0) > 0),
+    [filteredModels, rankMap, showModelsWithNoPublishedScores]
+  );
+
+  const hasModelsWithNoPublishedScores = useMemo(
+    () => presentationRanking.some((row) => row.covered === 0),
+    [presentationRanking]
+  );
+
   const sortedModels = useMemo(
     () =>
       sortModels(
-        filteredModels,
+        modelsWithPublishedScores,
         sort,
         visibleBenchmarks,
         activeBenchmarks,
@@ -248,7 +242,7 @@ function AppContent({
         presentationRanking
       ),
     [
-      filteredModels,
+      modelsWithPublishedScores,
       sort,
       visibleBenchmarks,
       activeBenchmarks,
@@ -256,12 +250,6 @@ function AppContent({
       presentationRanking,
     ]
   );
-
-  const rankMap = useMemo(() => {
-    const map: Record<string, RankRow> = {};
-    presentationRanking.forEach((row) => (map[row.model.id] = row));
-    return map;
-  }, [presentationRanking]);
 
   const selectedBenchmark = selectedBenchmarkId
     ? activeBenchmarks.find((b) => b.id === selectedBenchmarkId) ?? null
@@ -330,35 +318,8 @@ function AppContent({
     setVendorFilter(new Set());
     setCategoryFilter(null);
     setOpenWeightsOnly(false);
+    setShowModelsWithNoPublishedScores(false);
     setSort(null);
-  }
-
-  function resetDataDependentState() {
-    // React batches this event's state work with the selected dataset change.
-    // A future Official release may have different ids, categories, and
-    // availability, so no old filter, sort, selection, or Compare view may
-    // survive the trust-boundary transition.
-    setView("table");
-    clearFilters();
-    setSelectedBenchmarkId(null);
-    setSelectedModelId(null);
-    setSelectedModels([]);
-    setShowAllBenchmarks(false);
-    setGlossaryOpen(false);
-  }
-
-  function handleDataModeChange(next: DataMode) {
-    if (next === "official" && officialLoadResult.availability !== "published") {
-      const message = `Official claims are not yet available. ${officialLoadResult.reason}`;
-      setOfficialUnavailableAnnouncement(message);
-      setOfficialUnavailableAnnouncementId((current) => current + 1);
-      toast({ description: message });
-      return;
-    }
-    if (next === dataMode) return;
-    setOfficialUnavailableAnnouncement(null);
-    onRequestedDataModeChange(next);
-    resetDataDependentState();
   }
 
   function openModel(id: string) {
@@ -381,13 +342,9 @@ function AppContent({
             onViewChange={setView}
             selectedCount={selectedModels.length}
             onOpenGlossary={() => setGlossaryOpen(true)}
-            dataModeLabel={DATA_MODE_LABEL[dataMode]}
-            dataMode={dataMode}
-            onDataModeChange={handleDataModeChange}
+            dataStatus={dataStatus}
             officialUnavailableReason={officialUnavailableReason}
             officialArtifact={officialArtifact}
-            officialUnavailableAnnouncement={officialUnavailableAnnouncement}
-            officialUnavailableAnnouncementId={officialUnavailableAnnouncementId}
           />
 
           {view === "table" ? (
@@ -395,11 +352,11 @@ function AppContent({
               {activeModels.length === 0 ? (
                 <div className="glass-strong flex flex-col items-center justify-center gap-3 rounded-xl px-6 py-24 text-center">
                   <p className="text-lg font-semibold text-foreground">
-                    No benchmark data yet
+                    Awaiting Official publication
                   </p>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    This platform displays only verified, source-backed benchmark results.
-                    Data will appear here once official source captures are published.
+                    No benchmark claims are published in this build. Data will appear here only
+                    after a governed Official release is approved and bundled.
                   </p>
                 </div>
               ) : (
@@ -416,6 +373,9 @@ function AppContent({
                 onToggleOpenWeights={setOpenWeightsOnly}
                 onClear={clearFilters}
                 resultCount={sortedModels.length}
+                hasModelsWithNoPublishedScores={hasModelsWithNoPublishedScores}
+                showModelsWithNoPublishedScores={showModelsWithNoPublishedScores}
+                onToggleModelsWithNoPublishedScores={setShowModelsWithNoPublishedScores}
               />
               <CategoryLeaders
                 models={activeModels}
