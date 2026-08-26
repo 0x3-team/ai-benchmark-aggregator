@@ -29,9 +29,9 @@ repository.
 5. Use the active session's declared fallback order. Settle and record every
    failed, stale, unavailable, or ineligible predecessor. If no declared matrix
    exists, do not invent one.
-6. For integrity-critical work, use a reviewer from a different provider than
-   the author. This rule overrides any mechanical-edit exemption. No route
-   reviews its own output.
+6. For integrity-critical work, use a reviewer whose underlying model vendor
+   differs from the author's underlying model vendor. This rule overrides any
+   mechanical-edit exemption. No route reviews its own output.
 7. The owner inspects every delegated result and records one disposition:
    accepted, reworked, rejected, or blocked. A worker statement or diff is not
    acceptance evidence.
@@ -40,7 +40,8 @@ repository.
 
 ## Cost and receipt rules
 
-- A paid operation needs explicit owner approval.
+- Paid model, tool, compute, and other orchestration operations are prohibited
+  for this repository.
 - Estimated and actual cost fields state amount, currency or platform unit,
   measurement source, and whether they cover model use, compute time, tool use,
   or quota consumption. Do not report zero marginal token cost as zero total

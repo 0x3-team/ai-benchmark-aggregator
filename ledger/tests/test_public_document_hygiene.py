@@ -17,12 +17,12 @@ PUBLIC_CHECKPOINT_DOCUMENTS = (
     "docs/plans/2026-08-26-real-data-only-production-launch-execution-plan.md",
     "docs/plans/2026-08-26-real-data-only-production-launch-execution-plan-implementation-ledger.jsonl",
     "docs/receipts/2026-08-26-p11-permalinks-local-acceptance.md",
+)
+PUBLIC_ORCHESTRATION_SKILLS = (
     ".agents/skills/quality-orchestration/SKILL.md",
     ".agents/skills/release-verification/SKILL.md",
 )
 FORBIDDEN_OPERATIONAL_FRAGMENTS = (
-    "anthropic/",
-    "capy api",
     '"cost_tier":',
     '"effective_effort":',
     '"fast_status":',
@@ -34,18 +34,22 @@ FORBIDDEN_OPERATIONAL_FRAGMENTS = (
     '"route":',
     ".commandcode/",
     "codex in-app browser",
-    "codex/gpt-",
     "codex native worker",
     "computer use used gpt-",
-    "deepseek/",
     "devin cli",
-    "gpt-5.6-",
     "luna high",
-    "moonshotai/",
     "orca native browser",
-    "price appendix",
     "provider log attestation",
     "sol max",
+)
+FORBIDDEN_SKILL_ROUTE_FRAGMENTS = (
+    "anthropic/",
+    "capy api",
+    "codex/gpt-",
+    "deepseek/",
+    "gpt-5.6-",
+    "moonshotai/",
+    "price appendix",
     "supergrok/",
     "xai/",
     "zai/",
@@ -70,12 +74,17 @@ def test_public_checkpoint_documents_omit_local_routing_evidence() -> None:
     for relative_path in REMOVED_LOCAL_RECEIPTS:
         assert relative_path not in combined_text
 
-    for relative_path in PUBLIC_CHECKPOINT_DOCUMENTS:
+    for relative_path in (*PUBLIC_CHECKPOINT_DOCUMENTS, *PUBLIC_ORCHESTRATION_SKILLS):
         text = (REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8")
         lowered = text.lower()
         for fragment in FORBIDDEN_OPERATIONAL_FRAGMENTS:
             assert fragment not in lowered, f"{relative_path} contains {fragment!r}"
         assert LOCAL_RUNTIME_ID.search(text) is None
+
+    for relative_path in PUBLIC_ORCHESTRATION_SKILLS:
+        lowered = (REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8").lower()
+        for fragment in FORBIDDEN_SKILL_ROUTE_FRAGMENTS:
+            assert fragment not in lowered, f"{relative_path} contains {fragment!r}"
 
 
 def test_redacted_implementation_ledger_remains_valid_json_lines() -> None:
@@ -87,16 +96,22 @@ def test_redacted_implementation_ledger_remains_valid_json_lines() -> None:
 
 
 def test_public_skills_keep_route_neutral_acceptance_contracts() -> None:
-    quality = (REPOSITORY_ROOT / PUBLIC_CHECKPOINT_DOCUMENTS[5]).read_text(
+    quality = (REPOSITORY_ROOT / PUBLIC_ORCHESTRATION_SKILLS[0]).read_text(
         encoding="utf-8"
     )
-    release = (REPOSITORY_ROOT / PUBLIC_CHECKPOINT_DOCUMENTS[6]).read_text(
+    release = (REPOSITORY_ROOT / PUBLIC_ORCHESTRATION_SKILLS[1]).read_text(
         encoding="utf-8"
     )
 
     assert "owner inspects every delegated result" in quality
     assert re.search(
-        r"reviewer from a different\s+provider than\s+the author",
+        r"reviewer whose underlying model vendor\s+differs from the author's "
+        r"underlying model vendor",
+        quality,
+    )
+    assert re.search(
+        r"Paid model, tool, compute, and other orchestration operations are "
+        r"prohibited\s+for this repository",
         quality,
     )
     assert "must remain public" in release
