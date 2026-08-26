@@ -256,6 +256,47 @@ def test_review_queue_single_pass_reason_rendering(db, monkeypatch):
     )
 
 
+def test_review_export_csv_is_safe_and_invalid_requests_are_redacted(db, monkeypatch):
+    claim, projection = _claim(
+        model_raw="=SUM(1,1)\nmodel\u202e",
+        benchmark_raw="benchmark",
+        score_raw="1",
+        capture_status="needs_review",
+        chain_error="secret cursor details",
+    )
+    page = repo.ReviewQueuePage(
+        items=[repo.ReviewQueueItem(claim=claim, projection=projection)],
+        next_cursor="v1.safe-cursor",
+        exhausted=False,
+        scanned=1,
+    )
+    monkeypatch.setattr(
+        repo,
+        "list_review_queue_page",
+        lambda session, limit=50, cursor=None: page,
+    )
+    result = runner.invoke(app, ["review", "export-csv", "--limit", "1"])
+    assert result.exit_code == 0, result.output
+    assert result.stdout_bytes.endswith(b"\r\n")
+    assert b"\r\n" in result.stdout_bytes
+    assert result.stdout.startswith('"record_type"')
+    assert "text:=SUM(1,1)\\nmodel\\u202e" in result.stdout
+    assert "secret cursor details" not in result.stdout
+    assert "score_raw" not in result.stdout
+    for token in ("\x1b", "\u202e", "\r"):
+        assert token not in result.stdout
+
+    def invalid_page(*_args, **_kwargs):
+        raise ValueError("v1.private-cursor")
+
+    monkeypatch.setattr(repo, "list_review_queue_page", invalid_page)
+    invalid = runner.invoke(app, ["review", "export-csv", "--cursor", "v1.private-cursor"])
+    assert invalid.exit_code == 2
+    assert invalid.stdout == ""
+    assert "v1.private-cursor" not in invalid.output
+    assert "Identity review CSV export blocked: invalid limit or cursor." in invalid.output
+
+
 def test_ingest_dry_run_sample_and_summary_error_are_sanitized(db, monkeypatch):
     values = _adversarial_values()
     summary = IngestionSummary(

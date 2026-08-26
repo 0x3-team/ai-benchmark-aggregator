@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import sys
 from typing import Optional
 import unicodedata
 
@@ -69,6 +70,7 @@ from app.reporting.coverage_census import (
     canonical_coverage_json,
     render_coverage_markdown,
 )
+from app.reporting.identity_review import build_identity_review_csv
 
 
 def _terminal_render(value: object) -> str:
@@ -896,6 +898,59 @@ def review_queue(limit: int = 50, cursor: Optional[str] = None) -> None:
             )
         elif page.exhausted:
             typer.echo("Scanned: {page.scanned} | Review queue exhausted (no more claims).".format(page=page))
+
+
+@review_app.command("export-csv")
+def review_export_csv(
+    limit: str = typer.Option("50", "--limit"),
+    cursor: Optional[str] = typer.Option(None, "--cursor"),
+) -> None:
+    """Export one bounded identity-review page as deterministic CSV.
+
+    The export is a read-only decision-support view.  It uses the same strict
+    limit and cursor validation as ``review queue`` and never changes claims,
+    review decisions, or publication decisions.
+    """
+    try:
+        # Keep the raw option as text until this guarded parser.  If Typer
+        # annotated this option as ``int``, Click would emit its own value
+        # (and potentially echo the supplied token) before our fixed,
+        # redacted error boundary could run.
+        if isinstance(limit, str):
+            if not limit or not limit.isascii() or not limit.isdecimal():
+                raise ValueError("limit must be an ASCII decimal")
+            parsed_limit = int(limit, 10)
+        elif isinstance(limit, int) and not isinstance(limit, bool):
+            # Direct Python callers of this command are kept strict too.
+            parsed_limit = limit
+        else:
+            raise ValueError("limit must be an ASCII decimal")
+        with get_session() as session:
+            page = repo.list_review_queue_page(
+                session,
+                limit=parsed_limit,
+                cursor=cursor,
+            )
+            # Build all bytes while the read-only session is still open, but do
+            # not write anything until serialization has completed successfully.
+            payload = build_identity_review_csv(page)
+    except ValueError:
+        # Do not echo the caller's limit/cursor or repository parser details.
+        # In particular, an opaque cursor may contain sensitive data in a
+        # future implementation.  Invalid requests have one stable response.
+        typer.echo(
+            "Identity review CSV export blocked: invalid limit or cursor.",
+            err=True,
+        )
+        raise typer.Exit(code=2) from None
+    # Write the already-complete bytes directly.  Going through ``typer.echo``
+    # would permit a text wrapper to normalize the required CRLF delimiters.
+    output = getattr(sys.stdout, "buffer", None)
+    if output is None:  # pragma: no cover - defensive for unusual embedders
+        sys.stdout.write(payload.decode("utf-8"))
+    else:
+        output.write(payload)
+        output.flush()
 
 
 @review_app.command("show")
