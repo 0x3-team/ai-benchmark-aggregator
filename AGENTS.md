@@ -63,6 +63,7 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 - Fixture tests for every adapter.
 - Run ledger tests: `cd ledger && pytest -q`.
 - Run frontend: `npm run typecheck` and `npm run build`.
+- If GitHub Actions is billing-blocked (jobs fail in seconds with a billing annotation), temporarily switch the repo to public so CI runs on free minutes, then switch it back to private; scan for committed secrets before any flip, and note visibility changes need a human with repo admin.
 - Update README/AGENTS when CLI or trust UI changes.
 
 ## Local model orchestration
