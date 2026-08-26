@@ -2,7 +2,8 @@
   "base": "3bffe66c97beddaae71d5c4947cfc6145592848a",
   "date": "2026-08-26",
   "owner": "parent implementation orchestrator",
-  "privacy": "private repository; no secrets or runtime data delegated",
+  "privacy_at_routing": "private repository; no secrets or runtime data delegated",
+  "current_repository_visibility": "public",
   "lanes": [
     {"lane":"P1 transport","route":"codex subscription","model":"gpt-5.6-sol","effort":"xhigh","scope":"bounded candidate implementation; parent owns security acceptance"},
     {"lane":"P2 REL-05","route":"codex subscription","model":"gpt-5.6-sol","effort":"xhigh","scope":"bounded candidate implementation; parent owns shared contract and integration"},
