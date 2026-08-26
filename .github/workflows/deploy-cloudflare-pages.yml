@@ -81,7 +81,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - name: Require REL-05 governed release composition
         shell: bash
@@ -117,6 +117,28 @@ jobs:
         run: npm run verify:bundle-budget
       - name: Verify Pages workflow controls
         run: npm run verify:pages-workflows
+      - name: Verify Direct Upload Pages project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_PAGES_PROJECT; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Required deployment secret $variable is not configured."
+              exit 1
+            fi
+          done
+          project_json="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            --header 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CLOUDFLARE_PAGES_PROJECT")"
+          if ! jq -e '(.success == true) and (.result.source? == null)' >/dev/null <<<"$project_json"; then
+            echo '::error::Cloudflare Pages project must be a Direct Upload project without a Git source.'
+            exit 1
+          fi
       - name: Deploy exact dist
         id: deploy
         env:

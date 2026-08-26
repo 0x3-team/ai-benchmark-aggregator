@@ -59,9 +59,19 @@ for header in \
   '^referrer-policy: strict-origin-when-cross-origin' \
   '^x-frame-options: deny' \
   '^permissions-policy:' \
-  '^content-security-policy:'; do
+  '^content-security-policy-report-only:'; do
   require_header "$header" "$work_dir/root.final.headers"
 done
+if grep -Eiq '^content-security-policy:' "$work_dir/root.final.headers"; then
+  echo 'Root response has enforcing Content-Security-Policy before HOST-03 evidence.' >&2
+  exit 1
+fi
+if [[ "$base_url" == https://*.pages.dev ]]; then
+  require_header '^x-robots-tag:.*noindex' "$work_dir/root.final.headers"
+elif grep -Eiq '^x-robots-tag:.*noindex' "$work_dir/root.final.headers"; then
+  echo 'Canonical host root response must not be noindexed.' >&2
+  exit 1
+fi
 grep -Eiq '<link rel="canonical" href="https://benchmark\.0x3\.dev/"' "$work_dir/root.html" || {
   echo 'Root response is missing the expected canonical URL.' >&2
   exit 1
@@ -72,6 +82,8 @@ not_found_status="$(request "/pages-smoke-not-found-$RANDOM" "$work_dir/404.html
 
 robots_status="$(request /robots.txt "$work_dir/robots.txt" "$work_dir/robots.headers")"
 [ "$robots_status" = '200' ] || { echo "robots.txt returned HTTP $robots_status." >&2; exit 1; }
+final_headers "$work_dir/robots.headers" "$work_dir/robots.final.headers"
+require_header '^content-type:[[:space:]]*text/plain([;[:space:]]|$)' "$work_dir/robots.final.headers"
 grep -Eq '^User-agent: \*$' "$work_dir/robots.txt" || { echo 'robots.txt lacks User-agent: *.' >&2; exit 1; }
 grep -Eq '^Allow: /$' "$work_dir/robots.txt" || { echo 'robots.txt lacks Allow: /.' >&2; exit 1; }
 

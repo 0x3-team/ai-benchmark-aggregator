@@ -20,10 +20,11 @@ function assertPinnedActions(contents, label) {
 }
 
 export async function verifyPagesWorkflows() {
-  const [deploy, monitor, smoke, packageJson, packageLock] = await Promise.all([
+  const [deploy, monitor, smoke, verify, packageJson, packageLock] = await Promise.all([
     workflow("deploy-cloudflare-pages.yml"),
     workflow("manual-pages-smoke.yml"),
     readFile(resolve(repoRoot, "scripts", "smoke-pages-deployment.sh"), "utf8"),
+    workflow("verify.yml"),
     readFile(resolve(repoRoot, "package.json"), "utf8"),
     readFile(resolve(repoRoot, "package-lock.json"), "utf8"),
   ]);
@@ -45,6 +46,8 @@ export async function verifyPagesWorkflows() {
   assert.match(deploy, /src\/data\/official\/release-artifact\.json/);
   assert.match(deploy, /src\/data\/official\/release-authorization\.json/);
   assert.match(deploy, /scripts\/verify-governed-release-composition\.mjs/);
+  assert.match(deploy, /name: Set up Node[\s\S]*node-version: '22'/);
+  assert.match(verify, /node-version: '20'/);
   assert.doesNotMatch(deploy, /^\s*pull_request:\s*$/m);
   assert.match(deploy, /name: cloudflare-pages-production/);
   assert.match(deploy, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
@@ -57,6 +60,10 @@ export async function verifyPagesWorkflows() {
   assert.match(deploy, /npx --no-install wrangler pages deploy dist/);
   assert.doesNotMatch(deploy, /npx --yes|wrangler@/);
   assert.match(deploy, /--commit-hash "\$COMMIT_SHA"/);
+  assert.match(deploy, /Cloudflare Pages project must be a Direct Upload project without a Git source/);
+  assert.match(deploy, /https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/\$CLOUDFLARE_ACCOUNT_ID\/pages\/projects\/\$CLOUDFLARE_PAGES_PROJECT/);
+  assert.match(deploy, /\.result\.source\? == null/);
+  assert.doesNotMatch(deploy, /echo[^\n]*project_json/);
   assert.match(deploy, /deployment_url=/);
   assert.match(deploy, /smoke-pages-deployment\.sh/);
   for (const command of [
@@ -86,8 +93,11 @@ export async function verifyPagesWorkflows() {
   assert.match(monitor, /--request PATCH/);
   assert.match(monitor, /--request POST/);
   assert.match(monitor, /\.title == \$title/);
+  assert.match(monitor, /github-actions\[bot\]/);
+  assert.match(monitor, /pages-smoke-workflow-owned/);
+  assert.match(monitor, /contains\(\$marker\)/);
   assert.match(monitor, /gh api --paginate/);
-  assert.match(monitor, /printf -v body '%s\\n\\n- Run: %s\\n- Target: %s\\n- Commit: %s\\n\\n%s'/);
+  assert.match(monitor, /printf -v body '%s\\n\\n- Run: %s\\n- Target: %s\\n- Commit: %s\\n\\n%s\\n%s'/);
   assert.doesNotMatch(monitor, /body="\$\(cat <<EOF/);
   assert.doesNotMatch(monitor, /\n[ \t]+- (Run|Target|Commit):/);
   assert.doesNotMatch(monitor, /labels=|labels:/);
@@ -99,6 +109,7 @@ export async function verifyPagesWorkflows() {
   assert.match(smoke, /--proto '=https'/);
   assert.doesNotMatch(smoke, /--location|--fail-with-body/);
   assert.match(smoke, /final_headers/);
+  assert.match(smoke, /Root response has enforcing Content-Security-Policy before HOST-03 evidence/);
   for (const requiredCheck of [
     "request /",
     "pages-smoke-not-found",
@@ -109,12 +120,16 @@ export async function verifyPagesWorkflows() {
     "x-frame-options",
     "permissions-policy",
     "content-security-policy",
+    "content-security-policy-report-only",
     "content-type:[[:space:]]*text\/html",
     "request /favicon.svg",
     "image\/svg\\\+xml",
     "request /social-preview.png",
     "image\/png",
     "89504e470d0a1a0a",
+    "text/plain",
+    "x-robots-tag:.*noindex",
+    "Canonical host root response must not be noindexed",
   ]) {
     assert.ok(smoke.includes(requiredCheck), `post-deploy smoke script must check ${requiredCheck}`);
   }

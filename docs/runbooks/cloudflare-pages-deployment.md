@@ -25,7 +25,10 @@ an automatic trigger as a substitute for the governed release boundary.
    values in source, logs, issue bodies, or repository variables.
 2. Limit the Cloudflare token to the intended account and Pages project with
    only the permission needed to deploy Pages. Confirm the account and project
-   outside this repository before granting the environment access.
+   outside this repository before granting the environment access. The Pages
+   project must be a Direct Upload project with no Git source or automatic
+   integration. The workflow queries its project metadata immediately before
+   deployment and fails closed when `result.source` is present.
 3. In GitHub Actions settings, keep workflow permissions at their restrictive
    default. The manual smoke workflow needs `issues: write` only when an owner
    explicitly permits it. Create `cloudflare-pages-monitoring` with required
@@ -49,12 +52,21 @@ root `200`, a real junk-route `404`, `robots.txt`, the expected canonical URL,
 required headers and content types, favicon content type, and social-preview
 PNG content type and magic bytes. It does not follow redirects.
 
+The final `robots.txt` response must be `text/plain`. For a Pages preview host,
+the final root response must carry `X-Robots-Tag: noindex`; on
+`benchmark.0x3.dev`, that same root noindex value is rejected. The final root
+response must retain
+`Content-Security-Policy-Report-Only` and must not contain enforcing
+`Content-Security-Policy` until HOST-03 provides the required live evidence.
+
 No auto-rollback exists. A failed deployment or smoke check must be investigated
 before another production action. The manual smoke workflow repeats the same
 checks against an owner-supplied allowed HTTPS origin. On failure it creates or
-updates the one open issue with the exact Pages-smoke title, without depending
-on a pre-existing label; it never writes an unvalidated URL into that issue. It
-neither deploys nor rolls back anything.
+updates only the one open Pages-smoke issue with the exact title, the
+`github-actions[bot]` author, and its hidden workflow-owned marker. A
+same-title user issue is never overwritten; no pre-existing label is required,
+and no unvalidated URL reaches the issue body. It neither deploys nor rolls
+back anything.
 
 ## Manual rollback to a prior green commit
 
