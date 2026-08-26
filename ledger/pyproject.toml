@@ -20,11 +20,12 @@ dependencies = [
   "beautifulsoup4>=4.12",
   "lxml>=5.0",
   "pyarrow>=23.0.1,<24",
+  "jsonschema>=4.23,<5",
+  "rfc3339-validator>=0.1.4,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "jsonschema>=4.23,<5",
   "pytest>=8.0",
 ]
 
