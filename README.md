@@ -11,7 +11,7 @@ A single-page **AI model benchmark comparison dashboard** with a real-only publi
 | **Awaiting publication** | `src/data/official/export.unavailable.json` | Shows no models, benchmarks, or scores while release gates remain incomplete |
 | **Official (Ledger)** | Future governed ledger release artifact | Shows only an explicitly approved, immutable release |
 
-> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export, test fixture, or sample artifact is not an Official release artifact. The future v2 artifact parser is deliberately dormant until REL-05 provides a separately governed authorization that pins an immutable artifact and its digest. Until then, the production provider receives an immutable empty snapshot; a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
+> **Trust boundary:** Ledger stores *claims* ("source X reported score Z"). UI rankings/averages are **presentation-only** — never persisted as official claims. A local generated export, test fixture, or sample artifact is not an Official release artifact. The v2 activation seam requires canonical artifact bytes plus a separately governed external authorization that exactly pins the artifact ID, digest, approval decision, and policy. The repository supplies neither, so the production provider receives an immutable empty snapshot; a future governed release will show its artifact, approval, timestamp, and policy metadata without claiming the UI independently verifies scores.
 
 ### Future governed score evidence
 
@@ -263,6 +263,7 @@ routes. See the [safe-fetch runbook](docs/runbooks/source-certification-and-safe
 | ADR-008 | Continuous Collection Contracts | Inert source, identity, schedule, incident, and notification boundaries before runtime/persistence work |
 | ADR-009 | Operational Persistence | Durable operational evidence and explicit live-disabled runtime composition on fresh/disposable targets; service/provider activation remains gated |
 | ADR-010 | Provider-neutral Recovery Evidence | Immutable cycle/database/object checkpoints, measured new-target receipts, and explicit non-claims for provider/RPO/RTO/cutover |
+| ADR-011 | Vendor-reported Claims and Release Authorization | Proposed trust-class distinction plus an exact external v2 release pin; no source or release is authorized |
 
 See `docs/adr/` for full records.
 

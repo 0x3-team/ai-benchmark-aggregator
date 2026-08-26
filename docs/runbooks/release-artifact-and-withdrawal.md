@@ -1,6 +1,6 @@
 # Release artifact and withdrawal runbook
 
-**Status:** Procedure design — release-artifact builder and Official publication are disabled
+**Status:** Procedure design — pure candidate builder exists; artifact persistence, authorization, and Official publication are disabled
 
 ## State taxonomy
 
@@ -26,6 +26,13 @@
 4. The artifact calculation is deterministic and records canonical digest,
    artifact ID, policy version, approval decision, timestamp, source manifest,
    and frontend commit/build identity.
+
+The current `ledger.app.export.official_release` candidate is deliberately
+short of these operational preconditions. It has no output path or durable
+record writer and requires explicit public display/evidence metadata because
+the eligible-feed contract does not own those fields. Its output is not
+authorized unless a separately governed external record exactly pins it; no
+such record or v2 artifact is tracked.
 
 ## Prohibited shortcuts
 
