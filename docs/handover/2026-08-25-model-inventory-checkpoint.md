@@ -96,3 +96,19 @@ model-discovery outputs from this slice.
 
 No push, deploy, database migration, source certification, or production
 operation is part of this checkpoint.
+
+## Post-checkpoint push receipt
+
+The reviewed checkpoint was committed and pushed after local validation:
+
+- Commit: `4bbc495` (`chore: checkpoint model inventory and remediation`)
+- Remote: `origin/main`
+- Push result: accepted by GitHub
+- Deployment: none
+- Database migration: none
+- Source certification: none
+- Official publication: none
+
+GitHub reported three Dependabot vulnerabilities on the default branch (two
+high and one moderate). CI/live acceptance remains separate from this push and
+must be checked before release decisions.
