@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 /**
  * Static containment guard for all frontend-only fixtures.
  *
- * `src/lib/scaleFixtures.ts` builds large synthetic datasets for tests only.
- * It must never become app or Official input, so this suite proves that:
+ * `src/lib/scaleFixtures.ts` and `src/data/testFixtures.ts` supply tests only.
+ * They must never become app or Official input, so this suite proves that:
  *
  * 1. no runtime (non-test) module anywhere under src imports it;
  * 2. the runtime module graph rooted at `src/main.tsx` cannot reach it;
@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const FIXTURE_MODULE_NAME = "scaleFixtures";
+const FIXTURE_MODULE_NAMES = ["scaleFixtures", "testFixtures"] as const;
 const TEST_MODULE_RE = /\.(?:test|testFixtures)\.(ts|tsx)$/;
 const RESOLVE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".json"];
 
@@ -46,6 +46,15 @@ function importSpecifiers(filePath: string): string[] {
     if (specifier) specifiers.push(specifier);
   }
   return specifiers;
+}
+
+function isFixtureSpecifier(specifier: string): boolean {
+  return (
+    specifier.includes(".testFixtures") ||
+    FIXTURE_MODULE_NAMES.some((name) =>
+      new RegExp(`(?:^|/)${name}(?:\\.[tj]sx?)?$`).test(specifier)
+    )
+  );
 }
 
 function resolveSpecifier(specifier: string, fromFile: string): string | null {
@@ -97,10 +106,7 @@ describe("scaleFixtures runtime containment", () => {
     for (const file of listSourceFiles(SRC_ROOT)) {
       if (TEST_MODULE_RE.test(file)) continue;
       for (const specifier of importSpecifiers(file)) {
-        if (
-          specifier.includes(FIXTURE_MODULE_NAME) ||
-          specifier.includes(".testFixtures")
-        ) {
+        if (isFixtureSpecifier(specifier)) {
           offenders.push(`${path.relative(SRC_ROOT, file)} imports ${specifier}`);
         }
       }
@@ -112,8 +118,19 @@ describe("scaleFixtures runtime containment", () => {
     const graph = runtimeModuleGraph(path.join(SRC_ROOT, "main.tsx"));
     // Sanity: the walk must really have traversed the app, not stalled.
     expect(graph.size).toBeGreaterThan(40);
-    const reachable = [...graph].filter((file) => file.includes(FIXTURE_MODULE_NAME));
+    const forbiddenFixturePaths = [
+      path.join(SRC_ROOT, "lib/scaleFixtures.ts"),
+      path.join(SRC_ROOT, "data/testFixtures.ts"),
+    ];
+    const reachable = [...graph].filter((file) => forbiddenFixturePaths.includes(file));
     expect(reachable).toEqual([]);
+  });
+
+  it("detects the real testFixtures import specifier", () => {
+    expect(isFixtureSpecifier("./data/testFixtures")).toBe(true);
+    expect(isFixtureSpecifier("../data/testFixtures.ts")).toBe(true);
+    expect(isFixtureSpecifier("../lib/scaleFixtures")).toBe(true);
+    expect(isFixtureSpecifier("./data/dataset")).toBe(false);
   });
 
   it("keeps removed catalogs absent and the sample artifact outside the runtime graph", () => {
