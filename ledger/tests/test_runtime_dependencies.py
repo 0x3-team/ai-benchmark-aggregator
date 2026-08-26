@@ -111,7 +111,16 @@ class ScriptedTransport:
         }
         self.calls: list[tuple[str, dict[str, str], float]] = []
 
-    def request(self, *, url: str, headers, timeout_seconds: float) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+    def request(
+        self,
+        *,
+        url: str,
+        headers,
+        timeout_seconds: float,
+        resolved_addresses: tuple[str, ...],
+        max_bytes: int,
+    ) -> FetchTransportResponse:  # type: ignore[no-untyped-def]
+        _ = resolved_addresses, max_bytes
         self.events.append("transport")
         self.calls.append((url, dict(headers), timeout_seconds))
         return self.responses[url]
@@ -490,7 +499,7 @@ def test_rate_limiter_precedes_every_transport_request_deterministically() -> No
     assert limiter.urls == [URL, REDIRECT_URL]
     assert [call[0] for call in transport.calls] == [URL, REDIRECT_URL]
     assert all(call[1]["User-Agent"] == "injected-agent/1" for call in transport.calls)
-    assert all(call[2] == 7.0 for call in transport.calls)
+    assert all(0 < call[2] <= 7.0 for call in transport.calls)
 
 
 def test_injected_timeout_rejects_plan_substitution_before_runtime_side_effects() -> None:
