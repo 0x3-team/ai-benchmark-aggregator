@@ -104,14 +104,13 @@ test("index.html declares production metadata and native favicon assets", async 
   assert.equal(socialPreview.readUInt32BE(20), 630, "social preview must be 630px tall");
 });
 
-test("_headers contains enforcing CSP, report-only companion, and preview directives", async () => {
+test("_headers contains report-only CSP, no enforcing policy, and preview directives", async () => {
   const headers = await textFile("public/_headers");
   for (const expected of [
     "X-Content-Type-Options: nosniff",
     "Referrer-Policy: strict-origin-when-cross-origin",
     "X-Frame-Options: DENY",
     "Permissions-Policy:",
-    "Content-Security-Policy:",
     "Content-Security-Policy-Report-Only:",
     "https://:project.pages.dev/*",
     "https://:version.:project.pages.dev/*",
@@ -120,13 +119,17 @@ test("_headers contains enforcing CSP, report-only companion, and preview direct
     assert.ok(headers.includes(expected), `_headers is missing ${expected}`);
   }
   assert.doesNotMatch(headers, /^\s*Strict-Transport-Security:/im, "HSTS needs domain/deployment proof");
-  assert.match(headers, /^\s*Content-Security-Policy:\s*[^\n]*script-src 'self'(?:;|\s*$)/im);
-  assert.match(headers, /^\s*Content-Security-Policy-Report-Only:\s*[^\n]*script-src 'self'(?:;|\s*$)/im);
   assert.doesNotMatch(
     headers,
-    /^\s*Content-Security-Policy:\s*[^\n]*script-src 'self' 'unsafe-inline'/im,
-    "enforcing CSP must not permit inline scripts",
+    /^\s*Content-Security-Policy:/im,
+    "enforcing CSP must remain staged until provider/browser evidence",
   );
+  assert.match(
+    headers,
+    /^\s*Content-Security-Policy-Report-Only:\s*default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'\s*$/im,
+    "report-only CSP must retain the complete policy",
+  );
+  assert.match(headers, /HOST-03 keeps enforcing CSP and HSTS staged in comments(?:\s+#)?\s+only/i);
   assert.doesNotMatch(headers, /_worker\.js|functions\//i, "static Pages lane must not add a Worker");
 });
 
