@@ -105,6 +105,11 @@ def test_public_skills_keep_route_neutral_acceptance_contracts() -> None:
 
     assert "owner inspects every delegated result" in quality
     assert re.search(
+        r"record the routing decision in the\s+orchestration system before "
+        r"every delegation",
+        quality,
+    )
+    assert re.search(
         r"reviewer whose underlying model vendor\s+differs from the author's "
         r"underlying model vendor",
         quality,

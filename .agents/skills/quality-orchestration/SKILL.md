@@ -24,18 +24,21 @@ repository.
    entry, supported effort, tool access, harness identity, rate or quota limits,
    and cost class. A similar subscription or API route is not equivalent until
    these gates pass and the lane change is recorded.
-4. Pin a supported effort for every route. If effort control is unavailable,
+4. After the eligibility gates pass, record the routing decision in the
+   orchestration system before every delegation, including when the selected
+   route is unchanged. Record a lane change separately.
+5. Pin a supported effort for every route. If effort control is unavailable,
    record that it is not applicable and record the route's effective default.
-5. Use the active session's declared fallback order. Settle and record every
+6. Use the active session's declared fallback order. Settle and record every
    failed, stale, unavailable, or ineligible predecessor. If no declared matrix
    exists, do not invent one.
-6. For integrity-critical work, use a reviewer whose underlying model vendor
+7. For integrity-critical work, use a reviewer whose underlying model vendor
    differs from the author's underlying model vendor. This rule overrides any
    mechanical-edit exemption. No route reviews its own output.
-7. The owner inspects every delegated result and records one disposition:
+8. The owner inspects every delegated result and records one disposition:
    accepted, reworked, rejected, or blocked. A worker statement or diff is not
    acceptance evidence.
-8. Rerun the decisive repository checks after integration and issue a final
+9. Rerun the decisive repository checks after integration and issue a final
    agent-usage receipt. Keep operational routing evidence internal.
 
 ## Cost and receipt rules
