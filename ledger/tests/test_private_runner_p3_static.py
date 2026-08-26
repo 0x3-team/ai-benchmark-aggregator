@@ -51,7 +51,13 @@ def test_private_runner_workflow_has_explicit_auth_and_data_plane_fences() -> No
     assert text.count("LEDGER_DATA_REPOSITORY_TOKEN: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}") == 2
     assert text.count("${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}") == 3
     assert "GIT_ASKPASS" in text
-    assert "git -c core.hooksPath=/dev/null -C \"$LEDGER_DATA_DIR\" push origin HEAD" in text
+    assert 'destination="https://github.com/${LEDGER_DATA_REPOSITORY}.git"' in text
+    assert "push \"$destination\" HEAD:refs/heads/main" in text
+    assert "push origin" not in text
+    assert "GIT_CONFIG_NOSYSTEM=1" in text
+    assert "GIT_CONFIG_KEY_1=credential.helper" in text
+    assert "GIT_CONFIG_KEY_2=http.https://github.com/.extraheader" in text
+    assert "-c core.hooksPath=/dev/null" in text
 
     prepare = text.split("      - name: Prepare immutable checkpoint and snapshot artifacts only", 1)[1].split(
         "      - name: Push prepared immutable artifacts", 1
@@ -78,14 +84,17 @@ def test_private_runner_persists_only_additive_checkpoint_and_snapshot_artifacts
     assert "nested repository" in runner
     assert 'state == b"??"' in runner
     assert 'state == b"A "' in runner
+    assert "--ignored=matching" in runner
+    assert "artifact tree and staged index differ" in runner
+    assert '"hash-object", "--no-filters"' in runner
 
 
 def test_live_dependency_candidate_is_explicit_but_h4_blocks_execution() -> None:
     text = RUNNER.read_text(encoding="utf-8")
     assert "PinnedHTTPSFetchTransport()" in text
     assert "RuntimeCapability.NETWORK_FETCH" in text
-    assert "def pinned_network_dependencies(*, rate_limiter: RateLimiter)" in text
-    assert "def ingest_certified_sources(session: object, *, rate_limiter: RateLimiter)" in text
+    assert "rate_limiter: RateLimiter, data_dir: Path" in text
+    assert "storage_factory=LocalSnapshotStorageFactory(root / \"snapshots\")" in text
     assert "DenyAllP3RateLimiter" in text
     assert "P3SerialRateLimiter" not in text
     assert "def verify_fresh_or_current_database" in text
@@ -98,11 +107,19 @@ def test_live_dependency_candidate_is_explicit_but_h4_blocks_execution() -> None
     assert "Refusing unbound ingestion" in text
 
 
-def test_importable_live_helpers_require_a_real_caller_supplied_limiter() -> None:
+def test_importable_live_helpers_require_a_real_caller_supplied_limiter(tmp_path: Path) -> None:
+    data_dir = _data_repo(tmp_path)
     with pytest.raises(TypeError):
         private_runner_p3.pinned_network_dependencies()  # type: ignore[call-arg]
     with pytest.raises(RuntimeDependencyError):
-        private_runner_p3.pinned_network_dependencies(rate_limiter=NoOpRateLimiter())
+        private_runner_p3.pinned_network_dependencies(
+            rate_limiter=NoOpRateLimiter(), data_dir=data_dir
+        )
+    dependencies = private_runner_p3.pinned_network_dependencies(
+        rate_limiter=private_runner_p3.DenyAllP3RateLimiter(), data_dir=data_dir
+    )
+    assert dependencies.storage_factory is not None
+    assert dependencies.storage_factory.root == data_dir / "snapshots"
     with pytest.raises(private_runner_p3.PrivateRunnerBlockedError, match="refuses every fetch"):
         private_runner_p3.DenyAllP3RateLimiter().acquire(
             source_id="source",
@@ -113,9 +130,11 @@ def test_importable_live_helpers_require_a_real_caller_supplied_limiter() -> Non
 
 def test_repeated_failure_issue_requires_two_prior_consecutive_failures() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    assert "--limit 4 --json databaseId,conclusion" in text
-    assert "select(.databaseId != $GITHUB_RUN_ID)][:2]" in text
-    assert 'all(.[]; .conclusion == \\"failure\\")' in text
+    assert "name: private-ledger-run" in text
+    assert "--limit 20 --json databaseId" in text
+    assert 'select(.name == "private-ledger-run")' in text
+    assert 'skipped|absent)' in text
+    assert "select(.databaseId != $GITHUB_RUN_ID)" in text
     assert 'if [ "$prior_failures" -lt 2 ]' in text
 
 
@@ -134,6 +153,7 @@ def _git(data_dir: Path, *args: str) -> None:
 
 
 def _data_repo(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     _git(tmp_path, "init")
     _git(tmp_path, "config", "user.name", "test")
     _git(tmp_path, "config", "user.email", "test@example.invalid")
@@ -175,6 +195,28 @@ def test_data_repository_containment_rejects_symlink_and_nested_repo(tmp_path: P
     assert "DATA_REPOSITORY_CONTAINMENT" in nested_repo.stderr
 
 
+def test_data_repository_containment_rejects_a_symlinked_supplied_root(tmp_path: Path) -> None:
+    data_dir = _data_repo(tmp_path / "data")
+    alias = tmp_path / "alias"
+    alias.symlink_to(data_dir, target_is_directory=True)
+    blocked = _candidate(alias, "pre-add")
+    assert blocked.returncode == 2
+    assert "DATA_REPOSITORY_CONTAINMENT" in blocked.stderr
+
+
+def test_data_repository_containment_rejects_ignored_artifact(tmp_path: Path) -> None:
+    data_dir = _data_repo(tmp_path)
+    (data_dir / ".gitignore").write_text("snapshots/ignored\n", encoding="utf-8")
+    _git(data_dir, "add", ".gitignore")
+    _git(data_dir, "commit", "-m", "ignore artifact")
+    ignored = data_dir / "snapshots" / "ignored"
+    ignored.parent.mkdir()
+    ignored.write_text("ignored", encoding="utf-8")
+    blocked = _candidate(data_dir, "pre-add")
+    assert blocked.returncode == 2
+    assert "ignored artifact" in blocked.stderr
+
+
 @pytest.mark.parametrize("relative", ["snapshots/.git/object", "recovery/checkpoints/.gitmodules/object"])
 def test_data_repository_containment_rejects_git_metadata_path_components(
     tmp_path: Path, relative: str
@@ -206,3 +248,17 @@ def test_data_repository_containment_rejects_tracked_modification_and_staged_sym
     staged_link = _candidate(data_dir, "staged-adds")
     assert staged_link.returncode == 2
     assert "DATA_REPOSITORY_CONTAINMENT" in staged_link.stderr
+
+
+def test_staged_artifacts_require_exact_index_coverage_and_raw_bytes(tmp_path: Path) -> None:
+    data_dir = _data_repo(tmp_path)
+    artifact = data_dir / "snapshots" / "object"
+    artifact.parent.mkdir()
+    artifact.write_bytes(b"worktree bytes")
+    _git(data_dir, "add", "snapshots")
+    assert _candidate(data_dir, "staged-adds").returncode == 0
+
+    _git(data_dir, "rm", "--cached", "snapshots/object")
+    blocked = _candidate(data_dir, "staged-adds")
+    assert blocked.returncode == 2
+    assert "DATA_REPOSITORY_CONTAINMENT" in blocked.stderr

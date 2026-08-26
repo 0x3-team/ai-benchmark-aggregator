@@ -26,6 +26,7 @@ concurrency:
 
 jobs:
   private-ledger-run:
+    name: private-ledger-run
     if: (github.event_name == 'workflow_dispatch' && inputs.activate_private_runner == true && github.ref == 'refs/heads/main') || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     # Owners must configure this environment with required reviewers before
@@ -117,10 +118,16 @@ jobs:
         if: success()
         env:
           LEDGER_DATA_DIR: ${{ github.workspace }}/.private/ledger-data
+          LEDGER_DATA_REPOSITORY: ${{ vars.LEDGER_DATA_REPOSITORY }}
           LEDGER_DATA_REPOSITORY_TOKEN: ${{ secrets.LEDGER_DATA_REPOSITORY_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ ! "$LEDGER_DATA_REPOSITORY" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || [[ "$LEDGER_DATA_REPOSITORY" == *..* ]]; then
+            echo "::error::Private data repository identifier is invalid."
+            exit 2
+          fi
+          destination="https://github.com/${LEDGER_DATA_REPOSITORY}.git"
           askpass="$(mktemp)"
           trap 'rm -f "$askpass"' EXIT
           cat > "$askpass" <<'EOF'
@@ -131,7 +138,18 @@ jobs:
           esac
           EOF
           chmod 700 "$askpass"
-          GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 git -c core.hooksPath=/dev/null -C "$LEDGER_DATA_DIR" push origin HEAD
+          GIT_CONFIG_NOSYSTEM=1 \
+            GIT_CONFIG_GLOBAL=/dev/null \
+            GIT_CONFIG_COUNT=3 \
+            GIT_CONFIG_KEY_0=core.hooksPath \
+            GIT_CONFIG_VALUE_0=/dev/null \
+            GIT_CONFIG_KEY_1=credential.helper \
+            GIT_CONFIG_VALUE_1= \
+            GIT_CONFIG_KEY_2=http.https://github.com/.extraheader \
+            GIT_CONFIG_VALUE_2= \
+            GIT_ASKPASS="$askpass" \
+            GIT_TERMINAL_PROMPT=0 \
+            git -c core.hooksPath=/dev/null -C "$LEDGER_DATA_DIR" push "$destination" HEAD:refs/heads/main
 
   repeated-failure-issue:
     needs: [private-ledger-run]
@@ -154,7 +172,23 @@ jobs:
               exit 2
               ;;
           esac
-          prior_failures="$(gh run list --workflow private-ledger-recheck.yml --limit 4 --json databaseId,conclusion --jq "[.[] | select(.databaseId != $GITHUB_RUN_ID)][:2] | if length == 2 and all(.[]; .conclusion == \"failure\") then 2 else 0 end")"
+          prior_failures=0
+          while IFS= read -r run_id; do
+            [ -n "$run_id" ] || continue
+            job_conclusion="$(gh run view "$run_id" --json jobs --jq '[.jobs[] | select(.name == "private-ledger-run") | .conclusion] | if length == 1 then .[0] else "absent" end')"
+            case "$job_conclusion" in
+              failure)
+                prior_failures=$((prior_failures + 1))
+                [ "$prior_failures" -eq 2 ] && break
+                ;;
+              skipped|absent)
+                continue
+                ;;
+              *)
+                break
+                ;;
+            esac
+          done < <(gh run list --workflow private-ledger-recheck.yml --limit 20 --json databaseId --jq ".[] | select(.databaseId != $GITHUB_RUN_ID) | .databaseId")
           if [ "$prior_failures" -lt 2 ]; then
             echo "Fewer than three consecutive private-runner failures; issue threshold has not been reached."
             exit 0
