@@ -48,6 +48,8 @@ labelled as Official claims.
 
 ### Frontend (React SPA)
 
+Requires Node.js `^20.19.0 || ^22.13.0 || >=24.0.0` for the Vite 8 and jsdom toolchain.
+
 ```bash
 npm install
 npm run dev          # Vite dev server

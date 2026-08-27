@@ -23,17 +23,24 @@ cd ledger && python scripts/verify_ci_lock.py && pytest -q
 
 Run only the relevant subset first when debugging, then the complete set before acceptance.
 
-## CI billing block
+## CI diagnosis
 
-GitHub Actions on this private repo intermittently refuses to start jobs: runs fail in 2–6 seconds, upload no logs, and each failed check-run carries the annotation "The job was not started because recent account payments have failed or your spending limit needs to be increased." Reruns cannot fix this state.
+This repository is public and must remain public. Never change visibility as a
+CI workaround.
 
-Standing workaround (owner-approved):
-
-1. Confirm the signature from the check-run annotations, not from the run list.
-2. Scan for committed secrets before any visibility change: tracked files, history filenames, and high-signal patterns. Never flip a repository that fails the scan.
-3. Switch the repository to public (repo Settings → General → Danger Zone). Public repos run standard GitHub-hosted runners on free minutes. Visibility changes need repo admin, which agent tokens lack — a human flips it.
-4. Rerun the failed run (or push) and verify the checks go green.
-5. Switch the repository back to private, and record both flips plus the CI result in the receipt.
+1. Pin the exact candidate commit SHA. Read the workflow run, job, check-run,
+   annotation, and event evidence before classifying the failure.
+2. Distinguish an absent run from queued, runner, workflow, account, and test
+   failures. Diagnose the exact state instead of treating every missing check as
+   a code failure.
+3. Rerun the same candidate when the workflow supports it. A push creates a new
+   candidate; explicitly promote and record that SHA before acceptance.
+4. Require the complete named checks on the exact candidate. Record the run ID,
+   event, SHA, job conclusions, and any cancelled redundant run.
+5. If a future policy change proposes different visibility, stop. It needs a
+   separately reviewed, per-use owner decision that audits reachable Git
+   history, retained Actions logs and artifacts, public-fork persistence,
+   secrets, and runner billing. That policy change is outside this skill.
 
 ## Acceptance rules
 
