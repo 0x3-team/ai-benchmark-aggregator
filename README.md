@@ -72,7 +72,9 @@ portless get ai-benchmark-aggregator  # print the actual URL; do not guess it
 
 This is local development only. The returned `.localhost` URL is not a
 deployment, preview, production, or public-sharing URL. Do not use
-`--force`, LAN or tunnel modes, or change the tracked CI/deploy contracts.
+`--force`, `--wildcard`, LAN or tunnel modes, service installation,
+certificate trust, or hosts synchronization. Do not change the tracked
+CI/deploy contracts.
 
 ### Ledger (Python CLI)
 
