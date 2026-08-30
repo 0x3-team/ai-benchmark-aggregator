@@ -59,6 +59,21 @@ npm run test         # vitest unit tests
 npm run build        # tsc -b && vite build (must pass)
 ```
 
+### Stable local URL (opt-in)
+
+The direct `npm run dev` command remains the rollback path. For a stable,
+worktree-safe local origin, use the opt-in command from a shell with the
+user-global Portless wrapper installed:
+
+```bash
+npm run dev:portless
+portless get ai-benchmark-aggregator  # print the actual URL; do not guess it
+```
+
+This is local development only. The returned `.localhost` URL is not a
+deployment, preview, production, or public-sharing URL. Do not use
+`--force`, LAN or tunnel modes, or change the tracked CI/deploy contracts.
+
 ### Ledger (Python CLI)
 
 ```bash

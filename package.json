@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
+    "dev:portless": "portless run --name ai-benchmark-aggregator vite",
     "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build && node ./scripts/build-provenance.mjs create",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",

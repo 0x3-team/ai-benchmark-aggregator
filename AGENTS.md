@@ -79,3 +79,10 @@ The ledger does **not** run benchmarks and does **not** recalculate scores.
 
 - Before delegating project work across local model harnesses, record the routing decision and review every delegated result.
 - Treat local operational evidence as internal only; it is never an official benchmark claim or frontend data source.
+
+## Stable local development origin
+
+- `npm run dev:portless` is an opt-in local-development path. Keep `npm run dev` unchanged as the direct fallback.
+- Use the URL returned by `portless get ai-benchmark-aggregator`; never guess a port or hostname.
+- Do not use Portless `--force`, LAN, wildcard, tunnel, service, trust, or hosts-sync modes in this repository.
+- A Portless page is local runtime evidence only. It is not CI, Preview, deployment, production, or official benchmark evidence.
